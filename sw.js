@@ -1,5 +1,5 @@
 
-const CACHE='mva-record-keeper-v2';
+const CACHE='mva-record-keeper-v3';
 const ASSETS=['./','./index.html','./styles.css','./app.js','./manifest.webmanifest','./mva-logo-32.png','./mva-logo-180.png','./mva-logo-192.png','./mva-logo-512.png'];
 self.addEventListener('install',e=>e.waitUntil(caches.open(CACHE).then(c=>c.addAll(ASSETS))));
 self.addEventListener('activate',e=>e.waitUntil(caches.keys().then(keys=>Promise.all(keys.filter(k=>k!==CACHE).map(k=>caches.delete(k))))));
