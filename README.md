@@ -1,26 +1,15 @@
 # MVA Record Keeper
 
-A private, installable web app for motor vehicle accident recovery and claim records.
+A private, installable recovery and claim record keeper. Data is stored locally on the device.
 
-## Upload to GitHub
-Extract the ZIP, select every file inside the folder, and upload them to the repository root.
+## Updated recovery log
 
-The repository main page should show:
-- index.html
-- app.js
-- styles.css
-- manifest.webmanifest
-- sw.js
-- vercel.json
-- logo files
+- Simple daily notes for milestones and limitations
+- Separate injury list
+- Pain score, Better/Same/Worse and optional notes for each injury
+- Individual history for every injury
+- Injury history included in the printable lawyer report
 
-There are deliberately no src or public folders, so GitHub cannot flatten the project incorrectly.
+## Deploy
 
-## Deploy to Vercel
-Import the GitHub repository.
-- Framework preset: Other
-- Root directory: blank
-- Build command: leave blank
-- Output directory: leave blank
-
-Then deploy.
+Upload every file in this folder to the root of the GitHub repository, replacing the existing files. Vercel will redeploy automatically.

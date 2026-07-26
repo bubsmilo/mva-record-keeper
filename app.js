@@ -12,7 +12,7 @@ const daysBetween=(a,b)=>Math.max(0,Math.floor((new Date(b)-new Date(a))/(864000
 
 const defaults={
   profile:{accidentDate:today(),name:'',lawyer:'',claimNumber:''},
-  journal:[], medications:[], doses:[], receipts:[], appointments:[],
+  journal:[], injuries:[], injuryLogs:[], medications:[], doses:[], receipts:[], appointments:[],
   tasks:[], questions:[], notes:[], timeline:[]
 };
 let state=load();
@@ -28,7 +28,7 @@ function nav(p){page=p;modal=null;render();window.scrollTo(0,0)}
 
 function appShell(content,title,subtitle=''){
   const items=[
-    ['dashboard','🏠','Dashboard'],['journal','📖','Journal'],['medications','💊','Medications'],
+    ['dashboard','🏠','Dashboard'],['journal','📖','Journal'],['injuries','🦴','Injuries'],['medications','💊','Medications'],
     ['receipts','🧾','Receipts'],['appointments','🩺','Appointments'],['timeline','🕒','Timeline'],
     ['tasks','✅','Tasks'],['notes','📝','Notes & Questions'],['reports','📄','Reports'],['settings','⚙️','Settings']
   ];
@@ -42,7 +42,7 @@ function appShell(content,title,subtitle=''){
       <header class="topbar"><div><h1>${esc(title)}</h1><p>${esc(subtitle)}</p></div><img src="./mva-logo-32.png" width="32" height="32" alt=""></header>
       ${content}
     </main>
-    <nav class="bottomNav">${items.slice(0,4).concat([['more','•••','More']]).map(i=>`<button data-nav="${i[0]}" class="${page===i[0]?'active':''}"><span>${i[1]}</span>${i[2]}</button>`).join('')}</nav>
+    <nav class="bottomNav">${[items[0],items[1],items[2],items[4],['more','•••','More']].map(i=>`<button data-nav="${i[0]}" class="${page===i[0]?'active':''}"><span>${i[1]}</span>${i[2]}</button>`).join('')}</nav>
     ${modal||''}
   </div>`;
 }
@@ -72,15 +72,38 @@ function dashboard(){
  </div>`, 'Dashboard','A clear picture of your recovery and claim records.');
 }
 
+function latestInjuryLog(injuryId){
+ return [...state.injuryLogs].filter(x=>x.injuryId===injuryId).sort((a,b)=>(b.date+b.id).localeCompare(a.date+a.id))[0];
+}
 function journal(){
  const sorted=[...state.journal].sort((a,b)=>b.date.localeCompare(a.date));
- return appShell(`<div class="toolbar"><div class="toolbarLeft"><span class="pill">${sorted.length} entries</span></div><button class="btn primary" data-add="journal">+ New entry</button></div>
- <div class="list">${sorted.length?sorted.map(j=>`<article class="card">
-  <div class="toolbar"><div><h3>${fmt(j.date)}</h3><div class="rowMeta">Pain ${j.pain||0}/10 · Sleep ${j.sleep||0}/10 · Mobility ${j.mobility||0}/10</div></div><div class="actions"><button class="iconBtn" data-edit="journal" data-id="${j.id}">Edit</button><button class="iconBtn" data-delete="journal" data-id="${j.id}">Delete</button></div></div>
-  ${j.mood?`<span class="pill">${esc(j.mood)}</span>`:''}<p>${esc(j.notes||'').replace(/\n/g,'<br>')}</p>
-  ${j.activities?`<div class="small"><strong>Activities affected:</strong> ${esc(j.activities)}</div>`:''}
+ const active=state.injuries.filter(i=>i.active!==false);
+ return appShell(`
+ <section class="card dailyIntro">
+  <div class="toolbar"><div><h2>How was your day?</h2><p class="muted">Write anything you want to remember—progress, difficulties or everyday milestones.</p></div><button class="btn primary" data-add="journal">+ Add Daily Note</button></div>
+ </section>
+ <section class="card" style="margin-top:16px"><div class="toolbar"><div><h2>Your injuries</h2><p class="muted small">Update only the injuries you need to. You do not have to complete them all every day.</p></div><button class="btn secondary" data-add="injury">+ Add Injury</button></div>
+ ${active.length?`<div class="injuryList">${active.map(i=>{const l=latestInjuryLog(i.id);return `<div class="injuryRow"><div><div class="rowTitle">${esc(i.name)}</div><div class="rowMeta">${esc(i.description||'')}${l?` · Last update ${fmt(l.date)}`:''}</div></div><div class="injuryActions">${l?`<span class="painBadge pain${Math.min(10,Number(l.pain||0))}">${l.pain}/10</span>`:''}<button class="btn secondary" data-log-injury="${i.id}">Update</button></div></div>`}).join('')}</div>`:`<div class="empty">Add your injuries once, then update them whenever something changes.</div>`}
+ </section>
+ <div class="toolbar" style="margin-top:20px"><h2 style="margin:0">Daily notes</h2><span class="pill">${sorted.length} entries</span></div>
+ <div class="list">${sorted.length?sorted.map(j=>{const logs=state.injuryLogs.filter(x=>x.date===j.date);return `<article class="card">
+  <div class="toolbar"><div><h3>${fmt(j.date)}</h3></div><div class="actions"><button class="iconBtn" data-edit="journal" data-id="${j.id}">Edit</button><button class="iconBtn" data-delete="journal" data-id="${j.id}">Delete</button></div></div>
+  <p>${esc(j.notes||'').replace(/\n/g,'<br>')}</p>
+  ${logs.length?`<div class="injurySummary">${logs.map(l=>{const i=state.injuries.find(x=>x.id===l.injuryId);return `<div><strong>${esc(i?.name||'Injury')}</strong> <span class="pill">${l.pain}/10</span>${l.change?` · ${esc(l.change)}`:''}${l.notes?`<div class="small muted">${esc(l.notes)}</div>`:''}</div>`}).join('')}</div>`:''}
   ${j.photos?.length?`<div class="photoGrid" style="margin-top:10px">${j.photos.map(p=>`<img class="photo" src="${p}">`).join('')}</div>`:''}
- </article>`).join(''):`<div class="empty">Add your first daily journal entry.</div>`}</div>`,'Daily Journal','Record symptoms, limitations, sleep, mood and recovery details.');
+ </article>`}).join(''):`<div class="empty">Add your first daily note.</div>`}</div>`,'Daily Log','A quick record of your day and each injury.');
+}
+
+function injuries(){
+ const active=state.injuries.filter(i=>i.active!==false), inactive=state.injuries.filter(i=>i.active===false);
+ return appShell(`<div class="toolbar"><div><span class="pill">${active.length} active injuries</span></div><button class="btn primary" data-add="injury">+ Add Injury</button></div>
+ <div class="list">${active.length?active.map(i=>injuryCard(i)).join(''):`<div class="empty">No injuries added yet.</div>`}</div>
+ ${inactive.length?`<h2 style="margin-top:24px">Archived injuries</h2><div class="list">${inactive.map(i=>injuryCard(i)).join('')}</div>`:''}`,'My Injuries','Keep each injury separate and view its history over time.');
+}
+function injuryCard(i){
+ const logs=[...state.injuryLogs].filter(x=>x.injuryId===i.id).sort((a,b)=>b.date.localeCompare(a.date));
+ return `<section class="card"><div class="toolbar"><div><h3>${esc(i.name)}</h3><div class="rowMeta">${esc(i.description||'')}</div></div><div class="actions"><button class="btn primary" data-log-injury="${i.id}">+ Update</button><button class="iconBtn" data-edit="injury" data-id="${i.id}">Edit</button><button class="iconBtn" data-delete="injury" data-id="${i.id}">Delete</button></div></div>
+ ${logs.length?`<div class="injuryHistory">${logs.map(l=>`<div class="historyRow"><div><strong>${fmt(l.date)}</strong>${l.notes?`<div class="small">${esc(l.notes)}</div>`:''}</div><div class="historyScore"><span class="painBadge">${l.pain}/10</span>${l.change?`<span class="small muted">${esc(l.change)}</span>`:''}<button class="iconBtn" data-edit="injuryLog" data-id="${l.id}">Edit</button><button class="iconBtn" data-delete="injuryLog" data-id="${l.id}">Delete</button></div></div>`).join('')}</div>`:`<div class="empty">No updates recorded for this injury.</div>`}</section>`;
 }
 
 function medications(){
@@ -156,10 +179,14 @@ function area(label,name,value='',span=true){return `<div class="field ${span?'s
 function selectField(label,name,options,value){return `<div class="field"><label>${label}</label><select name="${name}">${options.map(o=>`<option ${o===value?'selected':''}>${esc(o)}</option>`).join('')}</select></div>`}
 
 function openForm(type,id){
- const map={journal:'journal',medication:'medications',receipt:'receipts',appointment:'appointments',timeline:'timeline',task:'tasks',question:'questions',note:'notes'};
+ const newInjuryId=type==='injuryLog'&&String(id||'').startsWith('new:')?String(id).slice(4):'';
+ if(newInjuryId)id='';
+ const map={journal:'journal',injury:'injuries',injuryLog:'injuryLogs',medication:'medications',receipt:'receipts',appointment:'appointments',timeline:'timeline',task:'tasks',question:'questions',note:'notes'};
  const arr=state[map[type]]||[], item=id?arr.find(x=>x.id===id):{};
- let body='', title=(id?'Edit ':'Add ')+type[0].toUpperCase()+type.slice(1);
- if(type==='journal') body=`${field('Date','date',item.date||today(),'date')}${field('Pain (0-10)','pain',item.pain||0,'number','min="0" max="10"')}${field('Sleep (0-10)','sleep',item.sleep||0,'number','min="0" max="10"')}${field('Mobility (0-10)','mobility',item.mobility||0,'number','min="0" max="10"')}${selectField('Mood','mood',['Good','Okay','Low','Anxious','Frustrated'],item.mood||'Okay')}${field('Activities affected','activities',item.activities||'')}${area('Symptoms / daily notes','notes',item.notes||'')}${photoField('Journal photos','photos',item.photos||[],true)}`;
+ let body='', title=type==='injuryLog'?'Update Injury':(id?'Edit ':'Add ')+type[0].toUpperCase()+type.slice(1);
+ if(type==='journal') body=`${field('Date','date',item.date||today(),'date')}${area('How was your day?','notes',item.notes||'')}${photoField('Photo (optional)','photos',item.photos||[],true)}`;
+ if(type==='injury') body=`${field('Injury name','name',item.name||'')}${field('Short description (optional)','description',item.description||'')}${selectField('Status','active',['Active','Archived'],item.active===false?'Archived':'Active')}`;
+ if(type==='injuryLog'){const injuryId=item.injuryId||newInjuryId; const injury=state.injuries.find(x=>x.id===injuryId); body=`<div class="field span2 summaryBox"><strong>${esc(injury?.name||'Injury')}</strong><div class="small muted">Update only what you want to record today.</div></div>${field('Date','date',item.date||today(),'date')}${field('Pain level (0-10)','pain',item.pain??0,'number','min="0" max="10"')}${selectField('Compared with last update','change',['Better','Same','Worse','Not sure'],item.change||'Same')}${area('Notes (optional)','notes',item.notes||'')}${photoField('Photo (optional)','photos',item.photos||[],true)}<input type="hidden" name="injuryId" value="${esc(injuryId)}">`; }
  if(type==='medication') body=`${field('Medication name','name',item.name||'')}${field('Dose','dose',item.dose||'')}${field('Schedule','schedule',item.schedule||'')}${selectField('Status','status',['Active','Inactive'],item.active===false?'Inactive':'Active')}${area('Notes','notes',item.notes||'')}`;
  if(type==='receipt') body=`${field('Date','date',item.date||today(),'date')}${field('Amount','amount',item.amount||'','number','step="0.01" min="0"')}${field('Description','description',item.description||'')}${selectField('Category','category',['Pharmacy','Physiotherapy','Parking','Mileage','Medical supplies','Legal','Other'],item.category||'Other')}${area('Notes','notes',item.notes||'')}${photoField('Receipt photo','photo',item.photo?[item.photo]:[],false)}`;
  if(type==='appointment') body=`${field('Date','date',item.date||today(),'date')}${field('Time','time',item.time||'','time')}${field('Appointment type','type',item.type||'')}${field('Provider / clinic','provider',item.provider||'')}${field('Location','location',item.location||'')}${selectField('Status','status',['Scheduled','Completed','Cancelled'],item.status||'Scheduled')}${area('Outcome / notes','notes',item.notes||'')}`;
@@ -177,20 +204,22 @@ async function filesToData(input){return Promise.all([...input.files].map(f=>new
 async function saveForm(form){
  const type=form.dataset.type,id=form.dataset.id, fd=new FormData(form);
  const obj=Object.fromEntries(fd.entries()); obj.id=id||uid();
- if(type==='journal'){obj.pain=Number(obj.pain);obj.sleep=Number(obj.sleep);obj.mobility=Number(obj.mobility);const existing=state.journal.find(x=>x.id===id);obj.photos=existing?.photos||[];const inp=form.elements.photos;if(inp.files.length)obj.photos=await filesToData(inp)}
+ if(type==='journal'){const existing=state.journal.find(x=>x.id===id);obj.photos=existing?.photos||[];const inp=form.elements.photos;if(inp.files.length)obj.photos=await filesToData(inp)}
+ if(type==='injury') obj.active=obj.active==='Active';
+ if(type==='injuryLog'){obj.pain=Math.max(0,Math.min(10,Number(obj.pain||0)));const existing=state.injuryLogs.find(x=>x.id===id);obj.photos=existing?.photos||[];const inp=form.elements.photos;if(inp.files.length)obj.photos=await filesToData(inp)}
  if(type==='receipt'){obj.amount=Number(obj.amount);const existing=state.receipts.find(x=>x.id===id);obj.photo=existing?.photo||'';const inp=form.elements.photo;if(inp.files.length)obj.photo=(await filesToData(inp))[0]}
  if(type==='medication') obj.active=obj.status==='Active';
  if(type==='task') obj.done=obj.done==='Completed';
  if(type==='question') obj.answered=obj.answered==='Answered';
- const map={journal:'journal',medication:'medications',receipt:'receipts',appointment:'appointments',timeline:'timeline',task:'tasks',question:'questions',note:'notes'};
+ const map={journal:'journal',injury:'injuries',injuryLog:'injuryLogs',medication:'medications',receipt:'receipts',appointment:'appointments',timeline:'timeline',task:'tasks',question:'questions',note:'notes'};
  const arr=state[map[type]], ix=arr.findIndex(x=>x.id===id); if(ix>=0)arr[ix]=obj;else arr.push(obj);
  save(); modal=null; render(); toast('Saved');
 }
 
 function del(type,id){
- const map={journal:'journal',medication:'medications',receipt:'receipts',appointment:'appointments',timeline:'timeline',task:'tasks',question:'questions',note:'notes'};
+ const map={journal:'journal',injury:'injuries',injuryLog:'injuryLogs',medication:'medications',receipt:'receipts',appointment:'appointments',timeline:'timeline',task:'tasks',question:'questions',note:'notes'};
  if(!confirm('Delete this item?'))return;
- state[map[type]]=state[map[type]].filter(x=>x.id!==id); if(type==='medication')state.doses=state.doses.filter(d=>d.medicationId!==id); save();render();
+ state[map[type]]=state[map[type]].filter(x=>x.id!==id); if(type==='injury')state.injuryLogs=state.injuryLogs.filter(x=>x.injuryId!==id); if(type==='medication')state.doses=state.doses.filter(d=>d.medicationId!==id); save();render();
 }
 
 function printReport(){
@@ -199,7 +228,8 @@ function printReport(){
  const html=`<!doctype html><html><head><title>MVA Recovery Report</title><style>body{font-family:Arial,sans-serif;color:#1b2a3a;margin:36px;line-height:1.45}h1{color:#0b315f;border-bottom:4px solid #0b315f;padding-bottom:10px}h2{color:#174b7d;border-bottom:1px solid #ccd6e2;padding-bottom:5px;margin-top:28px}.item{margin:0 0 14px;padding:10px;border:1px solid #dce4ed;border-radius:8px}.meta{color:#65758a;font-size:12px}.photo{width:120px;height:120px;object-fit:cover;margin:4px}@media print{button{display:none}}</style></head><body>
  <h1>MVA Recovery Report</h1><p><strong>Prepared for:</strong> ${esc(state.profile.lawyer||'Lawyer')}<br><strong>Name:</strong> ${esc(state.profile.name||'')}<br><strong>Accident date:</strong> ${fmt(state.profile.accidentDate)}<br><strong>Claim number:</strong> ${esc(state.profile.claimNumber||'')}<br><strong>Generated:</strong> ${new Date().toLocaleString('en-CA')}</p>
  ${sec('Recovery Timeline',state.timeline.sort((a,b)=>a.date.localeCompare(b.date)).map(x=>`<div class="item"><strong>${fmt(x.date)} — ${esc(x.title)}</strong><div class="meta">${esc(x.type)}</div><p>${esc(x.notes||'')}</p></div>`).join(''))}
- ${sec('Daily Journal',state.journal.sort((a,b)=>a.date.localeCompare(b.date)).map(x=>`<div class="item"><strong>${fmt(x.date)}</strong><div class="meta">Pain ${x.pain}/10 · Sleep ${x.sleep}/10 · Mobility ${x.mobility}/10 · Mood ${esc(x.mood)}</div><p>${esc(x.notes||'')}</p>${x.activities?`<p><strong>Activities affected:</strong> ${esc(x.activities)}</p>`:''}${(x.photos||[]).map(p=>`<img class="photo" src="${p}">`).join('')}</div>`).join(''))}
+ ${sec('Daily Recovery Notes',state.journal.sort((a,b)=>a.date.localeCompare(b.date)).map(x=>`<div class="item"><strong>${fmt(x.date)}</strong><p>${esc(x.notes||'')}</p>${(x.photos||[]).map(p=>`<img class="photo" src="${p}">`).join('')}</div>`).join(''))}
+ ${sec('Injury History',state.injuries.map(i=>`<div class="item"><strong>${esc(i.name)}</strong><div class="meta">${esc(i.description||'')}</div>${state.injuryLogs.filter(l=>l.injuryId===i.id).sort((a,b)=>a.date.localeCompare(b.date)).map(l=>`<p><strong>${fmt(l.date)} — Pain ${l.pain}/10${l.change?' — '+esc(l.change):''}</strong><br>${esc(l.notes||'')}</p>`).join('')}</div>`).join(''))}
  ${sec('Medications',state.medications.map(m=>`<div class="item"><strong>${esc(m.name)} ${esc(m.dose)}</strong><div class="meta">${esc(m.schedule||'')}</div><p>${esc(m.notes||'')}</p></div>`).join(''))}
  ${sec('Dose History',state.doses.sort((a,b)=>a.dateTime.localeCompare(b.dateTime)).map(d=>{const m=state.medications.find(x=>x.id===d.medicationId);return `<div>${new Date(d.dateTime).toLocaleString('en-CA')} — ${esc(m?.name||'Medication')} — ${esc(d.status)}</div>`}).join(''))}
  ${sec('Appointments',state.appointments.sort((a,b)=>a.date.localeCompare(b.date)).map(a=>`<div class="item"><strong>${fmt(a.date)} ${esc(a.time||'')} — ${esc(a.type)}</strong><div>${esc(a.provider||'')} ${esc(a.location||'')}</div><p>${esc(a.notes||'')}</p></div>`).join(''))}
@@ -212,13 +242,14 @@ function printReport(){
 }
 
 function render(){
- const views={dashboard,journal,medications,receipts,appointments,timeline,tasks,notes,reports,settings,more};
+ const views={dashboard,journal,injuries,medications,receipts,appointments,timeline,tasks,notes,reports,settings,more};
  document.getElementById('app').innerHTML=views[page]();
  bind();
 }
 function bind(){
  document.querySelectorAll('[data-nav]').forEach(b=>b.onclick=()=>nav(b.dataset.nav));
  document.querySelectorAll('[data-add]').forEach(b=>b.onclick=()=>openForm(b.dataset.add));
+ document.querySelectorAll('[data-log-injury]').forEach(b=>b.onclick=()=>openForm('injuryLog','new:'+b.dataset.logInjury));
  document.querySelectorAll('[data-edit]').forEach(b=>b.onclick=()=>openForm(b.dataset.edit,b.dataset.id));
  document.querySelectorAll('[data-delete]').forEach(b=>b.onclick=()=>del(b.dataset.delete,b.dataset.id));
  document.querySelectorAll('[data-close]').forEach(b=>b.onclick=()=>{modal=null;render()});
