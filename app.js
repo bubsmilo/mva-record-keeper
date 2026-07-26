@@ -80,53 +80,104 @@ function painOptions(value=''){
 }
 function journal(){
  const sorted=[...state.journal].sort((a,b)=>(b.date+b.id).localeCompare(a.date+a.id));
- const active=state.injuries.filter(i=>i.active!==false);
+ const active=state.injuries;
  return appShell(`
- <form class="card dailyLogForm" id="dailyLogForm">
-  <div class="toolbar"><div><h2>How was your day?</h2><p class="muted">Add anything you want to remember, including progress and things you could not do.</p></div><button type="button" class="btn secondary" data-add="injury">+ Add Injury</button></div>
+ <form class="card dailyLogForm" id="dailyLogForm" data-edit-id="">
+  <div class="toolbar"><div><h2 id="dailyLogHeading">How was your day?</h2><p class="muted">Add your overall daily note and update every injury on this one page.</p></div><button type="button" class="btn secondary" data-add="injury">+ Add Injury</button></div>
   <div class="dailyDate"><label for="dailyDate">Date</label><input id="dailyDate" name="date" type="date" value="${today()}"></div>
-  <div class="field"><label for="dailyNotes">Daily note</label><textarea id="dailyNotes" name="notes" placeholder="Example: Took a shower and dressed myself for the first time. I still could not brush my hair."></textarea></div>
-  <div class="dailyInjuryHead"><div><h3>Injury updates</h3><p class="muted small">Add a pain score or note only for the injuries you want to update today.</p></div></div>
-  ${active.length?`<div class="dailyInjuryList">${active.map(i=>`<section class="dailyInjuryCard">
-    <div class="dailyInjuryName"><strong>${esc(i.name)}</strong>${i.description?`<span>${esc(i.description)}</span>`:''}</div>
-    <div class="dailyInjuryFields">
-      <div class="field"><label>Pain</label><select name="injury_${i.id}_pain">${painOptions('')}</select></div>
-      <div class="field"><label>Compared with last update</label><select name="injury_${i.id}_change"><option value="">Not selected</option><option>Better</option><option>Same</option><option>Worse</option><option>Not sure</option></select></div>
-      <div class="field injuryNoteField"><label>Notes (optional)</label><textarea name="injury_${i.id}_notes" placeholder="What changed or affected this injury today?"></textarea></div>
-    </div>
-  </section>`).join('')}</div>`:`<div class="empty">Add your injuries once, then their separate pain score and notes will appear here.</div>`}
+  <div class="field"><label for="dailyNotes">Overall daily note</label><textarea id="dailyNotes" name="notes" placeholder="Example: Took a shower and dressed myself for the first time. I still could not brush my hair."></textarea></div>
+  <div class="dailyInjuryHead"><div><h3>Injury updates</h3><p class="muted small">Each injury can have its own pain score, change, notes, and optional photo.</p></div></div>
+  ${active.length?`<div class="dailyInjuryList">${active.map(i=>dailyInjuryEditor(i)).join('')}</div>`:`<div class="empty">Add your injuries once, then they will all appear here in every daily log.</div>`}
   <button class="btn primary wide saveDailyBtn">Save Daily Log</button>
  </form>
  <div class="toolbar" style="margin-top:20px"><h2 style="margin:0">Previous daily logs</h2><span class="pill">${sorted.length} entries</span></div>
  <div class="list">${sorted.length?sorted.map(j=>{const logs=state.injuryLogs.filter(x=>x.date===j.date);return `<article class="card">
-  <div class="toolbar"><div><h3>${fmt(j.date)}</h3></div><div class="actions"><button class="iconBtn" data-edit="journal" data-id="${j.id}">Edit note</button><button class="iconBtn" data-delete="journal" data-id="${j.id}">Delete</button></div></div>
+  <div class="toolbar"><div><h3>${fmt(j.date)}</h3></div><div class="actions"><button class="iconBtn" data-edit-daily="${j.id}">Edit daily log</button><button class="iconBtn" data-delete="journal" data-id="${j.id}">Delete</button></div></div>
   <p>${esc(j.notes||'').replace(/\n/g,'<br>')}</p>
-  ${logs.length?`<div class="injurySummary">${logs.map(l=>{const i=state.injuries.find(x=>x.id===l.injuryId);return `<div><strong>${esc(i?.name||'Injury')}</strong>${l.pain!==''&&l.pain!=null?` <span class="pill">${l.pain}/10</span>`:''}${l.change?` · ${esc(l.change)}`:''}${l.notes?`<div class="small muted">${esc(l.notes)}</div>`:''}</div>`}).join('')}</div>`:''}
-  ${j.photos?.length?`<div class="photoGrid" style="margin-top:10px">${j.photos.map(p=>`<img class="photo" src="${p}">`).join('')}</div>`:''}
+  ${logs.length?`<div class="injurySummary">${logs.map(l=>{const i=state.injuries.find(x=>x.id===l.injuryId);return `<div><strong>${esc(i?.name||'Injury')}</strong>${l.pain!==''&&l.pain!=null?` <span class="pill">${l.pain}/10</span>`:''}${l.change?` · ${esc(l.change)}`:''}${l.notes?`<div class="small muted">${esc(l.notes)}</div>`:''}${l.photos?.length?`<div class="photoGrid" style="margin-top:8px">${l.photos.map((p,ix)=>`<div class="photoWrap"><img class="photo" src="${p}"><button type="button" class="removePhotoBtn" data-remove-saved-photo="${l.id}:${ix}" aria-label="Remove photo">×</button></div>`).join('')}</div>`:''}</div>`}).join('')}</div>`:''}
  </article>`}).join(''):`<div class="empty">Add your first daily log.</div>`}</div>`,'Daily Log','Record your day and keep every injury separate.');
 }
 
-function saveDailyLog(form){
+function dailyInjuryEditor(i,log={}){
+ const photos=log.photos||[];
+ return `<section class="dailyInjuryCard" data-injury-id="${i.id}">
+   <div class="dailyInjuryName"><strong>${esc(i.name)}</strong>${i.description?`<span>${esc(i.description)}</span>`:''}</div>
+   <div class="dailyInjuryFields">
+     <div class="field"><label>Pain score</label><select name="injury_${i.id}_pain">${painOptions(log.pain??'')}</select></div>
+     <div class="field"><label>Better / Same / Worse</label><select name="injury_${i.id}_change"><option value="">Not selected</option>${['Better','Same','Worse'].map(v=>`<option ${log.change===v?'selected':''}>${v}</option>`).join('')}</select></div>
+     <div class="field injuryNoteField"><label>Injury-specific notes</label><textarea name="injury_${i.id}_notes" placeholder="What changed or affected this injury today?">${esc(log.notes||'')}</textarea></div>
+     <div class="field injuryPhotoField"><label>Photo (optional)</label><input type="file" name="injury_${i.id}_photos" accept="image/*" capture="environment"><div class="photoGrid savedPhotoGrid" data-saved-photos="${i.id}">${photos.map((p,ix)=>`<div class="photoWrap"><img class="photo" src="${p}"><button type="button" class="removePhotoBtn" data-remove-edit-photo="${i.id}:${ix}" aria-label="Remove photo">×</button></div>`).join('')}</div></div>
+   </div>
+ </section>`;
+}
+
+function editDailyLog(id){
+ const entry=state.journal.find(x=>x.id===id); if(!entry)return;
+ const form=document.getElementById('dailyLogForm'); if(!form)return;
+ form.dataset.editId=id;
+ form.elements.date.value=entry.date;
+ form.elements.notes.value=entry.notes||'';
+ document.getElementById('dailyLogHeading').textContent='Edit daily log';
+ state.injuries.forEach(i=>{
+   const log=state.injuryLogs.find(x=>x.injuryId===i.id&&x.date===entry.date)||{};
+   const card=form.querySelector(`[data-injury-id="${i.id}"]`); if(!card)return;
+   card.querySelector(`[name="injury_${i.id}_pain"]`).value=log.pain??'';
+   card.querySelector(`[name="injury_${i.id}_change"]`).value=log.change||'';
+   card.querySelector(`[name="injury_${i.id}_notes"]`).value=log.notes||'';
+   card.dataset.logId=log.id||'';
+   card.dataset.photos=JSON.stringify(log.photos||[]);
+   const grid=card.querySelector('[data-saved-photos]');
+   grid.innerHTML=(log.photos||[]).map((p,ix)=>`<div class="photoWrap"><img class="photo" src="${p}"><button type="button" class="removePhotoBtn" data-remove-edit-photo="${i.id}:${ix}" aria-label="Remove photo">×</button></div>`).join('');
+ });
+ form.scrollIntoView({behavior:'smooth',block:'start'});
+ bindDailyPhotoRemoval();
+}
+
+async function saveDailyLog(form){
  const fd=new FormData(form), date=String(fd.get('date')||today()), notes=String(fd.get('notes')||'').trim();
- let saved=false;
- if(notes){
-   const existing=[...state.journal].reverse().find(x=>x.date===date);
-   if(existing) existing.notes=notes;
-   else state.journal.push({id:uid(),date,notes,photos:[]});
-   saved=true;
+ const editId=form.dataset.editId||'';
+ let journalEntry=editId?state.journal.find(x=>x.id===editId):state.journal.find(x=>x.date===date);
+ if(journalEntry){
+   const oldDate=journalEntry.date;
+   journalEntry.date=date; journalEntry.notes=notes;
+   if(oldDate!==date) state.injuryLogs.filter(x=>x.date===oldDate).forEach(x=>x.date=date);
+ } else {
+   journalEntry={id:uid(),date,notes,photos:[]}; state.journal.push(journalEntry);
  }
- state.injuries.filter(i=>i.active!==false).forEach(i=>{
+
+ for(const i of state.injuries){
    const pain=String(fd.get(`injury_${i.id}_pain`)??'');
    const change=String(fd.get(`injury_${i.id}_change`)??'');
    const injuryNotes=String(fd.get(`injury_${i.id}_notes`)??'').trim();
-   if(pain===''&&!change&&!injuryNotes)return;
-   const existing=[...state.injuryLogs].reverse().find(x=>x.injuryId===i.id&&x.date===date);
-   const log={id:existing?.id||uid(),injuryId:i.id,date,pain:pain===''?'':Math.max(0,Math.min(10,Number(pain))),change,notes:injuryNotes,photos:existing?.photos||[]};
-   if(existing) Object.assign(existing,log); else state.injuryLogs.push(log);
-   saved=true;
- });
- if(!saved){alert('Add a daily note, pain score, or injury note before saving.');return;}
+   const card=form.querySelector(`[data-injury-id="${i.id}"]`);
+   const existingId=card?.dataset.logId||'';
+   let existing=existingId?state.injuryLogs.find(x=>x.id===existingId):state.injuryLogs.find(x=>x.injuryId===i.id&&x.date===date);
+   let photos=[];
+   try{photos=JSON.parse(card?.dataset.photos||'[]')}catch{}
+   const input=form.elements[`injury_${i.id}_photos`];
+   if(input?.files?.length) photos.push(...await filesToData(input));
+   const hasData=pain!==''||!!change||!!injuryNotes||photos.length>0;
+   if(!hasData){ if(existing) state.injuryLogs=state.injuryLogs.filter(x=>x.id!==existing.id); continue; }
+   const log={id:existing?.id||uid(),injuryId:i.id,date,pain:pain===''?'':Math.max(0,Math.min(10,Number(pain))),change,notes:injuryNotes,photos};
+   if(existing)Object.assign(existing,log);else state.injuryLogs.push(log);
+ }
  save();render();toast('Daily log saved');
+}
+
+function bindDailyPhotoRemoval(){
+ document.querySelectorAll('[data-remove-edit-photo]').forEach(b=>b.onclick=()=>{
+   const [injuryId,indexText]=b.dataset.removeEditPhoto.split(':');
+   const card=document.querySelector(`[data-injury-id="${injuryId}"]`); if(!card)return;
+   let photos=[];try{photos=JSON.parse(card.dataset.photos||'[]')}catch{}
+   photos.splice(Number(indexText),1); card.dataset.photos=JSON.stringify(photos);
+   const grid=card.querySelector('[data-saved-photos]');
+   grid.innerHTML=photos.map((p,ix)=>`<div class="photoWrap"><img class="photo" src="${p}"><button type="button" class="removePhotoBtn" data-remove-edit-photo="${injuryId}:${ix}" aria-label="Remove photo">×</button></div>`).join('');
+   bindDailyPhotoRemoval();
+ });
+ document.querySelectorAll('[data-remove-saved-photo]').forEach(b=>b.onclick=()=>{
+   const [logId,indexText]=b.dataset.removeSavedPhoto.split(':'); const log=state.injuryLogs.find(x=>x.id===logId); if(!log)return;
+   log.photos=(log.photos||[]).filter((_,ix)=>ix!==Number(indexText)); save();render();toast('Photo removed');
+ });
 }
 
 function injuries(){
@@ -254,7 +305,7 @@ async function saveForm(form){
 function del(type,id){
  const map={journal:'journal',injury:'injuries',injuryLog:'injuryLogs',medication:'medications',receipt:'receipts',appointment:'appointments',timeline:'timeline',task:'tasks',question:'questions',note:'notes'};
  if(!confirm('Delete this item?'))return;
- state[map[type]]=state[map[type]].filter(x=>x.id!==id); if(type==='injury')state.injuryLogs=state.injuryLogs.filter(x=>x.injuryId!==id); if(type==='medication')state.doses=state.doses.filter(d=>d.medicationId!==id); save();render();
+ if(type==='journal'){const entry=state.journal.find(x=>x.id===id);if(entry)state.injuryLogs=state.injuryLogs.filter(x=>x.date!==entry.date)} state[map[type]]=state[map[type]].filter(x=>x.id!==id); if(type==='injury')state.injuryLogs=state.injuryLogs.filter(x=>x.injuryId!==id); if(type==='medication')state.doses=state.doses.filter(d=>d.medicationId!==id); save();render();
 }
 
 function printReport(){
@@ -286,12 +337,13 @@ function bind(){
  document.querySelectorAll('[data-add]').forEach(b=>b.onclick=()=>openForm(b.dataset.add));
  document.querySelectorAll('[data-log-injury]').forEach(b=>b.onclick=()=>openForm('injuryLog','new:'+b.dataset.logInjury));
  document.querySelectorAll('[data-edit]').forEach(b=>b.onclick=()=>openForm(b.dataset.edit,b.dataset.id));
+ document.querySelectorAll('[data-edit-daily]').forEach(b=>b.onclick=()=>editDailyLog(b.dataset.editDaily));
  document.querySelectorAll('[data-delete]').forEach(b=>b.onclick=()=>del(b.dataset.delete,b.dataset.id));
  document.querySelectorAll('[data-close]').forEach(b=>b.onclick=()=>{modal=null;render()});
  document.querySelectorAll('[data-tab]').forEach(b=>b.onclick=()=>{tab=b.dataset.tab;render()});
  document.querySelectorAll('[data-check-task]').forEach(c=>c.onchange=()=>setState(s=>{const t=s.tasks.find(x=>x.id===c.dataset.checkTask);if(t)t.done=c.checked}));
  document.querySelectorAll('[data-dose]').forEach(b=>b.onclick=()=>setState(s=>s.doses.push({id:uid(),medicationId:b.dataset.dose,status:b.dataset.status,dateTime:new Date().toISOString()})));
- const df=document.getElementById('dailyLogForm');if(df)df.onsubmit=e=>{e.preventDefault();saveDailyLog(df)};
+ const df=document.getElementById('dailyLogForm');if(df){df.onsubmit=async e=>{e.preventDefault();await saveDailyLog(df)};df.querySelectorAll('[data-injury-id]').forEach(card=>{card.dataset.photos='[]';card.dataset.logId=''});bindDailyPhotoRemoval();}
  const f=document.getElementById('editForm');if(f)f.onsubmit=async e=>{e.preventDefault();await saveForm(f)};
  const pf=document.getElementById('profileForm');if(pf)pf.onsubmit=e=>{e.preventDefault();state.profile={...state.profile,...Object.fromEntries(new FormData(pf))};save();toast('Saved')};
  const p=document.getElementById('printReport');if(p)p.onclick=printReport;

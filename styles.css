@@ -29,3 +29,9 @@ input,textarea,select{width:100%;border:1px solid #cfd9e5;border-radius:9px;padd
 /* Simple combined daily log */
 .dailyLogForm h2,.dailyLogForm h3{margin-bottom:4px}.dailyDate{max-width:220px;margin-bottom:14px}.dailyDate label{display:block;font-size:13px;font-weight:700;margin-bottom:6px}.dailyInjuryHead{margin:20px 0 10px}.dailyInjuryHead p{margin:0}.dailyInjuryList{display:grid;gap:12px}.dailyInjuryCard{border:1px solid #dfe7f1;border-radius:13px;background:#fbfdff;padding:13px}.dailyInjuryName{display:flex;flex-direction:column;margin-bottom:10px}.dailyInjuryName span{font-size:13px;color:#718096;margin-top:2px}.dailyInjuryFields{display:grid;grid-template-columns:170px 220px minmax(260px,1fr);gap:10px;align-items:start}.dailyInjuryFields textarea{min-height:74px}.saveDailyBtn{margin-top:16px;padding:13px}
 @media(max-width:850px){.dailyInjuryFields{grid-template-columns:1fr}.dailyInjuryFields textarea{min-height:82px}.dailyDate{max-width:none}}
+
+/* Daily log photo controls and four-field injury layout */
+.dailyInjuryFields{grid-template-columns:150px 190px minmax(240px,1fr) minmax(210px,.8fr)}
+.injuryPhotoField input{padding:8px}.savedPhotoGrid{margin-top:8px}.photoWrap{position:relative;display:inline-flex}.removePhotoBtn{position:absolute;top:-7px;right:-7px;width:24px;height:24px;border-radius:50%;border:0;background:#ad2424;color:#fff;font-weight:800;line-height:1;box-shadow:0 2px 8px rgba(0,0,0,.2)}
+@media(max-width:1050px){.dailyInjuryFields{grid-template-columns:1fr 1fr}.injuryNoteField,.injuryPhotoField{grid-column:span 2}}
+@media(max-width:650px){.dailyInjuryFields{grid-template-columns:1fr}.injuryNoteField,.injuryPhotoField{grid-column:auto}}
