@@ -1,0 +1,237 @@
+
+(() => {
+'use strict';
+
+const KEY='mva-record-keeper-v1';
+const today=()=>new Date().toISOString().slice(0,10);
+const uid=()=>Date.now().toString(36)+Math.random().toString(36).slice(2,7);
+const esc=(v='')=>String(v).replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#039;'}[m]));
+const money=n=>new Intl.NumberFormat('en-CA',{style:'currency',currency:'CAD'}).format(Number(n||0));
+const fmt=d=>d?new Date(d+'T12:00:00').toLocaleDateString('en-CA',{year:'numeric',month:'short',day:'numeric'}):'';
+const daysBetween=(a,b)=>Math.max(0,Math.floor((new Date(b)-new Date(a))/(86400000)));
+
+const defaults={
+  profile:{accidentDate:today(),name:'',lawyer:'',claimNumber:''},
+  journal:[], medications:[], doses:[], receipts:[], appointments:[],
+  tasks:[], questions:[], notes:[], timeline:[]
+};
+let state=load();
+let page='dashboard';
+let modal=null;
+let tab='all';
+
+function load(){try{return {...defaults,...JSON.parse(localStorage.getItem(KEY)||'{}')}}catch{return structuredClone(defaults)}}
+function save(){localStorage.setItem(KEY,JSON.stringify(state))}
+function setState(mut){mut(state);save();render()}
+function toast(msg){const el=document.createElement('div');el.className='toast';el.textContent=msg;document.body.append(el);setTimeout(()=>el.remove(),2200)}
+function nav(p){page=p;modal=null;render();window.scrollTo(0,0)}
+
+function appShell(content,title,subtitle=''){
+  const items=[
+    ['dashboard','🏠','Dashboard'],['journal','📖','Journal'],['medications','💊','Medications'],
+    ['receipts','🧾','Receipts'],['appointments','🩺','Appointments'],['timeline','🕒','Timeline'],
+    ['tasks','✅','Tasks'],['notes','📝','Notes & Questions'],['reports','📄','Reports'],['settings','⚙️','Settings']
+  ];
+  return `<div class="app">
+    <aside class="sidebar">
+      <div class="brand"><img src="./mva-logo-192.png"><div><strong>MVA Record Keeper</strong><small>Your recovery, organized</small></div></div>
+      <nav class="nav">${items.map(i=>`<button data-nav="${i[0]}" class="${page===i[0]?'active':''}"><span>${i[1]}</span>${i[2]}</button>`).join('')}</nav>
+      <div class="sidebarFoot">Private data stored on this device.</div>
+    </aside>
+    <main class="main">
+      <header class="topbar"><div><h1>${esc(title)}</h1><p>${esc(subtitle)}</p></div><img src="./mva-logo-32.png" width="32" height="32" alt=""></header>
+      ${content}
+    </main>
+    <nav class="bottomNav">${items.slice(0,4).concat([['more','•••','More']]).map(i=>`<button data-nav="${i[0]}" class="${page===i[0]?'active':''}"><span>${i[1]}</span>${i[2]}</button>`).join('')}</nav>
+    ${modal||''}
+  </div>`;
+}
+
+function dashboard(){
+ const expense=state.receipts.reduce((s,r)=>s+Number(r.amount||0),0);
+ const next=state.appointments.filter(a=>a.date>=today()).sort((a,b)=>a.date.localeCompare(b.date))[0];
+ const meds=state.medications.filter(m=>m.active!==false);
+ const dueTasks=state.tasks.filter(t=>!t.done).slice(0,4);
+ return appShell(`
+ <div class="grid grid2">
+  <section class="card hero"><div><div class="muted small">Days since accident</div><div class="metric">${daysBetween(state.profile.accidentDate,today())}</div><div>${fmt(state.profile.accidentDate)}</div></div><img src="./mva-logo-192.png"></section>
+  <section class="card"><div class="muted small">Next appointment</div>${next?`<div class="rowTitle">${esc(next.type)}</div><div class="rowMeta">${fmt(next.date)}${next.time?' at '+esc(next.time):''}</div><div>${esc(next.provider||'')}</div>`:`<div class="empty">No upcoming appointment</div>`}</section>
+ </div>
+ <div class="grid grid4" style="margin-top:16px">
+  <section class="card"><div class="muted small">Journal entries</div><div class="metric">${state.journal.length}</div></section>
+  <section class="card"><div class="muted small">Active medications</div><div class="metric">${meds.length}</div></section>
+  <section class="card"><div class="muted small">Receipt total</div><div class="metric">${money(expense)}</div></section>
+  <section class="card"><div class="muted small">Open tasks</div><div class="metric">${state.tasks.filter(t=>!t.done).length}</div></section>
+ </div>
+ <div class="grid grid2" style="margin-top:16px">
+  <section class="card"><h2>Quick actions</h2><div class="grid grid2">
+   <button class="btn primary" data-add="journal">+ Journal Entry</button><button class="btn secondary" data-add="receipt">+ Receipt</button>
+   <button class="btn secondary" data-add="appointment">+ Appointment</button><button class="btn secondary" data-add="task">+ Task</button>
+  </div></section>
+  <section class="card"><h2>Tasks due</h2>${dueTasks.length?`<div class="list">${dueTasks.map(taskRow).join('')}</div>`:`<div class="empty">No open tasks</div>`}</section>
+ </div>`, 'Dashboard','A clear picture of your recovery and claim records.');
+}
+
+function journal(){
+ const sorted=[...state.journal].sort((a,b)=>b.date.localeCompare(a.date));
+ return appShell(`<div class="toolbar"><div class="toolbarLeft"><span class="pill">${sorted.length} entries</span></div><button class="btn primary" data-add="journal">+ New entry</button></div>
+ <div class="list">${sorted.length?sorted.map(j=>`<article class="card">
+  <div class="toolbar"><div><h3>${fmt(j.date)}</h3><div class="rowMeta">Pain ${j.pain||0}/10 · Sleep ${j.sleep||0}/10 · Mobility ${j.mobility||0}/10</div></div><div class="actions"><button class="iconBtn" data-edit="journal" data-id="${j.id}">Edit</button><button class="iconBtn" data-delete="journal" data-id="${j.id}">Delete</button></div></div>
+  ${j.mood?`<span class="pill">${esc(j.mood)}</span>`:''}<p>${esc(j.notes||'').replace(/\n/g,'<br>')}</p>
+  ${j.activities?`<div class="small"><strong>Activities affected:</strong> ${esc(j.activities)}</div>`:''}
+  ${j.photos?.length?`<div class="photoGrid" style="margin-top:10px">${j.photos.map(p=>`<img class="photo" src="${p}">`).join('')}</div>`:''}
+ </article>`).join(''):`<div class="empty">Add your first daily journal entry.</div>`}</div>`,'Daily Journal','Record symptoms, limitations, sleep, mood and recovery details.');
+}
+
+function medications(){
+ return appShell(`<div class="toolbar"><div class="toolbarLeft"><span class="pill">${state.medications.length} medications</span></div><button class="btn primary" data-add="medication">+ Add medication</button></div>
+ <div class="grid grid2">${state.medications.length?state.medications.map(m=>{
+  const doses=state.doses.filter(d=>d.medicationId===m.id).sort((a,b)=>b.dateTime.localeCompare(a.dateTime)).slice(0,4);
+  return `<section class="card"><div class="toolbar"><div><h3>${esc(m.name)}</h3><div class="rowMeta">${esc(m.dose)} · ${esc(m.schedule||'')}</div></div><div class="actions"><button class="iconBtn" data-edit="medication" data-id="${m.id}">Edit</button><button class="iconBtn" data-delete="medication" data-id="${m.id}">Delete</button></div></div>
+  <p class="small">${esc(m.notes||'')}</p>
+  <div class="actions"><button class="btn secondary" data-dose="${m.id}" data-status="Taken">Mark Taken</button><button class="btn ghost" data-dose="${m.id}" data-status="Missed">Mark Missed</button></div>
+  ${doses.length?`<div style="margin-top:12px">${doses.map(d=>`<div class="rowMeta">${new Date(d.dateTime).toLocaleString('en-CA')} — <strong>${esc(d.status)}</strong></div>`).join('')}</div>`:''}</section>`
+ }).join(''):`<div class="empty">No medications added yet.</div>`}</div>`,'Medications','Track prescriptions and doses taken or missed.');
+}
+
+function receipts(){
+ const total=state.receipts.reduce((s,r)=>s+Number(r.amount||0),0);
+ const sorted=[...state.receipts].sort((a,b)=>b.date.localeCompare(a.date));
+ return appShell(`<div class="grid grid2"><section class="card"><div class="muted small">Total expenses</div><div class="metric">${money(total)}</div></section><section class="card"><div class="muted small">Number of receipts</div><div class="metric">${state.receipts.length}</div></section></div>
+ <div class="toolbar" style="margin-top:16px"><div></div><button class="btn primary" data-add="receipt">+ Add receipt</button></div>
+ <div class="list">${sorted.length?sorted.map(r=>`<div class="row"><div class="rowMain" style="display:flex;gap:12px">${r.photo?`<img class="photo" src="${r.photo}">`:''}<div><div class="rowTitle">${esc(r.description)}</div><div class="rowMeta">${fmt(r.date)} · ${esc(r.category||'Other')}</div>${r.notes?`<div class="small">${esc(r.notes)}</div>`:''}</div></div><div><strong>${money(r.amount)}</strong><div class="actions" style="margin-top:8px"><button class="iconBtn" data-edit="receipt" data-id="${r.id}">Edit</button><button class="iconBtn" data-delete="receipt" data-id="${r.id}">Delete</button></div></div></div>`).join(''):`<div class="empty">No receipts recorded.</div>`}</div>`,'Receipts','Keep expense details and receipt photos together.');
+}
+
+function appointments(){
+ const sorted=[...state.appointments].sort((a,b)=>a.date.localeCompare(b.date));
+ return appShell(`<div class="toolbar"><div class="tabs"><button class="${tab==='all'?'active':''}" data-tab="all">All</button><button class="${tab==='upcoming'?'active':''}" data-tab="upcoming">Upcoming</button><button class="${tab==='past'?'active':''}" data-tab="past">Past</button></div><button class="btn primary" data-add="appointment">+ Add appointment</button></div>
+ <div class="list">${filterAppts(sorted).length?filterAppts(sorted).map(a=>`<div class="row"><div class="rowMain"><div class="rowTitle">${esc(a.type)}</div><div class="rowMeta">${fmt(a.date)}${a.time?' · '+esc(a.time):''}</div><div>${esc(a.provider||'')}</div>${a.location?`<div class="small muted">${esc(a.location)}</div>`:''}${a.notes?`<p class="small">${esc(a.notes)}</p>`:''}</div><div class="actions"><button class="iconBtn" data-edit="appointment" data-id="${a.id}">Edit</button><button class="iconBtn" data-delete="appointment" data-id="${a.id}">Delete</button></div></div>`).join(''):`<div class="empty">No appointments in this view.</div>`}</div>`,'Appointments','Track medical, legal, insurance and therapy appointments.');
+}
+function filterAppts(a){return tab==='upcoming'?a.filter(x=>x.date>=today()):tab==='past'?a.filter(x=>x.date<today()):a}
+
+function timeline(){
+ const sorted=[...state.timeline].sort((a,b)=>a.date.localeCompare(b.date));
+ return appShell(`<div class="toolbar"><div><span class="pill">${sorted.length} events</span></div><button class="btn primary" data-add="timeline">+ Add event</button></div>
+ ${sorted.length?`<div class="card"><div class="timeline">${sorted.map(t=>`<div class="timelineItem"><div class="toolbar"><div><div class="rowMeta">${fmt(t.date)}</div><div class="rowTitle">${esc(t.title)}</div><div class="small">${esc(t.type||'Event')}</div></div><div class="actions"><button class="iconBtn" data-edit="timeline" data-id="${t.id}">Edit</button><button class="iconBtn" data-delete="timeline" data-id="${t.id}">Delete</button></div></div>${t.notes?`<p>${esc(t.notes)}</p>`:''}</div>`).join('')}</div></div>`:`<div class="empty">Build a chronological record from the accident onward.</div>`}`,'Recovery Timeline','See important events in chronological order.');
+}
+
+function taskRow(t){return `<div class="checkRow"><input type="checkbox" data-check-task="${t.id}" ${t.done?'checked':''}><div class="${t.done?'strike':''}"><div class="rowTitle">${esc(t.title)}</div><div class="rowMeta">${t.due?fmt(t.due):'No due date'} · ${esc(t.priority||'Normal')}</div></div></div>`}
+function tasks(){
+ return appShell(`<div class="toolbar"><div><span class="pill">${state.tasks.filter(t=>!t.done).length} open</span></div><button class="btn primary" data-add="task">+ Add task</button></div>
+ <div class="card"><div class="list">${state.tasks.length?state.tasks.map(t=>`<div class="row"><div>${taskRow(t)}</div><div class="actions"><button class="iconBtn" data-edit="task" data-id="${t.id}">Edit</button><button class="iconBtn" data-delete="task" data-id="${t.id}">Delete</button></div></div>`).join(''):`<div class="empty">No tasks yet.</div>`}</div></div>`,'Tasks & Paperwork','Stay on top of forms, calls, follow-ups and deadlines.');
+}
+
+function notes(){
+ return appShell(`<div class="grid grid2">
+ <section class="card"><div class="toolbar"><h2>Questions</h2><button class="btn secondary" data-add="question">+ Add</button></div><div class="list">${state.questions.length?state.questions.map(q=>`<div class="row"><div class="${q.answered?'strike':''}"><div class="rowTitle">${esc(q.text)}</div><div class="rowMeta">${esc(q.forWhom||'Doctor')}</div>${q.answer?`<div class="small"><strong>Answer:</strong> ${esc(q.answer)}</div>`:''}</div><div class="actions"><button class="iconBtn" data-edit="question" data-id="${q.id}">Edit</button><button class="iconBtn" data-delete="question" data-id="${q.id}">Delete</button></div></div>`).join(''):`<div class="empty">No questions saved.</div>`}</div></section>
+ <section class="card"><div class="toolbar"><h2>General notes</h2><button class="btn secondary" data-add="note">+ Add</button></div><div class="list">${state.notes.length?state.notes.map(n=>`<div class="row"><div><div class="rowTitle">${esc(n.title)}</div><div class="rowMeta">${fmt(n.date)}</div><p class="small">${esc(n.text)}</p></div><div class="actions"><button class="iconBtn" data-edit="note" data-id="${n.id}">Edit</button><button class="iconBtn" data-delete="note" data-id="${n.id}">Delete</button></div></div>`).join(''):`<div class="empty">No notes saved.</div>`}</div></section>
+ </div>`,'Notes & Questions','Keep questions for doctors, your lawyer, insurer and your own notes.');
+}
+
+function reports(){
+ return appShell(`<div class="grid grid2">
+ <section class="card"><h2>Lawyer report</h2><p>Create a printable report containing your profile, timeline, journal, medications, appointments, expenses, tasks, questions and notes.</p><button class="btn primary wide" id="printReport">Generate / Print PDF</button><p class="small muted">Choose “Save as PDF” in the print window.</p></section>
+ <section class="card"><h2>Summary</h2><div class="summaryBox">Journal: <strong>${state.journal.length}</strong><br>Appointments: <strong>${state.appointments.length}</strong><br>Timeline events: <strong>${state.timeline.length}</strong><br>Expenses: <strong>${money(state.receipts.reduce((s,r)=>s+Number(r.amount||0),0))}</strong></div></section>
+ </div>`,'Reports','Generate a clear chronological package for your lawyer.');
+}
+
+function settings(){
+ return appShell(`<div class="grid grid2">
+ <section class="card"><h2>Claim information</h2><form id="profileForm" class="formGrid">
+ ${field('Name','name',state.profile.name)}${field('Accident date','accidentDate',state.profile.accidentDate,'date')}
+ ${field('Lawyer','lawyer',state.profile.lawyer)}${field('Claim number','claimNumber',state.profile.claimNumber)}
+ <button class="btn primary span2">Save information</button></form></section>
+ <section class="card"><h2>Backup & restore</h2><p>Download a backup regularly. It contains your records and attached photos.</p><div class="grid"><button class="btn secondary" id="backupBtn">Download backup</button><label class="btn secondary" style="text-align:center">Restore backup<input id="restoreInput" type="file" accept="application/json" hidden></label><button class="btn danger" id="resetBtn">Erase all app data</button></div></section>
+ </div>`,'Settings','Manage your claim details and protect your records.');
+}
+
+function more(){
+ return appShell(`<div class="grid grid2">${[
+ ['appointments','🩺','Appointments'],['timeline','🕒','Recovery Timeline'],['tasks','✅','Tasks & Paperwork'],['notes','📝','Notes & Questions'],['reports','📄','Reports'],['settings','⚙️','Settings']
+ ].map(i=>`<button class="card" data-nav="${i[0]}" style="text-align:left;border:1px solid #dde5ef"><div style="font-size:28px">${i[1]}</div><h3>${i[2]}</h3></button>`).join('')}</div>`,'More','All additional tools and records.');
+}
+
+function field(label,name,value='',type='text',extra=''){return `<div class="field"><label>${label}</label><input name="${name}" type="${type}" value="${esc(value)}" ${extra}></div>`}
+function area(label,name,value='',span=true){return `<div class="field ${span?'span2':''}"><label>${label}</label><textarea name="${name}">${esc(value)}</textarea></div>`}
+function selectField(label,name,options,value){return `<div class="field"><label>${label}</label><select name="${name}">${options.map(o=>`<option ${o===value?'selected':''}>${esc(o)}</option>`).join('')}</select></div>`}
+
+function openForm(type,id){
+ const map={journal:'journal',medication:'medications',receipt:'receipts',appointment:'appointments',timeline:'timeline',task:'tasks',question:'questions',note:'notes'};
+ const arr=state[map[type]]||[], item=id?arr.find(x=>x.id===id):{};
+ let body='', title=(id?'Edit ':'Add ')+type[0].toUpperCase()+type.slice(1);
+ if(type==='journal') body=`${field('Date','date',item.date||today(),'date')}${field('Pain (0-10)','pain',item.pain||0,'number','min="0" max="10"')}${field('Sleep (0-10)','sleep',item.sleep||0,'number','min="0" max="10"')}${field('Mobility (0-10)','mobility',item.mobility||0,'number','min="0" max="10"')}${selectField('Mood','mood',['Good','Okay','Low','Anxious','Frustrated'],item.mood||'Okay')}${field('Activities affected','activities',item.activities||'')}${area('Symptoms / daily notes','notes',item.notes||'')}${photoField('Journal photos','photos',item.photos||[],true)}`;
+ if(type==='medication') body=`${field('Medication name','name',item.name||'')}${field('Dose','dose',item.dose||'')}${field('Schedule','schedule',item.schedule||'')}${selectField('Status','status',['Active','Inactive'],item.active===false?'Inactive':'Active')}${area('Notes','notes',item.notes||'')}`;
+ if(type==='receipt') body=`${field('Date','date',item.date||today(),'date')}${field('Amount','amount',item.amount||'','number','step="0.01" min="0"')}${field('Description','description',item.description||'')}${selectField('Category','category',['Pharmacy','Physiotherapy','Parking','Mileage','Medical supplies','Legal','Other'],item.category||'Other')}${area('Notes','notes',item.notes||'')}${photoField('Receipt photo','photo',item.photo?[item.photo]:[],false)}`;
+ if(type==='appointment') body=`${field('Date','date',item.date||today(),'date')}${field('Time','time',item.time||'','time')}${field('Appointment type','type',item.type||'')}${field('Provider / clinic','provider',item.provider||'')}${field('Location','location',item.location||'')}${selectField('Status','status',['Scheduled','Completed','Cancelled'],item.status||'Scheduled')}${area('Outcome / notes','notes',item.notes||'')}`;
+ if(type==='timeline') body=`${field('Date','date',item.date||today(),'date')}${field('Event title','title',item.title||'')}${selectField('Event type','type',['Accident','Hospital / ER','Doctor','Imaging','Physiotherapy','Insurance','Lawyer','Medication','Other'],item.type||'Other')}${area('Details','notes',item.notes||'')}`;
+ if(type==='task') body=`${field('Task','title',item.title||'')}${field('Due date','due',item.due||'','date')}${selectField('Priority','priority',['Low','Normal','High'],item.priority||'Normal')}${selectField('Status','done',['Open','Completed'],item.done?'Completed':'Open')}`;
+ if(type==='question') body=`${area('Question','text',item.text||'')}${selectField('For','forWhom',['Doctor','Lawyer','Insurance','Physiotherapist','Other'],item.forWhom||'Doctor')}${selectField('Status','answered',['Open','Answered'],item.answered?'Answered':'Open')}${area('Answer / notes','answer',item.answer||'')}`;
+ if(type==='note') body=`${field('Date','date',item.date||today(),'date')}${field('Title','title',item.title||'')}${area('Note','text',item.text||'')}`;
+ modal=`<div class="modalBackdrop"><form class="modal" id="editForm" data-type="${type}" data-id="${id||''}"><div class="modalHead"><h2>${title}</h2><button type="button" class="iconBtn" data-close>✕</button></div><div class="formGrid">${body}</div><div class="modalFoot"><button type="button" class="btn secondary" data-close>Cancel</button><button class="btn primary">Save</button></div></form></div>`;
+ render();
+}
+function photoField(label,name,photos,multiple){return `<div class="field span2"><label>${label}</label><input type="file" name="${name}" accept="image/*" capture="environment" ${multiple?'multiple':''}><div class="photoGrid" style="margin-top:8px">${photos.map(p=>`<img class="photo" src="${p}">`).join('')}</div></div>`}
+
+async function filesToData(input){return Promise.all([...input.files].map(f=>new Promise((res,rej)=>{const r=new FileReader();r.onload=()=>res(r.result);r.onerror=rej;r.readAsDataURL(f)})))}
+
+async function saveForm(form){
+ const type=form.dataset.type,id=form.dataset.id, fd=new FormData(form);
+ const obj=Object.fromEntries(fd.entries()); obj.id=id||uid();
+ if(type==='journal'){obj.pain=Number(obj.pain);obj.sleep=Number(obj.sleep);obj.mobility=Number(obj.mobility);const existing=state.journal.find(x=>x.id===id);obj.photos=existing?.photos||[];const inp=form.elements.photos;if(inp.files.length)obj.photos=await filesToData(inp)}
+ if(type==='receipt'){obj.amount=Number(obj.amount);const existing=state.receipts.find(x=>x.id===id);obj.photo=existing?.photo||'';const inp=form.elements.photo;if(inp.files.length)obj.photo=(await filesToData(inp))[0]}
+ if(type==='medication') obj.active=obj.status==='Active';
+ if(type==='task') obj.done=obj.done==='Completed';
+ if(type==='question') obj.answered=obj.answered==='Answered';
+ const map={journal:'journal',medication:'medications',receipt:'receipts',appointment:'appointments',timeline:'timeline',task:'tasks',question:'questions',note:'notes'};
+ const arr=state[map[type]], ix=arr.findIndex(x=>x.id===id); if(ix>=0)arr[ix]=obj;else arr.push(obj);
+ save(); modal=null; render(); toast('Saved');
+}
+
+function del(type,id){
+ const map={journal:'journal',medication:'medications',receipt:'receipts',appointment:'appointments',timeline:'timeline',task:'tasks',question:'questions',note:'notes'};
+ if(!confirm('Delete this item?'))return;
+ state[map[type]]=state[map[type]].filter(x=>x.id!==id); if(type==='medication')state.doses=state.doses.filter(d=>d.medicationId!==id); save();render();
+}
+
+function printReport(){
+ const win=window.open('','_blank');
+ const sec=(title,body)=>`<section><h2>${title}</h2>${body||'<p>None recorded.</p>'}</section>`;
+ const html=`<!doctype html><html><head><title>MVA Recovery Report</title><style>body{font-family:Arial,sans-serif;color:#1b2a3a;margin:36px;line-height:1.45}h1{color:#0b315f;border-bottom:4px solid #0b315f;padding-bottom:10px}h2{color:#174b7d;border-bottom:1px solid #ccd6e2;padding-bottom:5px;margin-top:28px}.item{margin:0 0 14px;padding:10px;border:1px solid #dce4ed;border-radius:8px}.meta{color:#65758a;font-size:12px}.photo{width:120px;height:120px;object-fit:cover;margin:4px}@media print{button{display:none}}</style></head><body>
+ <h1>MVA Recovery Report</h1><p><strong>Prepared for:</strong> ${esc(state.profile.lawyer||'Lawyer')}<br><strong>Name:</strong> ${esc(state.profile.name||'')}<br><strong>Accident date:</strong> ${fmt(state.profile.accidentDate)}<br><strong>Claim number:</strong> ${esc(state.profile.claimNumber||'')}<br><strong>Generated:</strong> ${new Date().toLocaleString('en-CA')}</p>
+ ${sec('Recovery Timeline',state.timeline.sort((a,b)=>a.date.localeCompare(b.date)).map(x=>`<div class="item"><strong>${fmt(x.date)} — ${esc(x.title)}</strong><div class="meta">${esc(x.type)}</div><p>${esc(x.notes||'')}</p></div>`).join(''))}
+ ${sec('Daily Journal',state.journal.sort((a,b)=>a.date.localeCompare(b.date)).map(x=>`<div class="item"><strong>${fmt(x.date)}</strong><div class="meta">Pain ${x.pain}/10 · Sleep ${x.sleep}/10 · Mobility ${x.mobility}/10 · Mood ${esc(x.mood)}</div><p>${esc(x.notes||'')}</p>${x.activities?`<p><strong>Activities affected:</strong> ${esc(x.activities)}</p>`:''}${(x.photos||[]).map(p=>`<img class="photo" src="${p}">`).join('')}</div>`).join(''))}
+ ${sec('Medications',state.medications.map(m=>`<div class="item"><strong>${esc(m.name)} ${esc(m.dose)}</strong><div class="meta">${esc(m.schedule||'')}</div><p>${esc(m.notes||'')}</p></div>`).join(''))}
+ ${sec('Dose History',state.doses.sort((a,b)=>a.dateTime.localeCompare(b.dateTime)).map(d=>{const m=state.medications.find(x=>x.id===d.medicationId);return `<div>${new Date(d.dateTime).toLocaleString('en-CA')} — ${esc(m?.name||'Medication')} — ${esc(d.status)}</div>`}).join(''))}
+ ${sec('Appointments',state.appointments.sort((a,b)=>a.date.localeCompare(b.date)).map(a=>`<div class="item"><strong>${fmt(a.date)} ${esc(a.time||'')} — ${esc(a.type)}</strong><div>${esc(a.provider||'')} ${esc(a.location||'')}</div><p>${esc(a.notes||'')}</p></div>`).join(''))}
+ ${sec('Receipts and Expenses',`<p><strong>Total: ${money(state.receipts.reduce((s,r)=>s+Number(r.amount||0),0))}</strong></p>`+state.receipts.map(r=>`<div class="item"><strong>${fmt(r.date)} — ${esc(r.description)} — ${money(r.amount)}</strong><div class="meta">${esc(r.category)}</div>${r.photo?`<img class="photo" src="${r.photo}">`:''}</div>`).join(''))}
+ ${sec('Tasks',state.tasks.map(t=>`<div>${t.done?'☑':'☐'} ${esc(t.title)} ${t.due?'— '+fmt(t.due):''}</div>`).join(''))}
+ ${sec('Questions',state.questions.map(q=>`<div class="item"><strong>${esc(q.text)}</strong><div class="meta">For: ${esc(q.forWhom)} · ${q.answered?'Answered':'Open'}</div><p>${esc(q.answer||'')}</p></div>`).join(''))}
+ ${sec('General Notes',state.notes.map(n=>`<div class="item"><strong>${fmt(n.date)} — ${esc(n.title)}</strong><p>${esc(n.text)}</p></div>`).join(''))}
+ <button onclick="window.print()">Print / Save as PDF</button></body></html>`;
+ win.document.write(html);win.document.close();setTimeout(()=>win.print(),500);
+}
+
+function render(){
+ const views={dashboard,journal,medications,receipts,appointments,timeline,tasks,notes,reports,settings,more};
+ document.getElementById('app').innerHTML=views[page]();
+ bind();
+}
+function bind(){
+ document.querySelectorAll('[data-nav]').forEach(b=>b.onclick=()=>nav(b.dataset.nav));
+ document.querySelectorAll('[data-add]').forEach(b=>b.onclick=()=>openForm(b.dataset.add));
+ document.querySelectorAll('[data-edit]').forEach(b=>b.onclick=()=>openForm(b.dataset.edit,b.dataset.id));
+ document.querySelectorAll('[data-delete]').forEach(b=>b.onclick=()=>del(b.dataset.delete,b.dataset.id));
+ document.querySelectorAll('[data-close]').forEach(b=>b.onclick=()=>{modal=null;render()});
+ document.querySelectorAll('[data-tab]').forEach(b=>b.onclick=()=>{tab=b.dataset.tab;render()});
+ document.querySelectorAll('[data-check-task]').forEach(c=>c.onchange=()=>setState(s=>{const t=s.tasks.find(x=>x.id===c.dataset.checkTask);if(t)t.done=c.checked}));
+ document.querySelectorAll('[data-dose]').forEach(b=>b.onclick=()=>setState(s=>s.doses.push({id:uid(),medicationId:b.dataset.dose,status:b.dataset.status,dateTime:new Date().toISOString()})));
+ const f=document.getElementById('editForm');if(f)f.onsubmit=async e=>{e.preventDefault();await saveForm(f)};
+ const pf=document.getElementById('profileForm');if(pf)pf.onsubmit=e=>{e.preventDefault();state.profile={...state.profile,...Object.fromEntries(new FormData(pf))};save();toast('Saved')};
+ const p=document.getElementById('printReport');if(p)p.onclick=printReport;
+ const bb=document.getElementById('backupBtn');if(bb)bb.onclick=()=>{const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([JSON.stringify(state,null,2)],{type:'application/json'}));a.download=`mva-record-keeper-backup-${today()}.json`;a.click();URL.revokeObjectURL(a.href)};
+ const ri=document.getElementById('restoreInput');if(ri)ri.onchange=async()=>{try{const data=JSON.parse(await ri.files[0].text());state={...defaults,...data};save();render();toast('Backup restored')}catch{alert('That backup file could not be read.')}};
+ const rb=document.getElementById('resetBtn');if(rb)rb.onclick=()=>{if(confirm('Erase all MVA app data on this device?')){state=structuredClone(defaults);save();render()}};
+}
+if('serviceWorker' in navigator)window.addEventListener('load',()=>navigator.serviceWorker.register('./sw.js').catch(()=>{}));
+render();
+})();
