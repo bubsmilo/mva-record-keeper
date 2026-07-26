@@ -67,3 +67,39 @@ input,textarea,select{width:100%;border:1px solid #cfd9e5;border-radius:8px;padd
  .updatedToday{display:none}
  .injuryExpandBtn{margin-left:auto}
 }
+
+
+/* Medication tracking */
+.medicationGrid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:16px}
+.medicationCard{display:flex;flex-direction:column;gap:14px}
+.medicationHead{margin-bottom:0}
+.medicationHead h3{margin:0}
+.medDose{font-weight:800;color:#0b63ce;margin-top:3px}
+.medSchedule{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:9px}
+.medSchedule>div{border:1px solid #e0e8f1;border-radius:11px;padding:10px 11px;background:#f8fbff}
+.medSchedule span{display:block;font-size:11px;text-transform:uppercase;letter-spacing:.05em;color:#748296;font-weight:800}
+.medSchedule strong{display:block;margin-top:3px;color:#25364b}
+.medNotes{margin:0;padding:10px 12px;background:#fffaf0;border-radius:10px;border:1px solid #f2e3bb}
+.doseActions{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.customDoseLog{display:grid;grid-template-columns:minmax(0,1.5fr) minmax(110px,.7fr) auto;gap:9px;align-items:end;padding:12px;border:1px solid #dfe8f2;border-radius:12px;background:#fbfdff}
+.customDoseLog .btn{height:42px;white-space:nowrap}
+.medHistoryHead{display:flex;justify-content:space-between;gap:10px;align-items:center;border-top:1px solid #e5ebf2;padding-top:12px}
+.medHistoryHead span{font-size:12px;color:#718096}
+.doseHistory{display:grid;gap:7px}
+.doseHistoryRow{display:flex;justify-content:space-between;align-items:center;gap:10px;padding:9px 10px;border:1px solid #e3eaf2;border-radius:9px;background:#fff}
+.doseHistoryRow>div{display:flex;flex-direction:column;gap:2px}
+.doseHistoryRow span{font-size:12px;color:#68778a}
+.doseHistoryRow small{color:#68778a}
+.takenDose{color:#18733a}
+.missedDose{color:#ad2424}
+.doseDeleteBtn{border:0;background:#f4f7fa;color:#7a8797;border-radius:8px;width:30px;height:30px;font-size:19px}
+.doseDeleteBtn:hover{background:#feeaea;color:#ad2424}
+.compactEmpty{padding:14px}
+.inactiveMedication{opacity:.76}
+.inactiveBanner{padding:10px 12px;border-radius:10px;background:#f1f3f6;color:#637083;font-weight:700}
+.allDoseHistory{margin-top:18px}
+@media(max-width:900px){.medicationGrid{grid-template-columns:1fr}}
+@media(max-width:620px){
+ .medSchedule,.doseActions,.customDoseLog{grid-template-columns:1fr}
+ .customDoseLog .btn{width:100%}
+}
