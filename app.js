@@ -75,7 +75,13 @@ function appShell(content,title,subtitle=''){
 
 function dashboard(){
  const expense=state.receipts.reduce((s,r)=>s+Number(r.amount||0),0);
- const next=state.appointments.filter(a=>a.date>=today()).sort((a,b)=>a.date.localeCompare(b.date))[0];
+ const appointmentDateValue=a=>{
+   if(a.dateTime)return String(a.dateTime).slice(0,10);
+   return a.date||'';
+ };
+ const next=state.appointments
+   .filter(a=>appointmentDateValue(a)>=today())
+   .sort((a,b)=>appointmentDateValue(a).localeCompare(appointmentDateValue(b)))[0];
  const meds=state.medications.filter(m=>m.active!==false);
  const dueTasks=state.tasks.filter(t=>!t.done).slice(0,4);
  return appShell(`
@@ -307,12 +313,14 @@ function receipts(){
 }
 
 function appointments(){
- const items=[...state.appointments].sort((a,b)=>(a.dateTime||'').localeCompare(b.dateTime||''));
+ const appointmentDateTime=a=>a.dateTime||(a.date?`${a.date}T${a.time||'00:00'}`:'');
+ const items=[...state.appointments].sort((a,b)=>appointmentDateTime(a).localeCompare(appointmentDateTime(b)));
  const now=Date.now();
  const appointmentStatus=a=>{
    if(a.status)return a.status;
-   if(!a.dateTime)return 'Upcoming';
-   return new Date(a.dateTime).getTime()<now?'Completed':'Upcoming';
+   const value=appointmentDateTime(a);
+   if(!value)return 'Upcoming';
+   return new Date(value).getTime()<now?'Completed':'Upcoming';
  };
  return appShell(`
  <div class="toolbar">
@@ -343,7 +351,7 @@ function appointments(){
            <button type="button" class="appointmentExpandBtn" data-toggle-appointment aria-expanded="false" aria-label="Expand appointment">+</button>
          </div>
          <div class="appointmentQuickSummary">
-           <div><span>Date & time</span><strong>${a.dateTime?fmtDateTime(a.dateTime):'Not entered'}</strong></div>
+           <div><span>Date & time</span><strong>${appointmentDateTime(a)?fmtDateTime(appointmentDateTime(a)):'Not entered'}</strong></div>
            <div><span>Status</span><strong class="appointmentStatus ${status.toLowerCase()}">${esc(status)}</strong></div>
          </div>
        </div>
@@ -478,6 +486,22 @@ async function filesToData(input){return Promise.all([...input.files].map(f=>new
 async function saveForm(form){
  const type=form.dataset.type,id=form.dataset.id, fd=new FormData(form);
  const obj=Object.fromEntries(fd.entries()); obj.id=id||uid();
+ if(type==='appointment'){
+   obj.appointmentType=obj.appointmentType||'Medical';
+   if(obj.appointmentType==='Insurance'){
+     obj.dateTime=obj.dateTimeInsurance||obj.dateTime||'';
+     obj.status=obj.statusInsurance||obj.status||'Completed';
+     obj.followUp=obj.followUpInsurance||obj.followUp||'';
+   }
+   if(obj.dateTime){
+     obj.date=String(obj.dateTime).slice(0,10);
+     obj.time=String(obj.dateTime).slice(11,16);
+   }
+   obj.type=obj.appointmentType;
+   delete obj.dateTimeInsurance;
+   delete obj.statusInsurance;
+   delete obj.followUpInsurance;
+ }
  if(type==='journal'){const existing=state.journal.find(x=>x.id===id);obj.photos=existing?.photos||[];const inp=form.elements.photos;if(inp.files.length)obj.photos=await filesToData(inp)}
  if(type==='injury'){
    obj.active=obj.active==='Active';
@@ -514,7 +538,13 @@ function printReport(){
  ${sec('Injury History',state.injuries.map(i=>`<div class="item"><strong>${esc(i.name)}</strong><div class="meta">${esc(i.description||'')}</div>${state.injuryLogs.filter(l=>l.injuryId===i.id).sort((a,b)=>a.date.localeCompare(b.date)).map(l=>`<p><strong>${fmt(l.date)} — Pain ${l.pain}/10${l.change?' — '+esc(l.change):''}</strong><br>${esc(l.notes||'')}</p>`).join('')}</div>`).join(''))}
  ${sec('Medications',state.medications.map(m=>`<div class="item"><strong>${esc(m.name)} ${esc(m.dose)}</strong><div class="meta">${esc(m.schedule||'')}</div><p>${esc(m.notes||'')}</p></div>`).join(''))}
  ${sec('Dose History',state.doses.sort((a,b)=>a.dateTime.localeCompare(b.dateTime)).map(d=>{const m=state.medications.find(x=>x.id===d.medicationId);return `<div>${new Date(d.dateTime).toLocaleString('en-CA')} — ${esc(m?.name||'Medication')} — ${esc(d.status)}</div>`}).join(''))}
- ${sec('Appointments',state.appointments.sort((a,b)=>a.date.localeCompare(b.date)).map(a=>`<div class="item"><strong>${fmt(a.date)} ${esc(a.time||'')} — ${esc(a.type)}</strong><div>${esc(a.provider||'')} ${esc(a.location||'')}</div><p>${esc(a.notes||'')}</p></div>`).join(''))}
+ ${sec('Appointments',[...state.appointments].sort((a,b)=>(a.dateTime||`${a.date||''}T${a.time||''}`).localeCompare(b.dateTime||`${b.date||''}T${b.time||''}`)).map(a=>{
+   const when=a.dateTime?fmtDateTime(a.dateTime):`${fmt(a.date)} ${esc(a.time||'')}`;
+   const kind=a.appointmentType||a.type||'Appointment';
+   const who=kind==='Insurance'?(a.insuranceCompany||a.contactName||''):(a.provider||a.professionalType||'');
+   const details=kind==='Insurance'?(a.discussionNotes||a.actionItems||a.followUp||a.notes||''):(a.summary||a.testsOrdered||a.followUp||a.notes||'');
+   return `<div class="item"><strong>${when} — ${esc(kind)}</strong><div>${esc(who)} ${esc(a.location||'')}</div><p>${esc(details)}</p></div>`;
+ }).join(''))}
  ${sec('Receipts and Expenses',`<p><strong>Total: ${money(state.receipts.reduce((s,r)=>s+Number(r.amount||0),0))}</strong></p>`+state.receipts.map(r=>`<div class="item"><strong>${fmt(r.date)} — ${esc(r.description)} — ${money(r.amount)}</strong><div class="meta">${esc(r.category)}</div>${r.photo?`<img class="photo" src="${r.photo}">`:''}</div>`).join(''))}
  ${sec('Tasks',state.tasks.map(t=>`<div>${t.done?'☑':'☐'} ${esc(t.title)} ${t.due?'— '+fmt(t.due):''}</div>`).join(''))}
  ${sec('Questions',state.questions.map(q=>`<div class="item"><strong>${esc(q.text)}</strong><div class="meta">For: ${esc(q.forWhom)} · ${q.answered?'Answered':'Open'}</div><p>${esc(q.answer||'')}</p></div>`).join(''))}
@@ -575,7 +605,19 @@ function bind(){
    b.setAttribute('aria-label',`${expanded?'Collapse':'Expand'} ${card.querySelector('.injuryTitleBlock strong')?.textContent||'injury'}`);
  });
  const df=document.getElementById('dailyLogForm');if(df){df.onsubmit=async e=>{e.preventDefault();await saveDailyLog(df)};df.querySelectorAll('[data-injury-id]').forEach(card=>{card.dataset.photos='[]';card.dataset.logId=''});bindDailyPhotoRemoval();}
- const f=document.getElementById('editForm');if(f)f.onsubmit=async e=>{e.preventDefault();await saveForm(f)};
+ const f=document.getElementById('editForm');if(f){
+   f.onsubmit=async e=>{e.preventDefault();await saveForm(f)};
+   const appointmentTypeSelect=f.querySelector('[name="appointmentType"]');
+   if(appointmentTypeSelect){
+     const updateAppointmentFields=()=>{
+       f.querySelectorAll('[data-appointment-fields]').forEach(group=>{
+         group.classList.toggle('hidden',group.dataset.appointmentFields!==appointmentTypeSelect.value);
+       });
+     };
+     appointmentTypeSelect.onchange=updateAppointmentFields;
+     updateAppointmentFields();
+   }
+ }
  const pf=document.getElementById('profileForm');if(pf)pf.onsubmit=e=>{e.preventDefault();state.profile={...state.profile,...Object.fromEntries(new FormData(pf))};save();toast('Saved')};
  const p=document.getElementById('printReport');if(p)p.onclick=printReport;
  const bb=document.getElementById('backupBtn');if(bb)bb.onclick=()=>{const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([JSON.stringify(state,null,2)],{type:'application/json'}));a.download=`mva-record-keeper-backup-${today()}.json`;a.click();URL.revokeObjectURL(a.href)};
