@@ -473,10 +473,23 @@ function notes(){
 }
 
 function reports(){
- return appShell(`<div class="grid grid2">
- <section class="card"><h2>Lawyer report</h2><p>Create a printable report containing your profile, timeline, journal, medications, appointments, expenses, tasks, questions and notes.</p><button class="btn primary wide" id="printReport">Generate / Print PDF</button><p class="small muted">Choose “Save as PDF” in the print window.</p></section>
- <section class="card"><h2>Summary</h2><div class="summaryBox">Journal: <strong>${state.journal.length}</strong><br>Appointments: <strong>${state.appointments.length}</strong><br>Timeline events: <strong>${state.timeline.length}</strong><br>Expenses: <strong>${money(state.receipts.reduce((s,r)=>s+Number(r.amount||0),0))}</strong></div></section>
- </div>`,'Reports','Generate a clear chronological package for your lawyer.');
+ const totalReceipts=state.receipts.reduce((sum,r)=>sum+Number(r.amount||0),0);
+ const quickCard=(icon,title,description,type,includes)=>`<section class="card reportPresetCard"><div class="reportPresetIcon">${icon}</div><h2>${title}</h2><p>${description}</p><div class="reportIncludes">${includes.map(x=>`<span>✓ ${x}</span>`).join('')}</div><button class="btn primary wide" data-generate-report="${type}">Generate ${title}</button></section>`;
+ return appShell(`
+ <div class="reportIntro card"><div><span class="pill">Reports 2.0</span><h2>Create a professional recovery report</h2><p>Choose a ready-made report or build your own. Reports open in a print-ready window where you can select <strong>Save as PDF</strong>.</p></div><div class="reportIntroStats"><strong>${state.journal.length}</strong><span>Daily logs</span><strong>${state.appointments.length}</strong><span>Appointments</span><strong>${money(totalReceipts)}</strong><span>Expenses</span></div></div>
+ <div class="grid grid3 reportPresetGrid">
+ ${quickCard('🩺','Medical Report','A focused clinical history for doctors, specialists and therapists.','medical',['Daily logs','Injuries','Medication timeline','Appointments'])}
+ ${quickCard('⚖️','Full Claim Report','A complete chronological package for your lawyer or claim file.','legal',['All recovery records','Receipts and photos','Medication changes','Notes and timeline'])}
+ ${quickCard('💰','Insurance Report','A concise report focused on appointments, expenses and claim activity.','insurance',['Appointments','Receipts','Recovery timeline','Claim notes'])}
+ </div>
+ <section class="card customReportCard"><div class="toolbar"><div><span class="pill">Custom</span><h2>Build a custom report</h2><p class="muted">Choose the date range and sections to include.</p></div></div>
+ <div class="reportDateRange"><div class="field"><label>From</label><input id="reportFrom" type="date"></div><div class="field"><label>To</label><input id="reportTo" type="date" value="${today()}"></div></div>
+ <div class="reportOptionGrid">
+ ${[['journal','Daily logs'],['injuries','Injury tracking'],['medications','Medication timeline'],['doseHistory','Detailed dose history'],['appointments','Appointments'],['receipts','Receipts and expenses'],['timeline','Recovery timeline'],['notes','Notes and questions'],['photos','Photo appendix']].map(([key,label])=>`<label class="settingCheck"><input type="checkbox" data-report-option="${key}" ${key==='photos'?'':'checked'}><span><strong>${label}</strong></span></label>`).join('')}
+ </div>
+ <div class="reportActions"><button class="btn secondary" id="previewCustomReport">Preview report</button><button class="btn primary" id="generateCustomReport">Generate PDF report</button></div>
+ <div id="reportPreview" class="reportPreview hidden"></div>
+ </section>`,'Reports','Create medical, legal, insurance or custom reports.');
 }
 
 function settings(){
@@ -630,26 +643,74 @@ function medicationFrequencyHistoryHtml(medication){
  }).join('')}</div>`;
 }
 
-function printReport(){
- const reportSettings={...defaults.reportSettings,...(state.reportSettings||{})};
- const win=window.open('','_blank');
- const sec=(title,body)=>`<section><h2>${title}</h2>${body||'<p>None recorded.</p>'}</section>`;
- const html=`<!doctype html><html><head><title>MVA Recovery Report</title><style>body{font-family:Arial,sans-serif;color:#1b2a3a;margin:36px;line-height:1.45}h1{color:#0b315f;border-bottom:4px solid #0b315f;padding-bottom:10px}h2{color:#174b7d;border-bottom:1px solid #ccd6e2;padding-bottom:5px;margin-top:28px}.item{margin:0 0 14px;padding:10px;border:1px solid #dce4ed;border-radius:8px}.meta{color:#65758a;font-size:12px}.photo{width:120px;height:120px;object-fit:cover;margin:4px}.frequencyTimeline{margin-top:8px;padding-top:8px;border-top:1px solid #e1e7ee}.frequencyPeriod{display:flex;justify-content:space-between;gap:18px;padding:4px 0}.frequencyPeriod span{color:#65758a}.frequencyPeriod b{text-align:right}@media print{button{display:none}}</style></head><body>
- <h1>MVA Recovery Report</h1><p><strong>Prepared for:</strong> ${esc(state.profile.lawyer||'Lawyer')}<br><strong>Name:</strong> ${esc(state.profile.name||'')}<br><strong>Accident date:</strong> ${fmt(state.profile.accidentDate)}<br><strong>Claim number:</strong> ${esc(state.profile.claimNumber||'')}<br><strong>Generated:</strong> ${new Date().toLocaleString('en-CA')}</p>
- ${sec('Recovery Timeline',state.timeline.sort((a,b)=>a.date.localeCompare(b.date)).map(x=>`<div class="item"><strong>${fmt(x.date)} — ${esc(x.title)}</strong><div class="meta">${esc(x.type)}</div><p>${esc(x.notes||'')}</p></div>`).join(''))}
- ${sec('Daily Recovery Notes',state.journal.sort((a,b)=>a.date.localeCompare(b.date)).map(x=>`<div class="item"><strong>${fmt(x.date)}</strong><p>${esc(x.notes||'')}</p>${reportSettings.includePhotos?(x.photos||[]).map(p=>`<img class="photo" src="${p}">`).join(''):''}</div>`).join(''))}
- ${sec('Injury History',state.injuries.map(i=>`<div class="item"><strong>${esc(i.name)}</strong><div class="meta">${esc(i.description||'')}</div>${state.injuryLogs.filter(l=>l.injuryId===i.id).sort((a,b)=>a.date.localeCompare(b.date)).map(l=>`<p><strong>${fmt(l.date)} — Pain ${l.pain}/10${l.change?' — '+esc(l.change):''}</strong><br>${esc(l.notes||'')}</p>`).join('')}</div>`).join(''))}
- ${sec('Medications',state.medications.map(m=>`<div class="item"><strong>${esc(m.name)} ${esc(m.dose||'')}</strong><div class="meta">${m.active===false?'Completed':'Active'}</div>${medicationFrequencyHistoryHtml(m)}${m.notes?`<p>${esc(m.notes)}</p>`:''}</div>`).join(''))}
- ${reportSettings.includeMedicationHistory?sec('Dose History',state.doses.sort((a,b)=>a.dateTime.localeCompare(b.dateTime)).map(d=>{const m=state.medications.find(x=>x.id===d.medicationId);return `<div>${new Date(d.dateTime).toLocaleString('en-CA')} — ${esc(d.medicationNameSnapshot||m?.name||'Medication')} — ${esc(d.status)}${d.doseSnapshot?' — '+esc(d.doseSnapshot):''}${d.frequencySnapshot?' — '+esc(d.frequencySnapshot):''}${d.note?' — '+esc(d.note):''}</div>`}).join('')):''}
- ${sec('Appointments',state.appointments.sort((a,b)=>a.date.localeCompare(b.date)).map(a=>`<div class="item"><strong>${fmt(a.date)} ${esc(a.time||'')} — ${esc(a.type)}</strong><div>${esc(a.provider||'')} ${esc(a.location||'')}</div><p>${esc(a.notes||'')}</p></div>`).join(''))}
- ${sec('Receipts and Expenses',`<p><strong>Total: ${money(state.receipts.reduce((s,r)=>s+Number(r.amount||0),0))}</strong></p>`+state.receipts.map(r=>`<div class="item"><strong>${fmt(r.date)} — ${esc(r.description)} — ${money(r.amount)}</strong><div class="meta">${esc(r.category)}</div>${reportSettings.includePhotos&&r.photo?`<img class="photo" src="${r.photo}">`:''}</div>`).join(''))}
- ${sec('Tasks',state.tasks.map(t=>`<div>${t.done?'☑':'☐'} ${esc(t.title)} ${t.due?'— '+fmt(t.due):''}</div>`).join(''))}
- ${sec('Questions',state.questions.map(q=>`<div class="item"><strong>${esc(q.text)}</strong><div class="meta">For: ${esc(q.forWhom)} · ${q.answered?'Answered':'Open'}</div><p>${esc(q.answer||'')}</p></div>`).join(''))}
- ${sec('General Notes',state.notes.map(n=>`<div class="item"><strong>${fmt(n.date)} — ${esc(n.title)}</strong><p>${esc(n.text)}</p></div>`).join(''))}
- <button onclick="window.print()">Print / Save as PDF</button></body></html>`;
- win.document.write(html);win.document.close();if(reportSettings.autoPrint)setTimeout(()=>win.print(),500);
+function reportPreset(type){
+ const all={journal:true,injuries:true,medications:true,doseHistory:true,appointments:true,receipts:true,timeline:true,notes:true,photos:true};
+ if(type==='medical')return {type,title:'Medical Recovery Report',journal:true,injuries:true,medications:true,doseHistory:true,appointments:true,receipts:false,timeline:true,notes:false,photos:false};
+ if(type==='insurance')return {type,title:'Insurance Recovery Report',journal:false,injuries:false,medications:false,doseHistory:false,appointments:true,receipts:true,timeline:true,notes:true,photos:true};
+ return {type:'legal',title:'Full MVA Claim Report',...all};
 }
-
+function customReportConfig(){
+ const config={type:'custom',title:'Custom MVA Recovery Report',from:document.getElementById('reportFrom')?.value||'',to:document.getElementById('reportTo')?.value||''};
+ document.querySelectorAll('[data-report-option]').forEach(input=>config[input.dataset.reportOption]=input.checked);
+ return config;
+}
+function reportInRange(date,config){
+ if(!date)return true;
+ const key=String(date).slice(0,10);
+ return (!config.from||key>=config.from)&&(!config.to||key<=config.to);
+}
+function reportPreviewHtml(config){
+ const journal=state.journal.filter(x=>reportInRange(x.date,config)).length;
+ const appointments=state.appointments.filter(x=>reportInRange(x.date,config)).length;
+ const doses=state.doses.filter(x=>reportInRange(localDateKey(x.dateTime),config)).length;
+ const receipts=state.receipts.filter(x=>reportInRange(x.date,config));
+ const photos=(config.photos?state.journal.filter(x=>reportInRange(x.date,config)).reduce((n,x)=>n+(x.photos||[]).length,0)+receipts.filter(x=>x.photo).length:0);
+ const sections=[['journal','Daily logs'],['injuries','Injury tracking'],['medications','Medication timeline'],['doseHistory','Dose history'],['appointments','Appointments'],['receipts','Receipts'],['timeline','Recovery timeline'],['notes','Notes and questions'],['photos','Photo appendix']].filter(([key])=>config[key]).map(([,label])=>label);
+ return `<div class="reportPreviewHead"><div><span class="pill">Preview</span><h3>${esc(config.title)}</h3><p>${config.from||'Beginning'} – ${config.to||'Today'}</p></div><div class="reportPreviewCount">${sections.length}<small>sections</small></div></div><div class="reportPreviewStats"><div><strong>${journal}</strong><span>Daily logs</span></div><div><strong>${appointments}</strong><span>Appointments</span></div><div><strong>${doses}</strong><span>Dose records</span></div><div><strong>${money(receipts.reduce((n,r)=>n+Number(r.amount||0),0))}</strong><span>Expenses</span></div><div><strong>${photos}</strong><span>Photos</span></div></div><div class="reportSectionList">${sections.map(x=>`<span>✓ ${x}</span>`).join('')}</div>`;
+}
+function medicationTimelineForReport(med,config){
+ const events=(state.medicationEvents||[]).filter(e=>e.medicationId===med.id&&reportInRange(localDateKey(e.dateTime),config)).map(e=>({dateTime:e.dateTime,label:e.eventType==='Changed'?`${e.field} changed: ${e.from||'Not entered'} → ${e.to||'Not entered'}`:e.eventType+(e.reason?`: ${e.reason}`:'')}));
+ const doses=(state.doses||[]).filter(d=>d.medicationId===med.id&&reportInRange(localDateKey(d.dateTime),config)).sort((a,b)=>new Date(a.dateTime)-new Date(b.dateTime));
+ let previous='';
+ doses.forEach(d=>{const freq=d.frequencySnapshot||'';if(freq&&freq!==previous){events.push({dateTime:d.dateTime,label:`Frequency recorded as ${freq}`});previous=freq}});
+ return events.sort((a,b)=>new Date(a.dateTime)-new Date(b.dateTime)).map(e=>`<div class="timelineLine"><time>${fmtDateTime(e.dateTime)}</time><span>${esc(e.label)}</span></div>`).join('')||'<p class="muted">No dated changes recorded in this range.</p>';
+}
+function printReport(config=reportPreset('legal')){
+ const win=window.open('','_blank');
+ if(!win){alert('Please allow pop-ups so the report can open.');return}
+ const inRange=(date)=>reportInRange(date,config);
+ const journal=state.journal.filter(x=>inRange(x.date)).sort((a,b)=>a.date.localeCompare(b.date));
+ const injuryLogs=state.injuryLogs.filter(x=>inRange(x.date)).sort((a,b)=>a.date.localeCompare(b.date));
+ const appointments=state.appointments.filter(x=>inRange(x.date)).sort((a,b)=>a.date.localeCompare(b.date));
+ const receipts=state.receipts.filter(x=>inRange(x.date)).sort((a,b)=>a.date.localeCompare(b.date));
+ const timeline=state.timeline.filter(x=>inRange(x.date)).sort((a,b)=>a.date.localeCompare(b.date));
+ const notes=state.notes.filter(x=>inRange(x.date)).sort((a,b)=>a.date.localeCompare(b.date));
+ const doses=state.doses.filter(x=>inRange(localDateKey(x.dateTime))).sort((a,b)=>a.dateTime.localeCompare(b.dateTime));
+ const accidentDays=state.profile.accidentDate?daysBetween(new Date(state.profile.accidentDate+'T12:00:00'),new Date()):0;
+ const total=receipts.reduce((n,r)=>n+Number(r.amount||0),0);
+ const section=(id,title,body)=>`<section id="${id}" class="reportSection"><h2>${title}</h2>${body||'<p class="emptyText">None recorded in this date range.</p>'}</section>`;
+ const included=[['summary','Recovery Summary',true],['timeline','Recovery Timeline',config.timeline],['journal','Daily Logs',config.journal],['injuries','Injury Progress',config.injuries],['medications','Medication Timeline',config.medications],['doses','Dose History',config.doseHistory],['appointments','Appointments',config.appointments],['receipts','Receipts and Expenses',config.receipts],['notes','Notes and Questions',config.notes],['photos','Photo Appendix',config.photos]].filter(x=>x[2]);
+ const toc=included.map(([,label],i)=>`<div><span>${i+1}. ${label}</span><b>Section ${i+1}</b></div>`).join('');
+ const photoItems=[];
+ if(config.photos){journal.forEach(j=>(j.photos||[]).forEach((photo,i)=>photoItems.push(`<figure><img src="${photo}"><figcaption>${fmt(j.date)} — Daily log photo ${i+1}</figcaption></figure>`)));receipts.forEach(r=>{if(r.photo)photoItems.push(`<figure><img src="${r.photo}"><figcaption>${fmt(r.date)} — ${esc(r.description||'Receipt')}</figcaption></figure>`)})}
+ const html=`<!doctype html><html><head><meta charset="utf-8"><title>${esc(config.title)}</title><style>
+ @page{margin:18mm}*{box-sizing:border-box}body{font-family:Arial,sans-serif;color:#1c2d40;margin:0;line-height:1.45;font-size:12px}.cover{min-height:92vh;display:flex;flex-direction:column;justify-content:center;border-top:12px solid #0b63ce}.cover h1{font-size:34px;color:#0b315f;margin:18px 0 8px}.cover .sub{font-size:16px;color:#557086}.coverGrid{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-top:35px}.coverGrid div,.stat{padding:14px;border:1px solid #dbe4ee;border-radius:10px}.coverGrid span,.stat span{display:block;color:#718096;font-size:10px;text-transform:uppercase;letter-spacing:.06em}.pageBreak{break-before:page}.toc h2,.reportSection h2{color:#0b315f;border-bottom:2px solid #0b63ce;padding-bottom:7px}.toc div{display:flex;justify-content:space-between;border-bottom:1px dotted #9cadbf;padding:8px 0}.summaryGrid{display:grid;grid-template-columns:repeat(3,1fr);gap:10px}.stat strong{font-size:20px;color:#0b63ce}.item{break-inside:avoid;margin:0 0 12px;padding:12px;border:1px solid #dce5ef;border-radius:9px}.meta,.muted{color:#66798d}.timelineLine{display:grid;grid-template-columns:150px 1fr;gap:12px;padding:8px 0;border-bottom:1px solid #e5ebf2}.timelineLine time{color:#65788e}.medHeader{display:flex;justify-content:space-between;gap:12px}.badge{padding:3px 8px;border-radius:999px;background:#eaf3ff;color:#0b63ce;font-weight:bold;font-size:10px}.receiptTotal{font-size:18px;color:#0b315f}.photoGrid{display:grid;grid-template-columns:repeat(2,1fr);gap:14px}.photoGrid figure{margin:0;break-inside:avoid}.photoGrid img{width:100%;max-height:320px;object-fit:contain;border:1px solid #dbe4ee;border-radius:8px}.photoGrid figcaption{margin-top:5px;color:#65788e}.printBar{position:fixed;right:16px;bottom:16px}.printBar button{padding:12px 18px;background:#0b63ce;color:white;border:0;border-radius:9px;font-weight:bold}@media print{.printBar{display:none}.pageBreak{break-before:page}}
+ </style></head><body>
+ <section class="cover"><span class="badge">MVA RECORD KEEPER</span><h1>${esc(config.title)}</h1><div class="sub">A chronological record of recovery following a motor vehicle accident</div><div class="coverGrid"><div><span>Prepared for</span><strong>${esc(state.profile.name||'Not entered')}</strong></div><div><span>Claim number</span><strong>${esc(state.profile.claimNumber||'Not entered')}</strong></div><div><span>Accident date</span><strong>${fmt(state.profile.accidentDate)||'Not entered'}</strong></div><div><span>Report period</span><strong>${config.from?fmt(config.from):'Beginning'} – ${config.to?fmt(config.to):'Today'}</strong></div><div><span>Lawyer</span><strong>${esc(state.profile.lawyer||'Not entered')}</strong></div><div><span>Generated</span><strong>${new Date().toLocaleString('en-CA')}</strong></div></div></section>
+ <section class="toc pageBreak"><h2>Table of Contents</h2>${toc}</section>
+ ${section('summary','Recovery Summary',`<div class="summaryGrid"><div class="stat"><strong>${accidentDays}</strong><span>Days since accident</span></div><div class="stat"><strong>${journal.length}</strong><span>Daily logs</span></div><div class="stat"><strong>${state.injuries.length}</strong><span>Injuries tracked</span></div><div class="stat"><strong>${appointments.length}</strong><span>Appointments</span></div><div class="stat"><strong>${doses.length}</strong><span>Dose records</span></div><div class="stat"><strong>${money(total)}</strong><span>Expenses</span></div></div>`)}
+ ${config.timeline?section('timeline','Recovery Timeline',timeline.map(x=>`<div class="item"><strong>${fmt(x.date)} — ${esc(x.title)}</strong><div class="meta">${esc(x.type||'Event')}</div>${x.notes?`<p>${esc(x.notes)}</p>`:''}</div>`).join('')):''}
+ ${config.journal?section('journal','Daily Logs',journal.map(x=>`<div class="item"><strong>${fmt(x.date)}</strong><p>${esc(x.notes||'')}</p></div>`).join('')):''}
+ ${config.injuries?section('injuries','Injury Progress',state.injuries.map(i=>{const logs=injuryLogs.filter(l=>l.injuryId===i.id);return `<div class="item"><strong>${esc(i.name)}</strong>${i.description?`<p class="meta">${esc(i.description)}</p>`:''}${logs.map(l=>`<p><b>${fmt(l.date)} — Pain ${l.pain}/10${l.change?' — '+esc(l.change):''}</b><br>${esc(l.notes||'')}</p>`).join('')||'<p class="muted">No entries in range.</p>'}</div>`}).join('')):''}
+ ${config.medications?section('medications','Medication Timeline',state.medications.map(m=>`<div class="item"><div class="medHeader"><strong>${esc(m.name)} — ${esc(m.dose||'Dose not entered')}</strong><span class="badge">${m.active===false?'Completed':'Active'}</span></div><p class="meta">Current frequency: ${esc(m.frequency||m.schedule||'Not entered')}</p>${medicationTimelineForReport(m,config)}</div>`).join('')):''}
+ ${config.doseHistory?section('doses','Detailed Dose History',doses.map(d=>{const m=state.medications.find(x=>x.id===d.medicationId);return `<div class="timelineLine"><time>${fmtDateTime(d.dateTime)}</time><span><strong>${esc(d.medicationNameSnapshot||m?.name||'Medication')} — ${esc(d.status)}</strong><br>${esc(d.doseSnapshot||'')}${d.frequencySnapshot?' · '+esc(d.frequencySnapshot):''}${d.note?'<br>'+esc(d.note):''}</span></div>`}).join('')):''}
+ ${config.appointments?section('appointments','Appointments',appointments.map(a=>`<div class="item"><strong>${fmt(a.date)} ${esc(a.time||'')} — ${esc(a.appointmentKind||a.type||'Appointment')}</strong><div class="meta">${esc(a.provider||a.insuranceCompany||'')} ${esc(a.location||a.contactName||'')}</div><p>${esc(a.notes||a.visitSummary||a.discussionNotes||'')}</p></div>`).join('')):''}
+ ${config.receipts?section('receipts','Receipts and Expenses',`<p class="receiptTotal"><strong>Total: ${money(total)}</strong></p>`+receipts.map(r=>`<div class="item"><strong>${fmt(r.date)} — ${esc(r.description)} — ${money(r.amount)}</strong><div class="meta">${esc(r.category||'Other')}</div>${r.notes?`<p>${esc(r.notes)}</p>`:''}</div>`).join('')):''}
+ ${config.notes?section('notes','Notes and Questions',notes.map(n=>`<div class="item"><strong>${fmt(n.date)} — ${esc(n.title)}</strong><p>${esc(n.text)}</p></div>`).join('')+state.questions.map(q=>`<div class="item"><strong>Question for ${esc(q.forWhom||'')}</strong><p>${esc(q.text)}</p>${q.answer?`<p><b>Answer:</b> ${esc(q.answer)}</p>`:''}</div>`).join('')):''}
+ ${config.photos?section('photos','Photo Appendix',`<div class="photoGrid">${photoItems.join('')}</div>`):''}
+ <div class="printBar"><button onclick="window.print()">Print / Save as PDF</button></div></body></html>`;
+ win.document.write(html);win.document.close();setTimeout(()=>win.focus(),250);
+}
 function render(){
  const views={dashboard,journal,injuries,medications,receipts,appointments,timeline,tasks,notes,reports,settings,more};
  document.getElementById('app').innerHTML=views[page]();
@@ -734,7 +795,9 @@ function bind(){
    }
  }
  const pf=document.getElementById('profileForm');if(pf)pf.onsubmit=e=>{e.preventDefault();state.profile={...state.profile,...Object.fromEntries(new FormData(pf))};save();toast('Saved')};
- const p=document.getElementById('printReport');if(p)p.onclick=printReport;
+ document.querySelectorAll('[data-generate-report]').forEach(button=>button.onclick=()=>printReport(reportPreset(button.dataset.generateReport)));
+ const previewCustom=document.getElementById('previewCustomReport');if(previewCustom)previewCustom.onclick=()=>{const box=document.getElementById('reportPreview');box.innerHTML=reportPreviewHtml(customReportConfig());box.classList.remove('hidden');box.scrollIntoView({behavior:'smooth',block:'nearest'})};
+ const generateCustom=document.getElementById('generateCustomReport');if(generateCustom)generateCustom.onclick=()=>printReport(customReportConfig());
  const shareBtn=document.getElementById('shareAppBtn');if(shareBtn)shareBtn.onclick=async()=>{
    const url='https://mva-record-keeper.vercel.app/';
    const shareData={title:'MVA Record Keeper',text:"I've been using this MVA Record Keeper to track injuries, medications, appointments, receipts and recovery.",url};
