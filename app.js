@@ -13,6 +13,7 @@ const localDateTimeValue=(d=new Date())=>{
  return `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
 };
 const fmtDateTime=v=>v?new Date(v).toLocaleString('en-CA',{year:'numeric',month:'short',day:'numeric',hour:'numeric',minute:'2-digit'}):'';
+const localDateKey=v=>{if(!v)return '';const d=new Date(v);if(Number.isNaN(d.getTime()))return '';const pad=n=>String(n).padStart(2,'0');return `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}`};
 const medicationIntervalMs=frequency=>{
  const text=String(frequency||'').trim().toLowerCase();
  const named={
@@ -77,7 +78,7 @@ const daysBetween=(a,b)=>Math.max(0,Math.floor((new Date(b)-new Date(a))/(864000
 
 const defaults={
   profile:{accidentDate:today(),name:'',lawyer:'',claimNumber:''},
-  journal:[], injuries:[], injuryLogs:[], medications:[], doses:[], receipts:[], appointments:[],
+  journal:[], injuries:[], injuryLogs:[], medications:[], doses:[], medicationEvents:[], receipts:[], appointments:[],
   tasks:[], questions:[], notes:[], timeline:[]
 };
 let state=load();
@@ -95,7 +96,17 @@ function migrateMedicationData(){
    if(copy.active===undefined&&copy.status){copy.active=copy.status!=='Inactive';changed=true}
    return copy;
  });
- if(!state.dataVersion||state.dataVersion<2){state.dataVersion=2;changed=true}
+ state.medicationEvents=state.medicationEvents||[];
+ state.doses=(state.doses||[]).map(d=>{
+   const copy={...d};
+   const med=state.medications.find(m=>m.id===copy.medicationId);
+   if(copy.medicationNameSnapshot===undefined){copy.medicationNameSnapshot=med?.name||'Medication';changed=true}
+   if(copy.doseSnapshot===undefined){copy.doseSnapshot=med?.dose||'';changed=true}
+   if(copy.frequencySnapshot===undefined){copy.frequencySnapshot=med?.frequency||med?.schedule||'';copy.legacySnapshot=true;changed=true}
+   if(copy.note===undefined){copy.note='';changed=true}
+   return copy;
+ });
+ if(!state.dataVersion||state.dataVersion<3){state.dataVersion=3;changed=true}
  if(changed)save();
 }
 migrateMedicationData();
@@ -125,7 +136,11 @@ function appShell(content,title,subtitle=''){
       <header class="topbar"><div><h1>${esc(title)}</h1><p>${esc(subtitle)}</p></div><img src="./mva-logo-32.png" width="32" height="32" alt=""></header>
       ${content}
     </main>
-    <nav class="bottomNav">${[items[0],items[1],items[2],items[4],['more','•••','More']].map(i=>`<button data-nav="${i[0]}" class="${page===i[0]?'active':''}"><span>${i[1]}</span>${i[2]}</button>`).join('')}</nav>
+    <nav class="bottomNav">${[items[0],items[1],items[2],items[3],['more','•••','More']].map(i=>{
+      const morePages=['receipts','appointments','timeline','tasks','notes','reports','settings'];
+      const active=i[0]==='more'?morePages.includes(page):page===i[0];
+      return `<button data-nav="${i[0]}" class="${active?'active':''}"><span>${i[1]}</span>${i[2]}</button>`;
+    }).join('')}</nav>
     ${modal||''}
   </div>`;
 }
@@ -181,6 +196,7 @@ function journal(){
  <div class="list">${sorted.length?sorted.map(j=>{const logs=state.injuryLogs.filter(x=>x.date===j.date);return `<article class="card">
   <div class="toolbar"><div><h3>${fmt(j.date)}</h3></div><div class="actions"><button class="iconBtn" data-edit-daily="${j.id}">Edit daily log</button><button class="iconBtn" data-delete="journal" data-id="${j.id}">Delete</button></div></div>
   <p>${esc(j.notes||'').replace(/\n/g,'<br>')}</p>
+  ${(()=>{const dayDoses=(state.doses||[]).filter(d=>localDateKey(d.dateTime)===j.date&&d.status==='Taken').sort((a,b)=>new Date(a.dateTime)-new Date(b.dateTime));return dayDoses.length?`<div class="dailyMedicationSummary"><strong>Medication taken</strong>${dayDoses.map(d=>`<span>✓ ${esc(d.medicationNameSnapshot||state.medications.find(m=>m.id===d.medicationId)?.name||'Medication')} · ${new Date(d.dateTime).toLocaleTimeString('en-CA',{hour:'numeric',minute:'2-digit'})}${d.doseSnapshot?' · '+esc(d.doseSnapshot):''}</span>`).join('')}</div>`:''})()}
   ${logs.length?`<div class="injurySummary">${logs.map(l=>{const i=state.injuries.find(x=>x.id===l.injuryId);const extras=[l.swelling&&`Swelling: ${esc(l.swelling)}`,l.stiffness&&`Stiffness: ${esc(l.stiffness)}`,l.rangeOfMotion&&`Range of motion: ${esc(l.rangeOfMotion)}`].filter(Boolean);return `<div><strong>${esc(i?.name||'Injury')}</strong>${l.pain!==''&&l.pain!=null?` <span class="pill">${l.pain}/10</span>`:''}${l.change?` · ${esc(l.change)}`:''}${extras.length?`<div class="symptomSummary small">${extras.join(' · ')}</div>`:''}${l.notes?`<div class="small muted">${esc(l.notes)}</div>`:''}${l.photos?.length?`<div class="photoGrid" style="margin-top:8px">${l.photos.map((p,ix)=>`<div class="photoWrap"><img class="photo" src="${p}"><button type="button" class="removePhotoBtn" data-remove-saved-photo="${l.id}:${ix}" aria-label="Remove photo">×</button></div>`).join('')}</div>`:''}</div>`}).join('')}</div>`:''}
  </article>`}).join(''):`<div class="empty">Add your first daily log.</div>`}</div>`,'Daily Log','Record your day and keep every injury separate.');
 }
@@ -303,67 +319,65 @@ function injuryCard(i){
  ${logs.length?`<div class="injuryHistory">${logs.map(l=>`<div class="historyRow"><div><strong>${fmt(l.date)}</strong>${l.notes?`<div class="small">${esc(l.notes)}</div>`:''}</div><div class="historyScore"><span class="painBadge">${l.pain}/10</span>${l.change?`<span class="small muted">${esc(l.change)}</span>`:''}<button class="iconBtn" data-edit="injuryLog" data-id="${l.id}">Edit</button><button class="iconBtn" data-delete="injuryLog" data-id="${l.id}">Delete</button></div></div>`).join('')}</div>`:`<div class="empty">No updates recorded for this injury.</div>`}</section>`;
 }
 
+function doseSnapshot(med,status='Taken',dateTime=new Date().toISOString(),overrides={}){
+ return {
+   id:overrides.id||uid(),medicationId:med.id,status,dateTime,
+   medicationNameSnapshot:overrides.medicationNameSnapshot??med.name??'Medication',
+   doseSnapshot:overrides.doseSnapshot??med.dose??'',
+   frequencySnapshot:overrides.frequencySnapshot??med.frequency??med.schedule??'',
+   note:overrides.note??''
+ };
+}
+function medicationEventText(e){
+ if(e.eventType==='Created')return 'Medication added';
+ if(e.eventType==='Completed')return `Marked completed${e.reason?`: ${e.reason}`:''}`;
+ if(e.eventType==='Reactivated')return 'Medication reactivated';
+ if(e.eventType==='Changed')return `${e.field} changed from “${e.from||'Not entered'}” to “${e.to||'Not entered'}”`;
+ return e.eventType||'Medication update';
+}
+function doseHistoryRow(d,showMedication=false){
+ const med=state.medications.find(x=>x.id===d.medicationId);
+ const name=d.medicationNameSnapshot||med?.name||'Medication';
+ return `<div class="doseHistoryRow detailedDoseRow"><div>${showMedication?`<strong>${esc(name)}</strong>`:`<strong class="${d.status==='Missed'?'missedDose':'takenDose'}">${esc(d.status)}</strong>`}<span>${showMedication?`${esc(d.status)} · `:''}${fmtDateTime(d.dateTime)}</span><div class="doseSnapshotLine">${d.doseSnapshot?`<span><b>Dose:</b> ${esc(d.doseSnapshot)}</span>`:''}${d.frequencySnapshot?`<span><b>Frequency:</b> ${esc(d.frequencySnapshot)}</span>`:''}</div>${d.note?`<small>${esc(d.note)}</small>`:''}${d.legacySnapshot?`<small class="muted">Older imported record — details use the best information available.</small>`:''}</div><div class="doseRowActions"><button class="iconBtn" type="button" data-edit="dose" data-id="${d.id}">Edit</button><button class="doseDeleteBtn" type="button" data-delete-dose="${d.id}" aria-label="Delete dose record">×</button></div></div>`;
+}
 function medications(){
  const now=new Date();
  const history=[...(state.doses||[])].filter(d=>d.dateTime).sort((a,b)=>new Date(b.dateTime)-new Date(a.dateTime));
- const meds=[...(state.medications||[])].sort((a,b)=>{
-   if((a.active===false)!==(b.active===false))return a.active===false?1:-1;
-   const at=medicationTiming(a,history,now),bt=medicationTiming(b,history,now);
-   const av=at.next?at.next.getTime():Number.MAX_SAFE_INTEGER,bv=bt.next?bt.next.getTime():Number.MAX_SAFE_INTEGER;
-   return av-bv||String(a.name||'').localeCompare(String(b.name||''));
- });
- const attention=meds.filter(m=>m.active!==false).filter(m=>{const t=medicationTiming(m,history,now);return t.next&&t.remaining<=30*60000});
+ const activeMeds=(state.medications||[]).filter(m=>m.active!==false);
+ const completedMeds=(state.medications||[]).filter(m=>m.active===false);
+ const sortMeds=list=>[...list].sort((a,b)=>{const at=medicationTiming(a,history,now),bt=medicationTiming(b,history,now);const av=at.next?at.next.getTime():Number.MAX_SAFE_INTEGER,bv=bt.next?bt.next.getTime():Number.MAX_SAFE_INTEGER;return av-bv||String(a.name||'').localeCompare(String(b.name||''))});
+ const meds=[...sortMeds(activeMeds),...completedMeds.sort((a,b)=>String(b.completedDate||'').localeCompare(String(a.completedDate||'')))];
+ const attention=sortMeds(activeMeds).filter(m=>{const t=medicationTiming(m,history,now);return t.next&&t.remaining<=30*60000});
  return appShell(`
- <div class="toolbar"><div><span class="pill">${state.medications.filter(m=>m.active!==false).length} active medications</span></div><button class="btn primary" data-add="medication">+ Add medication</button></div>
+ <div class="toolbar"><div><span class="pill">${activeMeds.length} active · ${completedMeds.length} completed</span></div><button class="btn primary" data-add="medication">+ Add medication</button></div>
  ${attention.length?`<section class="card medicationAttention"><h2>Needs attention</h2><div class="attentionList">${attention.map(m=>{const t=medicationTiming(m,history,now);return `<div><div><strong>💊 ${esc(m.name)}</strong><span class="${t.statusClass}">${esc(t.statusText)}</span></div><button class="btn primary compactTaken" type="button" data-dose-now="${m.id}" data-status="Taken">✓ Taken now</button></div>`}).join('')}</div></section>`:''}
  <div class="medicationGrid">${meds.length?meds.map(m=>{
    const allMedicationDoses=history.filter(d=>d.medicationId===m.id);
-   const doses=allMedicationDoses.slice(0,8);
+   const doses=allMedicationDoses.slice(0,10);
+   const events=[...(state.medicationEvents||[])].filter(e=>e.medicationId===m.id).sort((a,b)=>new Date(b.dateTime)-new Date(a.dateTime));
    const timing=medicationTiming(m,history,now);
    const nextDueText=timing.next?fmtDateTime(timing.next.toISOString()):(medicationIntervalMs(m.frequency||m.schedule)?'Set first dose time':'As needed');
    const lastTakenText=timing.last?fmtDateTime(timing.last.dateTime):'No dose recorded';
-   const progressClass=timing.remaining!==null&&timing.remaining<=0?'overdue':'';
    return `<section class="card medicationCard ${m.active===false?'inactiveMedication':''}" data-medication-card="${m.id}">
-    <div class="medicationCollapsedHeader">
-      <div class="medicationIcon">💊</div>
-      <div class="medicationHeaderInfo">
-        <div class="medicationTitleRow">
-          <div><h3>${esc(m.name)}</h3><div class="medDose">${esc(m.dose||'Dose not entered')} · ${esc(m.frequency||m.schedule||'Frequency not entered')}</div></div>
-          <button type="button" class="medicationExpandBtn" data-toggle-medication aria-expanded="false" aria-label="Expand ${esc(m.name)}">+</button>
-        </div>
-        <div class="medicationQuickSummary">
-          <div><span>Last taken</span><strong>${lastTakenText}</strong></div>
-          <div><span>Next due</span><strong>${nextDueText}</strong><small class="medTimingStatus ${timing.statusClass}">${esc(timing.statusText)}</small></div>
-        </div>
-        ${timing.next?`<div class="doseProgress ${progressClass}" aria-label="Time until next dose"><span style="width:${timing.progress.toFixed(1)}%"></span></div>`:''}
-        ${m.active!==false?`<button class="btn primary medicationTakenNow" type="button" data-dose-now="${m.id}" data-status="Taken">✓ Taken now</button>`:''}
-      </div>
-    </div>
-    <div class="medicationExpandableBody">
-      <div class="medicationExpandableInner">
-        <div class="toolbar medicationHead"><div></div><div class="actions"><button class="iconBtn" data-edit="medication" data-id="${m.id}">Edit</button><button class="iconBtn" data-delete="medication" data-id="${m.id}">Delete</button></div></div>
-        <div class="medSchedule">
-          <div><span>Frequency</span><strong>${esc(m.frequency||m.schedule||'Not entered')}</strong></div>
-          <div><span>First dose time</span><strong>${m.firstDoseTime?new Date(`2000-01-01T${m.firstDoseTime}`).toLocaleTimeString('en-CA',{hour:'numeric',minute:'2-digit'}):'Not entered'}</strong></div>
-        </div>
-        ${m.notes?`<p class="small medNotes">${esc(m.notes)}</p>`:''}
-        ${m.active!==false?`<div class="doseActions"><button class="btn secondary" type="button" data-dose-now="${m.id}" data-status="Missed">Mark missed now</button></div>
-        <div class="customDoseLog">
-          <div class="field"><label>Date taken</label><input type="date" data-dose-date="${m.id}" value="${today()}"></div>
-          <div class="field"><label>Time taken</label><input type="time" data-dose-clock="${m.id}" value="${localDateTimeValue().slice(11,16)}"></div>
-          <div class="field"><label>Status</label><select data-dose-status="${m.id}"><option>Taken</option><option>Missed</option></select></div>
-          <button class="btn secondary" type="button" data-log-dose="${m.id}">Add to history</button>
-        </div>`:`<div class="inactiveBanner">This medication is inactive.</div>`}
-        <div class="medHistoryHead"><strong>Recent dose history</strong><span>${allMedicationDoses.length} records</span></div>
-        ${doses.length?`<div class="doseHistory">${doses.map(d=>`<div class="doseHistoryRow"><div><strong class="${d.status==='Missed'?'missedDose':'takenDose'}">${esc(d.status)}</strong><span>${fmtDateTime(d.dateTime)}</span>${d.note?`<small>${esc(d.note)}</small>`:''}</div><button class="doseDeleteBtn" type="button" data-delete-dose="${d.id}" aria-label="Delete dose record">×</button></div>`).join('')}</div>`:`<div class="empty compactEmpty">No doses recorded yet.</div>`}
-      </div>
-    </div>
+    <div class="medicationCollapsedHeader"><div class="medicationIcon">💊</div><div class="medicationHeaderInfo">
+      <div class="medicationTitleRow"><div><h3>${esc(m.name)}</h3><div class="medDose">${esc(m.dose||'Dose not entered')} · ${esc(m.frequency||m.schedule||'Frequency not entered')}</div>${m.active===false?`<span class="completedMedicationTag">Completed${m.completedDate?' · '+fmt(m.completedDate):''}</span>`:''}</div><button type="button" class="medicationExpandBtn" data-toggle-medication aria-expanded="false">+</button></div>
+      <div class="medicationQuickSummary"><div><span>Last taken</span><strong>${lastTakenText}</strong></div><div><span>Next due</span><strong>${m.active===false?'Completed':nextDueText}</strong>${m.active!==false?`<small class="medTimingStatus ${timing.statusClass}">${esc(timing.statusText)}</small>`:''}</div></div>
+      ${timing.next&&m.active!==false?`<div class="doseProgress ${timing.remaining<=0?'overdue':''}"><span style="width:${timing.progress.toFixed(1)}%"></span></div>`:''}
+      ${m.active!==false?`<button class="btn primary medicationTakenNow" type="button" data-dose-now="${m.id}" data-status="Taken">✓ Taken now</button>`:''}
+    </div></div>
+    <div class="medicationExpandableBody"><div class="medicationExpandableInner">
+      <div class="toolbar medicationHead"><div></div><div class="actions"><button class="iconBtn" data-edit="medication" data-id="${m.id}">Edit</button><button class="iconBtn" data-delete="medication" data-id="${m.id}">Delete</button></div></div>
+      ${m.completedReason?`<div class="inactiveBanner"><strong>Completion note:</strong> ${esc(m.completedReason)}</div>`:''}
+      ${m.notes?`<p class="small medNotes">${esc(m.notes)}</p>`:''}
+      <div class="customDoseLog"><h4>Add a missed or older record</h4><div class="field"><label>Date</label><input type="date" data-dose-date="${m.id}" value="${today()}"></div><div class="field"><label>Time</label><input type="time" data-dose-clock="${m.id}" value="${localDateTimeValue().slice(11,16)}"></div><div class="field"><label>Status</label><select data-dose-status="${m.id}"><option>Taken</option><option>Missed</option></select></div><div class="field"><label>Dose at that time</label><input data-dose-amount="${m.id}" value="${esc(m.dose||'')}"></div><div class="field"><label>Frequency at that time</label><input data-dose-frequency="${m.id}" value="${esc(m.frequency||m.schedule||'')}"></div><div class="field span2"><label>Note (optional)</label><textarea data-dose-note="${m.id}" placeholder="Only add a note when needed."></textarea></div><button class="btn secondary span2" type="button" data-log-dose="${m.id}">Add to history</button></div>
+      <div class="medHistoryHead"><strong>Dose history</strong><span>${allMedicationDoses.length} records</span></div>${doses.length?`<div class="doseHistory">${doses.map(d=>doseHistoryRow(d)).join('')}</div>`:`<div class="empty compactEmpty">No doses recorded yet.</div>`}
+      ${events.length?`<div class="medHistoryHead"><strong>Medication changes</strong><span>${events.length} changes</span></div><div class="medicationChangeLog">${events.map(e=>`<div><strong>${fmtDateTime(e.dateTime)}</strong><span>${esc(medicationEventText(e))}</span></div>`).join('')}</div>`:''}
+    </div></div>
    </section>`;
  }).join(''):`<div class="empty">Add your medications to start tracking doses and exact times.</div>`}</div>
- ${history.length?`<section class="card allDoseHistory"><div class="toolbar"><div><h2>All medication history</h2><p class="muted small">Newest records appear first.</p></div></div><div class="doseHistory">${history.slice(0,30).map(d=>{const m=state.medications.find(x=>x.id===d.medicationId);return `<div class="doseHistoryRow"><div><strong>${esc(m?.name||'Medication')}</strong><span>${esc(d.status)} · ${fmtDateTime(d.dateTime)}</span></div><button class="doseDeleteBtn" type="button" data-delete-dose="${d.id}" aria-label="Delete dose record">×</button></div>`}).join('')}</div></section>`:''}
- `,'Medications','Track actual dose times and see exactly when each medication is due next.');
+ ${history.length?`<section class="card allDoseHistory"><div class="toolbar"><div><h2>All medication history</h2><p class="muted small">Every entry keeps the dose and frequency that applied at that time.</p></div></div><div class="doseHistory">${history.slice(0,60).map(d=>doseHistoryRow(d,true)).join('')}</div></section>`:''}
+ `,'Medications','Track actual dose times while preserving changes to dose and frequency over time.');
 }
-
 function receipts(){
  const total=state.receipts.reduce((s,r)=>s+Number(r.amount||0),0);
  const sorted=[...state.receipts].sort((a,b)=>b.date.localeCompare(a.date));
@@ -474,7 +488,7 @@ function settings(){
 
 function more(){
  return appShell(`<div class="grid grid2">${[
- ['medications','💊','Medications'],['appointments','🩺','Appointments'],['timeline','🕒','Recovery Timeline'],['tasks','✅','Tasks & Paperwork'],['notes','📝','Notes & Questions'],['reports','📄','Reports'],['settings','⚙️','Settings']
+ ['receipts','🧾','Receipts'],['appointments','🩺','Appointments'],['timeline','🕒','Recovery Timeline'],['tasks','✅','Tasks & Paperwork'],['notes','📝','Notes & Questions'],['reports','📄','Reports'],['settings','⚙️','Settings']
  ].map(i=>`<button class="card" data-nav="${i[0]}" style="text-align:left;border:1px solid #dde5ef"><div style="font-size:28px">${i[1]}</div><h3>${i[2]}</h3></button>`).join('')}</div>`,'More','All additional tools and records.');
 }
 
@@ -485,13 +499,14 @@ function selectField(label,name,options,value){return `<div class="field"><label
 function openForm(type,id){
  const newInjuryId=type==='injuryLog'&&String(id||'').startsWith('new:')?String(id).slice(4):'';
  if(newInjuryId)id='';
- const map={journal:'journal',injury:'injuries',injuryLog:'injuryLogs',medication:'medications',receipt:'receipts',appointment:'appointments',timeline:'timeline',task:'tasks',question:'questions',note:'notes'};
+ const map={journal:'journal',injury:'injuries',injuryLog:'injuryLogs',medication:'medications',dose:'doses',receipt:'receipts',appointment:'appointments',timeline:'timeline',task:'tasks',question:'questions',note:'notes'};
  const arr=state[map[type]]||[], item=id?arr.find(x=>x.id===id):{};
  let body='', title=type==='injuryLog'?'Update Injury':(id?'Edit ':'Add ')+type[0].toUpperCase()+type.slice(1);
  if(type==='journal') body=`${field('Date','date',item.date||today(),'date')}${area('How was your day?','notes',item.notes||'')}${photoField('Photo (optional)','photos',item.photos||[],true)}`;
  if(type==='injury') body=`${field('Injury name','name',item.name||'')}${field('Short description (optional)','description',item.description||'')}${selectField('Status','active',['Active','Archived'],item.active===false?'Archived':'Active')}<div class="field span2"><label>Daily tracking fields</label><p class="small muted trackingHelp">Enable only the details that make sense for this injury. Enabled fields will appear in every Daily Log.</p><div class="trackingToggles"><label class="trackingToggle"><input type="checkbox" name="trackSwelling" ${item.trackSwelling?'checked':''}><span>Swelling</span></label><label class="trackingToggle"><input type="checkbox" name="trackStiffness" ${item.trackStiffness?'checked':''}><span>Stiffness</span></label><label class="trackingToggle"><input type="checkbox" name="trackRangeOfMotion" ${item.trackRangeOfMotion?'checked':''}><span>Range of motion</span></label></div></div>`;
  if(type==='injuryLog'){const injuryId=item.injuryId||newInjuryId; const injury=state.injuries.find(x=>x.id===injuryId); body=`<div class="field span2 summaryBox"><strong>${esc(injury?.name||'Injury')}</strong><div class="small muted">Update only what you want to record today.</div></div>${field('Date','date',item.date||today(),'date')}${field('Pain level (0-10)','pain',item.pain??0,'number','min="0" max="10"')}${selectField('Compared with last update','change',['Better','Same','Worse','Not sure'],item.change||'Same')}${area('Notes (optional)','notes',item.notes||'')}${photoField('Photo (optional)','photos',item.photos||[],true)}<input type="hidden" name="injuryId" value="${esc(injuryId)}">`; }
- if(type==='medication') body=`${field('Medication name','name',item.name||'')}${field('Dose','dose',item.dose||'')}${selectField('Frequency','frequency',['Every 4 hours','Every 6 hours','Every 8 hours','Every 12 hours','Once daily','Twice daily','Three times daily','Four times daily','As needed (PRN)'],item.frequency||item.schedule||'Every 8 hours')}${field('First dose time','firstDoseTime',item.firstDoseTime||parseClockTime(item.usualTimes||''),'time')}${selectField('Status','status',['Active','Inactive'],item.active===false?'Inactive':'Active')}${area('Instructions or notes','notes',item.notes||'')}`;
+ if(type==='medication') body=`${field('Medication name','name',item.name||'')}${field('Dose','dose',item.dose||'')}${selectField('Frequency','frequency',['Every 4 hours','Every 6 hours','Every 8 hours','Every 12 hours','Once daily','Twice daily','Three times daily','Four times daily','As needed (PRN)'],item.frequency||item.schedule||'Every 8 hours')}${field('First dose time','firstDoseTime',item.firstDoseTime||parseClockTime(item.usualTimes||''),'time')}${selectField('Status','status',['Active','Completed'],item.active===false?'Completed':'Active')}${field('Completed date','completedDate',item.completedDate||today(),'date')}${area('Reason completed (optional)','completedReason',item.completedReason||'')}${area('Instructions or notes','notes',item.notes||'')}`;
+ if(type==='dose'){const med=state.medications.find(m=>m.id===item.medicationId);body=`<div class="field span2 summaryBox"><strong>${esc(item.medicationNameSnapshot||med?.name||'Medication')}</strong><div class="small muted">Correct this history record without changing other entries.</div></div>${field('Date','doseDate',localDateKey(item.dateTime)||today(),'date')}${field('Time','doseTime',item.dateTime?localDateTimeValue(new Date(item.dateTime)).slice(11,16):localDateTimeValue().slice(11,16),'time')}${selectField('Status','status',['Taken','Missed'],item.status||'Taken')}${field('Dose at that time','doseSnapshot',item.doseSnapshot||med?.dose||'')}${field('Frequency at that time','frequencySnapshot',item.frequencySnapshot||med?.frequency||med?.schedule||'')}${area('Note (optional)','note',item.note||'')}<input type="hidden" name="medicationId" value="${esc(item.medicationId||'')}"><input type="hidden" name="medicationNameSnapshot" value="${esc(item.medicationNameSnapshot||med?.name||'Medication')}">`; }
  if(type==='receipt') body=`${field('Date','date',item.date||today(),'date')}${field('Amount','amount',item.amount||'','number','step="0.01" min="0"')}${field('Description','description',item.description||'')}${selectField('Category','category',['Pharmacy','Physiotherapy','Parking','Mileage','Medical supplies','Legal','Other'],item.category||'Other')}${area('Notes','notes',item.notes||'')}${photoField('Receipt photo','photo',item.photo?[item.photo]:[],false)}`;
  if(type==='appointment'){
    const kind=item.appointmentKind||((item.type||'').toLowerCase().includes('insurance')?'Insurance':'Medical');
@@ -554,12 +569,25 @@ async function saveForm(form){
  if(type==='injuryLog'){obj.pain=Math.max(0,Math.min(10,Number(obj.pain||0)));const existing=state.injuryLogs.find(x=>x.id===id);obj.photos=existing?.photos||[];const inp=form.elements.photos;if(inp.files.length)obj.photos=await filesToData(inp)}
  if(type==='receipt'){obj.amount=Number(obj.amount);const existing=state.receipts.find(x=>x.id===id);obj.photo=existing?.photo||'';const inp=form.elements.photo;if(inp.files.length)obj.photo=(await filesToData(inp))[0]}
  if(type==='medication'){
-   obj.active=obj.status==='Active';
-   obj.schedule=obj.frequency||'';
+   const existing=state.medications.find(x=>x.id===id);
+   obj.active=obj.status==='Active';obj.schedule=obj.frequency||'';
+   if(obj.active){obj.completedDate='';obj.completedReason=''}
+   const eventTime=new Date().toISOString();
+   if(!existing){state.medicationEvents.push({id:uid(),medicationId:obj.id,eventType:'Created',dateTime:eventTime})}
+   else{
+     [['Dose','dose'],['Frequency','frequency']].forEach(([label,key])=>{if(String(existing[key]||existing.schedule||'')!==String(obj[key]||''))state.medicationEvents.push({id:uid(),medicationId:obj.id,eventType:'Changed',field:label,from:existing[key]||existing.schedule||'',to:obj[key]||'',dateTime:eventTime})});
+     if(existing.active!==false&&obj.active===false)state.medicationEvents.push({id:uid(),medicationId:obj.id,eventType:'Completed',dateTime:eventTime,reason:obj.completedReason||''});
+     if(existing.active===false&&obj.active!==false)state.medicationEvents.push({id:uid(),medicationId:obj.id,eventType:'Reactivated',dateTime:eventTime});
+   }
+ }
+ if(type==='dose'){
+   const local=new Date(`${obj.doseDate}T${obj.doseTime}`);
+   if(Number.isNaN(local.getTime())){alert('Choose a valid date and time.');return}
+   obj.dateTime=local.toISOString();delete obj.doseDate;delete obj.doseTime;obj.legacySnapshot=false;
  }
  if(type==='task') obj.done=obj.done==='Completed';
  if(type==='question') obj.answered=obj.answered==='Answered';
- const map={journal:'journal',injury:'injuries',injuryLog:'injuryLogs',medication:'medications',receipt:'receipts',appointment:'appointments',timeline:'timeline',task:'tasks',question:'questions',note:'notes'};
+ const map={journal:'journal',injury:'injuries',injuryLog:'injuryLogs',medication:'medications',dose:'doses',receipt:'receipts',appointment:'appointments',timeline:'timeline',task:'tasks',question:'questions',note:'notes'};
  const arr=state[map[type]], ix=arr.findIndex(x=>x.id===id); if(ix>=0)arr[ix]=obj;else arr.push(obj);
  save(); modal=null; render(); toast('Saved');
 }
@@ -579,7 +607,7 @@ function printReport(){
  ${sec('Daily Recovery Notes',state.journal.sort((a,b)=>a.date.localeCompare(b.date)).map(x=>`<div class="item"><strong>${fmt(x.date)}</strong><p>${esc(x.notes||'')}</p>${(x.photos||[]).map(p=>`<img class="photo" src="${p}">`).join('')}</div>`).join(''))}
  ${sec('Injury History',state.injuries.map(i=>`<div class="item"><strong>${esc(i.name)}</strong><div class="meta">${esc(i.description||'')}</div>${state.injuryLogs.filter(l=>l.injuryId===i.id).sort((a,b)=>a.date.localeCompare(b.date)).map(l=>`<p><strong>${fmt(l.date)} — Pain ${l.pain}/10${l.change?' — '+esc(l.change):''}</strong><br>${esc(l.notes||'')}</p>`).join('')}</div>`).join(''))}
  ${sec('Medications',state.medications.map(m=>`<div class="item"><strong>${esc(m.name)} ${esc(m.dose)}</strong><div class="meta">${esc(m.schedule||'')}</div><p>${esc(m.notes||'')}</p></div>`).join(''))}
- ${sec('Dose History',state.doses.sort((a,b)=>a.dateTime.localeCompare(b.dateTime)).map(d=>{const m=state.medications.find(x=>x.id===d.medicationId);return `<div>${new Date(d.dateTime).toLocaleString('en-CA')} — ${esc(m?.name||'Medication')} — ${esc(d.status)}</div>`}).join(''))}
+ ${sec('Dose History',state.doses.sort((a,b)=>a.dateTime.localeCompare(b.dateTime)).map(d=>{const m=state.medications.find(x=>x.id===d.medicationId);return `<div>${new Date(d.dateTime).toLocaleString('en-CA')} — ${esc(d.medicationNameSnapshot||m?.name||'Medication')} — ${esc(d.status)}${d.doseSnapshot?' — '+esc(d.doseSnapshot):''}${d.frequencySnapshot?' — '+esc(d.frequencySnapshot):''}${d.note?' — '+esc(d.note):''}</div>`}).join(''))}
  ${sec('Appointments',state.appointments.sort((a,b)=>a.date.localeCompare(b.date)).map(a=>`<div class="item"><strong>${fmt(a.date)} ${esc(a.time||'')} — ${esc(a.type)}</strong><div>${esc(a.provider||'')} ${esc(a.location||'')}</div><p>${esc(a.notes||'')}</p></div>`).join(''))}
  ${sec('Receipts and Expenses',`<p><strong>Total: ${money(state.receipts.reduce((s,r)=>s+Number(r.amount||0),0))}</strong></p>`+state.receipts.map(r=>`<div class="item"><strong>${fmt(r.date)} — ${esc(r.description)} — ${money(r.amount)}</strong><div class="meta">${esc(r.category)}</div>${r.photo?`<img class="photo" src="${r.photo}">`:''}</div>`).join(''))}
  ${sec('Tasks',state.tasks.map(t=>`<div>${t.done?'☑':'☐'} ${esc(t.title)} ${t.due?'— '+fmt(t.due):''}</div>`).join(''))}
@@ -604,16 +632,21 @@ function bind(){
  document.querySelectorAll('[data-close]').forEach(b=>b.onclick=()=>{modal=null;render()});
  document.querySelectorAll('[data-tab]').forEach(b=>b.onclick=()=>{tab=b.dataset.tab;render()});
  document.querySelectorAll('[data-check-task]').forEach(c=>c.onchange=()=>setState(s=>{const t=s.tasks.find(x=>x.id===c.dataset.checkTask);if(t)t.done=c.checked}));
- document.querySelectorAll('[data-dose-now]').forEach(b=>b.onclick=()=>setState(s=>s.doses.push({id:uid(),medicationId:b.dataset.doseNow,status:b.dataset.status,dateTime:new Date().toISOString()})));
+ document.querySelectorAll('[data-dose-now]').forEach(b=>b.onclick=()=>{const med=state.medications.find(m=>m.id===b.dataset.doseNow);if(!med)return;setState(s=>s.doses.push(doseSnapshot(med,b.dataset.status,new Date().toISOString())));toast(`${med.name} recorded as ${String(b.dataset.status).toLowerCase()}`)});
  document.querySelectorAll('[data-log-dose]').forEach(b=>b.onclick=()=>{
    const id=b.dataset.logDose;
    const date=document.querySelector(`[data-dose-date="${id}"]`)?.value;
    const clock=document.querySelector(`[data-dose-clock="${id}"]`)?.value;
    const status=document.querySelector(`[data-dose-status="${id}"]`)?.value||'Taken';
+   const dose=document.querySelector(`[data-dose-amount="${id}"]`)?.value||'';
+   const frequency=document.querySelector(`[data-dose-frequency="${id}"]`)?.value||'';
+   const note=document.querySelector(`[data-dose-note="${id}"]`)?.value||'';
    if(!date||!clock){alert('Choose both a date and time first.');return;}
    const local=new Date(`${date}T${clock}`);
    if(Number.isNaN(local.getTime())){alert('That date or time could not be read.');return;}
-   setState(s=>s.doses.push({id:uid(),medicationId:id,status,dateTime:local.toISOString()}));
+   const med=state.medications.find(m=>m.id===id);if(!med)return;
+   setState(s=>s.doses.push(doseSnapshot(med,status,local.toISOString(),{doseSnapshot:dose,frequencySnapshot:frequency,note})));
+   toast('Medication history added');
  });
  document.querySelectorAll('[data-delete-dose]').forEach(b=>b.onclick=()=>{
    if(!confirm('Delete this dose record?'))return;
