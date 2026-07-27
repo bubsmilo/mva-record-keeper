@@ -13,6 +13,27 @@ const localDateTimeValue=(d=new Date())=>{
  return `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
 };
 const fmtDateTime=v=>v?new Date(v).toLocaleString('en-CA',{year:'numeric',month:'short',day:'numeric',hour:'numeric',minute:'2-digit'}):'';
+const medicationIntervalMs=frequency=>{
+ const text=String(frequency||'').trim().toLowerCase();
+ let match=text.match(/\bevery\s+(\d+(?:\.\d+)?)\s*(hour|hours|hr|hrs)\b/);
+ if(match)return Number(match[1])*60*60*1000;
+ match=text.match(/\bq\s*(\d+(?:\.\d+)?)\s*h\b/);
+ if(match)return Number(match[1])*60*60*1000;
+ match=text.match(/\bevery\s+(\d+(?:\.\d+)?)\s*(minute|minutes|min|mins)\b/);
+ if(match)return Number(match[1])*60*1000;
+ match=text.match(/\bevery\s+(\d+(?:\.\d+)?)\s*(day|days)\b/);
+ if(match)return Number(match[1])*24*60*60*1000;
+ return 0;
+};
+const medicationTiming=(med,allDoses)=>{
+ const taken=allDoses
+   .filter(d=>d.medicationId===med.id&&d.status==='Taken'&&d.dateTime)
+   .sort((a,b)=>b.dateTime.localeCompare(a.dateTime));
+ const last=taken[0]||null;
+ const interval=medicationIntervalMs(med.frequency||med.schedule);
+ const next=last&&interval?new Date(new Date(last.dateTime).getTime()+interval):null;
+ return {last,next};
+};
 const daysBetween=(a,b)=>Math.max(0,Math.floor((new Date(b)-new Date(a))/(86400000)));
 
 const defaults={
@@ -231,25 +252,46 @@ function medications(){
  return appShell(`
  <div class="toolbar"><div><span class="pill">${state.medications.filter(m=>m.active!==false).length} active medications</span></div><button class="btn primary" data-add="medication">+ Add medication</button></div>
  <div class="medicationGrid">${meds.length?meds.map(m=>{
-   const doses=history.filter(d=>d.medicationId===m.id).slice(0,8);
-   return `<section class="card medicationCard ${m.active===false?'inactiveMedication':''}">
-    <div class="toolbar medicationHead"><div><h3>${esc(m.name)}</h3><div class="medDose">${esc(m.dose||'Dose not entered')}</div></div><div class="actions"><button class="iconBtn" data-edit="medication" data-id="${m.id}">Edit</button><button class="iconBtn" data-delete="medication" data-id="${m.id}">Delete</button></div></div>
-    <div class="medSchedule">
-      <div><span>Frequency</span><strong>${esc(m.frequency||m.schedule||'Not entered')}</strong></div>
-      <div><span>Usual times</span><strong>${esc(m.usualTimes||'Not entered')}</strong></div>
+   const allMedicationDoses=history.filter(d=>d.medicationId===m.id);
+   const doses=allMedicationDoses.slice(0,8);
+   const timing=medicationTiming(m,history);
+   const nextDueText=timing.next?fmtDateTime(timing.next.toISOString()):'Not calculated';
+   const nextDueClass=timing.next&&timing.next.getTime()<=Date.now()?'medDueNow':'';
+   return `<section class="card medicationCard ${m.active===false?'inactiveMedication':''}" data-medication-card="${m.id}">
+    <div class="medicationCollapsedHeader">
+      <div class="medicationIcon">💊</div>
+      <div class="medicationHeaderInfo">
+        <div class="medicationTitleRow">
+          <div><h3>${esc(m.name)}</h3><div class="medDose">${esc(m.dose||'Dose not entered')} · ${esc(m.frequency||m.schedule||'Frequency not entered')}</div></div>
+          <button type="button" class="medicationExpandBtn" data-toggle-medication aria-expanded="false" aria-label="Expand ${esc(m.name)}">+</button>
+        </div>
+        <div class="medicationQuickSummary">
+          <div><span>Last taken</span><strong>${timing.last?fmtDateTime(timing.last.dateTime):'No dose recorded'}</strong></div>
+          <div><span>Next due</span><strong class="${nextDueClass}">${nextDueText}</strong></div>
+        </div>
+      </div>
     </div>
-    ${m.notes?`<p class="small medNotes">${esc(m.notes)}</p>`:''}
-    ${m.active!==false?`<div class="doseActions">
-      <button class="btn primary" type="button" data-dose-now="${m.id}" data-status="Taken">✓ Taken now</button>
-      <button class="btn secondary" type="button" data-dose-now="${m.id}" data-status="Missed">Mark missed now</button>
+    <div class="medicationExpandableBody">
+      <div class="medicationExpandableInner">
+        <div class="toolbar medicationHead"><div></div><div class="actions"><button class="iconBtn" data-edit="medication" data-id="${m.id}">Edit</button><button class="iconBtn" data-delete="medication" data-id="${m.id}">Delete</button></div></div>
+        <div class="medSchedule">
+          <div><span>Frequency</span><strong>${esc(m.frequency||m.schedule||'Not entered')}</strong></div>
+          <div><span>Usual times</span><strong>${esc(m.usualTimes||'Not entered')}</strong></div>
+        </div>
+        ${m.notes?`<p class="small medNotes">${esc(m.notes)}</p>`:''}
+        ${m.active!==false?`<div class="doseActions">
+          <button class="btn primary" type="button" data-dose-now="${m.id}" data-status="Taken">✓ Taken now</button>
+          <button class="btn secondary" type="button" data-dose-now="${m.id}" data-status="Missed">Mark missed now</button>
+        </div>
+        <div class="customDoseLog">
+          <div class="field"><label>Log a different time</label><input type="datetime-local" data-dose-time="${m.id}" value="${localDateTimeValue()}"></div>
+          <div class="field"><label>Status</label><select data-dose-status="${m.id}"><option>Taken</option><option>Missed</option></select></div>
+          <button class="btn secondary" type="button" data-log-dose="${m.id}">Add to history</button>
+        </div>`:`<div class="inactiveBanner">This medication is inactive.</div>`}
+        <div class="medHistoryHead"><strong>Recent dose history</strong><span>${allMedicationDoses.length} records</span></div>
+        ${doses.length?`<div class="doseHistory">${doses.map(d=>`<div class="doseHistoryRow"><div><strong class="${d.status==='Missed'?'missedDose':'takenDose'}">${esc(d.status)}</strong><span>${fmtDateTime(d.dateTime)}</span>${d.note?`<small>${esc(d.note)}</small>`:''}</div><button class="doseDeleteBtn" type="button" data-delete-dose="${d.id}" aria-label="Delete dose record">×</button></div>`).join('')}</div>`:`<div class="empty compactEmpty">No doses recorded yet.</div>`}
+      </div>
     </div>
-    <div class="customDoseLog">
-      <div class="field"><label>Log a different time</label><input type="datetime-local" data-dose-time="${m.id}" value="${localDateTimeValue()}"></div>
-      <div class="field"><label>Status</label><select data-dose-status="${m.id}"><option>Taken</option><option>Missed</option></select></div>
-      <button class="btn secondary" type="button" data-log-dose="${m.id}">Add to history</button>
-    </div>`:`<div class="inactiveBanner">This medication is inactive.</div>`}
-    <div class="medHistoryHead"><strong>Recent dose history</strong><span>${state.doses.filter(d=>d.medicationId===m.id).length} records</span></div>
-    ${doses.length?`<div class="doseHistory">${doses.map(d=>`<div class="doseHistoryRow"><div><strong class="${d.status==='Missed'?'missedDose':'takenDose'}">${esc(d.status)}</strong><span>${fmtDateTime(d.dateTime)}</span>${d.note?`<small>${esc(d.note)}</small>`:''}</div><button class="doseDeleteBtn" type="button" data-delete-dose="${d.id}" aria-label="Delete dose record">×</button></div>`).join('')}</div>`:`<div class="empty compactEmpty">No doses recorded yet.</div>`}
    </section>`;
  }).join(''):`<div class="empty">Add your medications to start tracking doses and exact times.</div>`}</div>
  ${history.length?`<section class="card allDoseHistory"><div class="toolbar"><div><h2>All medication history</h2><p class="muted small">Newest records appear first.</p></div></div><div class="doseHistory">${history.slice(0,30).map(d=>{const m=state.medications.find(x=>x.id===d.medicationId);return `<div class="doseHistoryRow"><div><strong>${esc(m?.name||'Medication')}</strong><span>${esc(d.status)} · ${fmtDateTime(d.dateTime)}</span></div><button class="doseDeleteBtn" type="button" data-delete-dose="${d.id}" aria-label="Delete dose record">×</button></div>`}).join('')}</div></section>`:''}
@@ -414,6 +456,13 @@ function bind(){
  document.querySelectorAll('[data-delete-dose]').forEach(b=>b.onclick=()=>{
    if(!confirm('Delete this dose record?'))return;
    state.doses=state.doses.filter(d=>d.id!==b.dataset.deleteDose);save();render();
+ });
+ document.querySelectorAll('[data-toggle-medication]').forEach(b=>b.onclick=()=>{
+   const card=b.closest('[data-medication-card]');
+   const expanded=card.classList.toggle('is-expanded');
+   b.textContent=expanded?'−':'+';
+   b.setAttribute('aria-expanded',String(expanded));
+   b.setAttribute('aria-label',`${expanded?'Collapse':'Expand'} ${card.querySelector('.medicationTitleRow h3')?.textContent||'medication'}`);
  });
  document.querySelectorAll('.painChoice').forEach(b=>b.onclick=()=>{const card=b.closest('[data-injury-id]');card.querySelectorAll('.painChoice').forEach(x=>x.classList.remove('selected'));b.classList.add('selected');card.querySelector('input[name$="_pain"]').value=b.dataset.pain;});
  document.querySelectorAll('.changeChoice').forEach(b=>b.onclick=()=>{const card=b.closest('[data-injury-id]');card.querySelectorAll('.changeChoice').forEach(x=>x.classList.remove('selected'));b.classList.add('selected');card.querySelector('input[name$="_change"]').value=b.dataset.change;});
