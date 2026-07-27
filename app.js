@@ -599,15 +599,37 @@ function del(type,id){
  if(type==='journal'){const entry=state.journal.find(x=>x.id===id);if(entry)state.injuryLogs=state.injuryLogs.filter(x=>x.date!==entry.date)} state[map[type]]=state[map[type]].filter(x=>x.id!==id); if(type==='injury')state.injuryLogs=state.injuryLogs.filter(x=>x.injuryId!==id); if(type==='medication')state.doses=state.doses.filter(d=>d.medicationId!==id); save();render();
 }
 
+function medicationFrequencyHistoryHtml(medication){
+ const records=[...(state.doses||[])]
+   .filter(d=>d.medicationId===medication.id&&d.dateTime&&(d.frequencySnapshot||medication.frequency||medication.schedule))
+   .sort((a,b)=>new Date(a.dateTime)-new Date(b.dateTime));
+ if(!records.length){
+   const current=medication.frequency||medication.schedule||'Frequency not entered';
+   return `<div class="frequencyTimeline"><div><strong>Current frequency:</strong> ${esc(current)}</div></div>`;
+ }
+ const periods=[];
+ records.forEach(record=>{
+   const frequency=String(record.frequencySnapshot||medication.frequency||medication.schedule||'Frequency not entered').trim();
+   const date=localDateKey(record.dateTime);
+   const last=periods[periods.length-1];
+   if(last&&last.frequency===frequency){last.endDate=date;last.count+=1}
+   else periods.push({frequency,startDate:date,endDate:date,count:1});
+ });
+ return `<div class="frequencyTimeline"><strong>Frequency history</strong>${periods.map(period=>{
+   const dateLabel=period.startDate===period.endDate?fmt(period.startDate):`${fmt(period.startDate)} – ${fmt(period.endDate)}`;
+   return `<div class="frequencyPeriod"><span>${dateLabel}</span><b>${esc(period.frequency)}</b></div>`;
+ }).join('')}</div>`;
+}
+
 function printReport(){
  const win=window.open('','_blank');
  const sec=(title,body)=>`<section><h2>${title}</h2>${body||'<p>None recorded.</p>'}</section>`;
- const html=`<!doctype html><html><head><title>MVA Recovery Report</title><style>body{font-family:Arial,sans-serif;color:#1b2a3a;margin:36px;line-height:1.45}h1{color:#0b315f;border-bottom:4px solid #0b315f;padding-bottom:10px}h2{color:#174b7d;border-bottom:1px solid #ccd6e2;padding-bottom:5px;margin-top:28px}.item{margin:0 0 14px;padding:10px;border:1px solid #dce4ed;border-radius:8px}.meta{color:#65758a;font-size:12px}.photo{width:120px;height:120px;object-fit:cover;margin:4px}@media print{button{display:none}}</style></head><body>
+ const html=`<!doctype html><html><head><title>MVA Recovery Report</title><style>body{font-family:Arial,sans-serif;color:#1b2a3a;margin:36px;line-height:1.45}h1{color:#0b315f;border-bottom:4px solid #0b315f;padding-bottom:10px}h2{color:#174b7d;border-bottom:1px solid #ccd6e2;padding-bottom:5px;margin-top:28px}.item{margin:0 0 14px;padding:10px;border:1px solid #dce4ed;border-radius:8px}.meta{color:#65758a;font-size:12px}.photo{width:120px;height:120px;object-fit:cover;margin:4px}.frequencyTimeline{margin-top:8px;padding-top:8px;border-top:1px solid #e1e7ee}.frequencyPeriod{display:flex;justify-content:space-between;gap:18px;padding:4px 0}.frequencyPeriod span{color:#65758a}.frequencyPeriod b{text-align:right}@media print{button{display:none}}</style></head><body>
  <h1>MVA Recovery Report</h1><p><strong>Prepared for:</strong> ${esc(state.profile.lawyer||'Lawyer')}<br><strong>Name:</strong> ${esc(state.profile.name||'')}<br><strong>Accident date:</strong> ${fmt(state.profile.accidentDate)}<br><strong>Claim number:</strong> ${esc(state.profile.claimNumber||'')}<br><strong>Generated:</strong> ${new Date().toLocaleString('en-CA')}</p>
  ${sec('Recovery Timeline',state.timeline.sort((a,b)=>a.date.localeCompare(b.date)).map(x=>`<div class="item"><strong>${fmt(x.date)} — ${esc(x.title)}</strong><div class="meta">${esc(x.type)}</div><p>${esc(x.notes||'')}</p></div>`).join(''))}
  ${sec('Daily Recovery Notes',state.journal.sort((a,b)=>a.date.localeCompare(b.date)).map(x=>`<div class="item"><strong>${fmt(x.date)}</strong><p>${esc(x.notes||'')}</p>${(x.photos||[]).map(p=>`<img class="photo" src="${p}">`).join('')}</div>`).join(''))}
  ${sec('Injury History',state.injuries.map(i=>`<div class="item"><strong>${esc(i.name)}</strong><div class="meta">${esc(i.description||'')}</div>${state.injuryLogs.filter(l=>l.injuryId===i.id).sort((a,b)=>a.date.localeCompare(b.date)).map(l=>`<p><strong>${fmt(l.date)} — Pain ${l.pain}/10${l.change?' — '+esc(l.change):''}</strong><br>${esc(l.notes||'')}</p>`).join('')}</div>`).join(''))}
- ${sec('Medications',state.medications.map(m=>`<div class="item"><strong>${esc(m.name)} ${esc(m.dose)}</strong><div class="meta">${esc(m.schedule||'')}</div><p>${esc(m.notes||'')}</p></div>`).join(''))}
+ ${sec('Medications',state.medications.map(m=>`<div class="item"><strong>${esc(m.name)} ${esc(m.dose||'')}</strong><div class="meta">${m.active===false?'Completed':'Active'}</div>${medicationFrequencyHistoryHtml(m)}${m.notes?`<p>${esc(m.notes)}</p>`:''}</div>`).join(''))}
  ${sec('Dose History',state.doses.sort((a,b)=>a.dateTime.localeCompare(b.dateTime)).map(d=>{const m=state.medications.find(x=>x.id===d.medicationId);return `<div>${new Date(d.dateTime).toLocaleString('en-CA')} — ${esc(d.medicationNameSnapshot||m?.name||'Medication')} — ${esc(d.status)}${d.doseSnapshot?' — '+esc(d.doseSnapshot):''}${d.frequencySnapshot?' — '+esc(d.frequencySnapshot):''}${d.note?' — '+esc(d.note):''}</div>`}).join(''))}
  ${sec('Appointments',state.appointments.sort((a,b)=>a.date.localeCompare(b.date)).map(a=>`<div class="item"><strong>${fmt(a.date)} ${esc(a.time||'')} — ${esc(a.type)}</strong><div>${esc(a.provider||'')} ${esc(a.location||'')}</div><p>${esc(a.notes||'')}</p></div>`).join(''))}
  ${sec('Receipts and Expenses',`<p><strong>Total: ${money(state.receipts.reduce((s,r)=>s+Number(r.amount||0),0))}</strong></p>`+state.receipts.map(r=>`<div class="item"><strong>${fmt(r.date)} — ${esc(r.description)} — ${money(r.amount)}</strong><div class="meta">${esc(r.category)}</div>${r.photo?`<img class="photo" src="${r.photo}">`:''}</div>`).join(''))}
