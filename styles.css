@@ -212,3 +212,18 @@ input,textarea,select{width:100%;border:1px solid #cfd9e5;border-radius:8px;padd
 .multiMedicationLog{margin:16px 0}.multiMedicationShared{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px}.multiMedicationRows{display:grid;gap:12px;margin:14px 0}.multiMedicationRow{display:grid;grid-template-columns:1.2fr 1fr 1fr 1fr;gap:10px;padding:12px;border:1px solid #dfe8f2;border-radius:12px;background:#fbfdff}.multiMedicationLog .wide{width:100%}@media(max-width:800px){.multiMedicationShared,.multiMedicationRow{grid-template-columns:1fr 1fr}}@media(max-width:500px){.multiMedicationShared,.multiMedicationRow{grid-template-columns:1fr}}
 
 .multiMedicationSummary{display:flex;align-items:center;justify-content:space-between;gap:16px;cursor:pointer;list-style:none;padding:2px 0}.multiMedicationSummary::-webkit-details-marker{display:none}.multiMedicationSummary span:first-child{display:flex;flex-direction:column;gap:3px}.multiMedicationSummary small{font-weight:400;color:#6b7a90}.multiMedicationChevron{display:grid;place-items:center;width:34px;height:34px;border-radius:50%;background:#edf4ff;color:#1769aa;font-size:24px;font-weight:700;transition:transform .2s ease}.multiMedicationLog[open] .multiMedicationChevron{transform:rotate(45deg)}.multiMedicationContent{padding-top:14px}.multiMedicationLog:not([open]){padding-top:14px;padding-bottom:14px}
+
+
+/* Organized settings */
+.settingsGrid .card{align-self:start}
+.settingsIcon{font-size:28px;margin-bottom:4px}
+.settingsDivider{border:0;border-top:1px solid #e1e7ee;margin:22px 0}
+.shareUrl{text-align:center;margin-top:9px;overflow-wrap:anywhere}
+.settingsOptions{display:grid;gap:10px;margin-top:14px}
+.settingCheck{display:flex;align-items:flex-start;gap:12px;border:1px solid #dde5ef;border-radius:12px;padding:13px;cursor:pointer;background:#fff}
+.settingCheck input{width:20px;height:20px;margin-top:1px;flex:0 0 auto}
+.settingCheck span{display:grid;gap:3px}
+.settingCheck small{color:#65758a;line-height:1.35}
+.dangerZone{border-color:#efc7c7;background:#fffafa}
+.dangerZone h2{color:#a22424}
+@media(max-width:720px){.settingsGrid{display:block}.settingsGrid>.card{margin-bottom:14px}.dangerZone.span2{grid-column:auto}}

@@ -78,10 +78,12 @@ const daysBetween=(a,b)=>Math.max(0,Math.floor((new Date(b)-new Date(a))/(864000
 
 const defaults={
   profile:{accidentDate:today(),name:'',lawyer:'',claimNumber:''},
+  reportSettings:{includePhotos:true,includeMedicationHistory:true,autoPrint:true},
   journal:[], injuries:[], injuryLogs:[], medications:[], doses:[], medicationEvents:[], receipts:[], appointments:[],
   tasks:[], questions:[], notes:[], timeline:[]
 };
 let state=load();
+state.reportSettings={...defaults.reportSettings,...(state.reportSettings||{})};
 function migrateMedicationData(){
  let changed=false;
  state.medications=(state.medications||[]).map(m=>{
@@ -384,7 +386,7 @@ function receipts(){
  const sorted=[...state.receipts].sort((a,b)=>b.date.localeCompare(a.date));
  return appShell(`<div class="grid grid2"><section class="card"><div class="muted small">Total expenses</div><div class="metric">${money(total)}</div></section><section class="card"><div class="muted small">Number of receipts</div><div class="metric">${state.receipts.length}</div></section></div>
  <div class="toolbar" style="margin-top:16px"><div></div><button class="btn primary" data-add="receipt">+ Add receipt</button></div>
- <div class="list">${sorted.length?sorted.map(r=>`<div class="row"><div class="rowMain" style="display:flex;gap:12px">${r.photo?`<img class="photo" src="${r.photo}">`:''}<div><div class="rowTitle">${esc(r.description)}</div><div class="rowMeta">${fmt(r.date)} · ${esc(r.category||'Other')}</div>${r.notes?`<div class="small">${esc(r.notes)}</div>`:''}</div></div><div><strong>${money(r.amount)}</strong><div class="actions" style="margin-top:8px"><button class="iconBtn" data-edit="receipt" data-id="${r.id}">Edit</button><button class="iconBtn" data-delete="receipt" data-id="${r.id}">Delete</button></div></div></div>`).join(''):`<div class="empty">No receipts recorded.</div>`}</div>`,'Receipts','Keep expense details and receipt photos together.');
+ <div class="list">${sorted.length?sorted.map(r=>`<div class="row"><div class="rowMain" style="display:flex;gap:12px">${reportSettings.includePhotos&&r.photo?`<img class="photo" src="${r.photo}">`:''}<div><div class="rowTitle">${esc(r.description)}</div><div class="rowMeta">${fmt(r.date)} · ${esc(r.category||'Other')}</div>${r.notes?`<div class="small">${esc(r.notes)}</div>`:''}</div></div><div><strong>${money(r.amount)}</strong><div class="actions" style="margin-top:8px"><button class="iconBtn" data-edit="receipt" data-id="${r.id}">Edit</button><button class="iconBtn" data-delete="receipt" data-id="${r.id}">Delete</button></div></div></div>`).join(''):`<div class="empty">No receipts recorded.</div>`}</div>`,'Receipts','Keep expense details and receipt photos together.');
 }
 
 function appointments(){
@@ -478,15 +480,22 @@ function reports(){
 }
 
 function settings(){
- return appShell(`<div class="grid grid2">
- <section class="card"><h2>Claim information</h2><form id="profileForm" class="formGrid">
+ const rs={...defaults.reportSettings,...(state.reportSettings||{})};
+ return appShell(`<div class="grid grid2 settingsGrid">
+ <section class="card"><div class="settingsIcon">📱</div><h2>App</h2><p>Share the MVA Record Keeper so it can be opened on another phone, tablet or computer.</p><button class="btn primary wide" id="shareAppBtn">Share App</button><div class="small muted shareUrl">mva-record-keeper.vercel.app</div><hr class="settingsDivider"><h3>About</h3><div class="summaryBox"><strong>MVA Record Keeper</strong><br><span class="small">Recovery records, medication tracking and claim documentation.</span><br><span class="small muted">App version 2.1</span></div></section>
+ <section class="card"><div class="settingsIcon">👤</div><h2>Claim information</h2><form id="profileForm" class="formGrid">
  ${field('Name','name',state.profile.name)}${field('Accident date','accidentDate',state.profile.accidentDate,'date')}
  ${field('Lawyer','lawyer',state.profile.lawyer)}${field('Claim number','claimNumber',state.profile.claimNumber)}
  <button class="btn primary span2">Save information</button></form></section>
- <section class="card"><h2>Backup & restore</h2><p>Download a backup regularly. It contains your records and attached photos.</p><div class="grid"><button class="btn secondary" id="backupBtn">Download backup</button><label class="btn secondary" style="text-align:center">Restore backup<input id="restoreInput" type="file" accept="application/json" hidden></label><button class="btn danger" id="resetBtn">Erase all app data</button></div></section>
- </div>`,'Settings','Manage your claim details and protect your records.');
+ <section class="card"><div class="settingsIcon">💾</div><h2>Data</h2><p>Download a backup regularly. It contains all records and attached photos.</p><div class="grid"><button class="btn secondary" id="backupBtn">Download backup</button><label class="btn secondary" style="text-align:center">Restore backup<input id="restoreInput" type="file" accept="application/json" hidden></label></div><p class="small muted">Use Restore Backup to move your records to another device after opening the shared app link.</p></section>
+ <section class="card"><div class="settingsIcon">📄</div><h2>Report options</h2><p>Choose what is included when you generate the lawyer report.</p><div class="settingsOptions">
+ <label class="settingCheck"><input type="checkbox" id="reportIncludePhotos" ${rs.includePhotos?'checked':''}><span><strong>Include photos</strong><small>Journal and receipt photos will appear in the report.</small></span></label>
+ <label class="settingCheck"><input type="checkbox" id="reportIncludeMedicationHistory" ${rs.includeMedicationHistory?'checked':''}><span><strong>Include detailed medication history</strong><small>Includes individual taken and missed dose records.</small></span></label>
+ <label class="settingCheck"><input type="checkbox" id="reportAutoPrint" ${rs.autoPrint?'checked':''}><span><strong>Open print window automatically</strong><small>Immediately opens Print / Save as PDF after generating.</small></span></label>
+ </div></section>
+ <section class="card dangerZone span2"><div class="settingsIcon">⚠️</div><h2>Danger Zone</h2><p>Erasing app data permanently removes every record stored on this device. Download a backup first.</p><button class="btn danger" id="resetBtn">Erase all app data</button></section>
+ </div>`,'Settings','Manage the app, reports and your stored records.');
 }
-
 function more(){
  return appShell(`<div class="grid grid2">${[
  ['receipts','🧾','Receipts'],['appointments','🩺','Appointments'],['timeline','🕒','Recovery Timeline'],['tasks','✅','Tasks & Paperwork'],['notes','📝','Notes & Questions'],['reports','📄','Reports'],['settings','⚙️','Settings']
@@ -622,22 +631,23 @@ function medicationFrequencyHistoryHtml(medication){
 }
 
 function printReport(){
+ const reportSettings={...defaults.reportSettings,...(state.reportSettings||{})};
  const win=window.open('','_blank');
  const sec=(title,body)=>`<section><h2>${title}</h2>${body||'<p>None recorded.</p>'}</section>`;
  const html=`<!doctype html><html><head><title>MVA Recovery Report</title><style>body{font-family:Arial,sans-serif;color:#1b2a3a;margin:36px;line-height:1.45}h1{color:#0b315f;border-bottom:4px solid #0b315f;padding-bottom:10px}h2{color:#174b7d;border-bottom:1px solid #ccd6e2;padding-bottom:5px;margin-top:28px}.item{margin:0 0 14px;padding:10px;border:1px solid #dce4ed;border-radius:8px}.meta{color:#65758a;font-size:12px}.photo{width:120px;height:120px;object-fit:cover;margin:4px}.frequencyTimeline{margin-top:8px;padding-top:8px;border-top:1px solid #e1e7ee}.frequencyPeriod{display:flex;justify-content:space-between;gap:18px;padding:4px 0}.frequencyPeriod span{color:#65758a}.frequencyPeriod b{text-align:right}@media print{button{display:none}}</style></head><body>
  <h1>MVA Recovery Report</h1><p><strong>Prepared for:</strong> ${esc(state.profile.lawyer||'Lawyer')}<br><strong>Name:</strong> ${esc(state.profile.name||'')}<br><strong>Accident date:</strong> ${fmt(state.profile.accidentDate)}<br><strong>Claim number:</strong> ${esc(state.profile.claimNumber||'')}<br><strong>Generated:</strong> ${new Date().toLocaleString('en-CA')}</p>
  ${sec('Recovery Timeline',state.timeline.sort((a,b)=>a.date.localeCompare(b.date)).map(x=>`<div class="item"><strong>${fmt(x.date)} — ${esc(x.title)}</strong><div class="meta">${esc(x.type)}</div><p>${esc(x.notes||'')}</p></div>`).join(''))}
- ${sec('Daily Recovery Notes',state.journal.sort((a,b)=>a.date.localeCompare(b.date)).map(x=>`<div class="item"><strong>${fmt(x.date)}</strong><p>${esc(x.notes||'')}</p>${(x.photos||[]).map(p=>`<img class="photo" src="${p}">`).join('')}</div>`).join(''))}
+ ${sec('Daily Recovery Notes',state.journal.sort((a,b)=>a.date.localeCompare(b.date)).map(x=>`<div class="item"><strong>${fmt(x.date)}</strong><p>${esc(x.notes||'')}</p>${reportSettings.includePhotos?(x.photos||[]).map(p=>`<img class="photo" src="${p}">`).join(''):''}</div>`).join(''))}
  ${sec('Injury History',state.injuries.map(i=>`<div class="item"><strong>${esc(i.name)}</strong><div class="meta">${esc(i.description||'')}</div>${state.injuryLogs.filter(l=>l.injuryId===i.id).sort((a,b)=>a.date.localeCompare(b.date)).map(l=>`<p><strong>${fmt(l.date)} — Pain ${l.pain}/10${l.change?' — '+esc(l.change):''}</strong><br>${esc(l.notes||'')}</p>`).join('')}</div>`).join(''))}
  ${sec('Medications',state.medications.map(m=>`<div class="item"><strong>${esc(m.name)} ${esc(m.dose||'')}</strong><div class="meta">${m.active===false?'Completed':'Active'}</div>${medicationFrequencyHistoryHtml(m)}${m.notes?`<p>${esc(m.notes)}</p>`:''}</div>`).join(''))}
- ${sec('Dose History',state.doses.sort((a,b)=>a.dateTime.localeCompare(b.dateTime)).map(d=>{const m=state.medications.find(x=>x.id===d.medicationId);return `<div>${new Date(d.dateTime).toLocaleString('en-CA')} — ${esc(d.medicationNameSnapshot||m?.name||'Medication')} — ${esc(d.status)}${d.doseSnapshot?' — '+esc(d.doseSnapshot):''}${d.frequencySnapshot?' — '+esc(d.frequencySnapshot):''}${d.note?' — '+esc(d.note):''}</div>`}).join(''))}
+ ${reportSettings.includeMedicationHistory?sec('Dose History',state.doses.sort((a,b)=>a.dateTime.localeCompare(b.dateTime)).map(d=>{const m=state.medications.find(x=>x.id===d.medicationId);return `<div>${new Date(d.dateTime).toLocaleString('en-CA')} — ${esc(d.medicationNameSnapshot||m?.name||'Medication')} — ${esc(d.status)}${d.doseSnapshot?' — '+esc(d.doseSnapshot):''}${d.frequencySnapshot?' — '+esc(d.frequencySnapshot):''}${d.note?' — '+esc(d.note):''}</div>`}).join('')):''}
  ${sec('Appointments',state.appointments.sort((a,b)=>a.date.localeCompare(b.date)).map(a=>`<div class="item"><strong>${fmt(a.date)} ${esc(a.time||'')} — ${esc(a.type)}</strong><div>${esc(a.provider||'')} ${esc(a.location||'')}</div><p>${esc(a.notes||'')}</p></div>`).join(''))}
- ${sec('Receipts and Expenses',`<p><strong>Total: ${money(state.receipts.reduce((s,r)=>s+Number(r.amount||0),0))}</strong></p>`+state.receipts.map(r=>`<div class="item"><strong>${fmt(r.date)} — ${esc(r.description)} — ${money(r.amount)}</strong><div class="meta">${esc(r.category)}</div>${r.photo?`<img class="photo" src="${r.photo}">`:''}</div>`).join(''))}
+ ${sec('Receipts and Expenses',`<p><strong>Total: ${money(state.receipts.reduce((s,r)=>s+Number(r.amount||0),0))}</strong></p>`+state.receipts.map(r=>`<div class="item"><strong>${fmt(r.date)} — ${esc(r.description)} — ${money(r.amount)}</strong><div class="meta">${esc(r.category)}</div>${reportSettings.includePhotos&&r.photo?`<img class="photo" src="${r.photo}">`:''}</div>`).join(''))}
  ${sec('Tasks',state.tasks.map(t=>`<div>${t.done?'☑':'☐'} ${esc(t.title)} ${t.due?'— '+fmt(t.due):''}</div>`).join(''))}
  ${sec('Questions',state.questions.map(q=>`<div class="item"><strong>${esc(q.text)}</strong><div class="meta">For: ${esc(q.forWhom)} · ${q.answered?'Answered':'Open'}</div><p>${esc(q.answer||'')}</p></div>`).join(''))}
  ${sec('General Notes',state.notes.map(n=>`<div class="item"><strong>${fmt(n.date)} — ${esc(n.title)}</strong><p>${esc(n.text)}</p></div>`).join(''))}
  <button onclick="window.print()">Print / Save as PDF</button></body></html>`;
- win.document.write(html);win.document.close();setTimeout(()=>win.print(),500);
+ win.document.write(html);win.document.close();if(reportSettings.autoPrint)setTimeout(()=>win.print(),500);
 }
 
 function render(){
@@ -725,6 +735,19 @@ function bind(){
  }
  const pf=document.getElementById('profileForm');if(pf)pf.onsubmit=e=>{e.preventDefault();state.profile={...state.profile,...Object.fromEntries(new FormData(pf))};save();toast('Saved')};
  const p=document.getElementById('printReport');if(p)p.onclick=printReport;
+ const shareBtn=document.getElementById('shareAppBtn');if(shareBtn)shareBtn.onclick=async()=>{
+   const url='https://mva-record-keeper.vercel.app/';
+   const shareData={title:'MVA Record Keeper',text:"I've been using this MVA Record Keeper to track injuries, medications, appointments, receipts and recovery.",url};
+   try{
+     if(navigator.share){await navigator.share(shareData);return;}
+     if(navigator.clipboard?.writeText){await navigator.clipboard.writeText(url);toast('App link copied');return;}
+     const input=document.createElement('textarea');input.value=url;input.style.position='fixed';input.style.opacity='0';document.body.append(input);input.select();document.execCommand('copy');input.remove();toast('App link copied');
+   }catch(err){if(err?.name!=='AbortError')alert(`Share this link: ${url}`)}
+ };
+ const saveReportSetting=(key,value)=>{state.reportSettings={...defaults.reportSettings,...(state.reportSettings||{}),[key]:value};save();toast('Report option saved')};
+ const includePhotos=document.getElementById('reportIncludePhotos');if(includePhotos)includePhotos.onchange=()=>saveReportSetting('includePhotos',includePhotos.checked);
+ const includeMedicationHistory=document.getElementById('reportIncludeMedicationHistory');if(includeMedicationHistory)includeMedicationHistory.onchange=()=>saveReportSetting('includeMedicationHistory',includeMedicationHistory.checked);
+ const autoPrint=document.getElementById('reportAutoPrint');if(autoPrint)autoPrint.onchange=()=>saveReportSetting('autoPrint',autoPrint.checked);
  const bb=document.getElementById('backupBtn');if(bb)bb.onclick=()=>{
    const payload={...state,backupCreatedAt:new Date().toISOString(),dataVersion:state.dataVersion||2};
    const url=URL.createObjectURL(new Blob([JSON.stringify(payload,null,2)],{type:'application/json'}));
