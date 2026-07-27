@@ -350,6 +350,7 @@ function medications(){
  const attention=sortMeds(activeMeds).filter(m=>{const t=medicationTiming(m,history,now);return t.next&&t.remaining<=30*60000});
  return appShell(`
  <div class="toolbar"><div><span class="pill">${activeMeds.length} active · ${completedMeds.length} completed</span></div><button class="btn primary" data-add="medication">+ Add medication</button></div>
+ ${activeMeds.length>=2?`<section class="card multiMedicationLog"><div class="toolbar"><div><h2>Log two medications together</h2><p class="muted small">Use one date and time for medications taken together. Each record keeps its own dose and frequency.</p></div></div><div class="multiMedicationShared"><div class="field"><label>Date</label><input type="date" id="multiDoseDate" value="${today()}"></div><div class="field"><label>Time</label><input type="time" id="multiDoseTime" value="${localDateTimeValue().slice(11,16)}"></div><div class="field"><label>Status</label><select id="multiDoseStatus"><option>Taken</option><option>Missed</option></select></div></div><div class="multiMedicationRows">${[1,2].map((row,i)=>`<div class="multiMedicationRow"><div class="field"><label>Medication ${row}</label><select data-multi-med="${row}"><option value="">Choose medication</option>${activeMeds.map((m,index)=>`<option value="${m.id}" ${index===i?'selected':''}>${esc(m.name)}</option>`).join('')}</select></div><div class="field"><label>Dose at that time</label><input data-multi-dose="${row}" value="${esc(activeMeds[i]?.dose||'')}"></div><div class="field"><label>Frequency at that time</label><input data-multi-frequency="${row}" value="${esc(activeMeds[i]?.frequency||activeMeds[i]?.schedule||'')}"></div><div class="field"><label>Note (optional)</label><input data-multi-note="${row}" placeholder="Optional"></div></div>`).join('')}</div><button class="btn secondary wide" type="button" id="logTwoMedications">Add both to history</button></section>`:''}
  ${attention.length?`<section class="card medicationAttention"><h2>Needs attention</h2><div class="attentionList">${attention.map(m=>{const t=medicationTiming(m,history,now);return `<div><div><strong>💊 ${esc(m.name)}</strong><span class="${t.statusClass}">${esc(t.statusText)}</span></div><button class="btn primary compactTaken" type="button" data-dose-now="${m.id}" data-status="Taken">✓ Taken now</button></div>`}).join('')}</div></section>`:''}
  <div class="medicationGrid">${meds.length?meds.map(m=>{
    const allMedicationDoses=history.filter(d=>d.medicationId===m.id);
@@ -633,6 +634,20 @@ function bind(){
  document.querySelectorAll('[data-tab]').forEach(b=>b.onclick=()=>{tab=b.dataset.tab;render()});
  document.querySelectorAll('[data-check-task]').forEach(c=>c.onchange=()=>setState(s=>{const t=s.tasks.find(x=>x.id===c.dataset.checkTask);if(t)t.done=c.checked}));
  document.querySelectorAll('[data-dose-now]').forEach(b=>b.onclick=()=>{const med=state.medications.find(m=>m.id===b.dataset.doseNow);if(!med)return;setState(s=>s.doses.push(doseSnapshot(med,b.dataset.status,new Date().toISOString())));toast(`${med.name} recorded as ${String(b.dataset.status).toLowerCase()}`)});
+ document.querySelectorAll('[data-multi-med]').forEach(select=>select.onchange=()=>{const row=select.dataset.multiMed;const med=state.medications.find(m=>m.id===select.value);const dose=document.querySelector(`[data-multi-dose="${row}"]`);const frequency=document.querySelector(`[data-multi-frequency="${row}"]`);if(dose)dose.value=med?.dose||'';if(frequency)frequency.value=med?.frequency||med?.schedule||'';});
+ const logTwo=document.getElementById('logTwoMedications');if(logTwo)logTwo.onclick=()=>{
+   const date=document.getElementById('multiDoseDate')?.value;
+   const clock=document.getElementById('multiDoseTime')?.value;
+   const status=document.getElementById('multiDoseStatus')?.value||'Taken';
+   const ids=[1,2].map(row=>document.querySelector(`[data-multi-med="${row}"]`)?.value).filter(Boolean);
+   if(!date||!clock){alert('Choose both a date and time first.');return;}
+   if(ids.length!==2){alert('Choose two medications.');return;}
+   if(ids[0]===ids[1]){alert('Choose two different medications.');return;}
+   const local=new Date(`${date}T${clock}`);if(Number.isNaN(local.getTime())){alert('That date or time could not be read.');return;}
+   const records=[];
+   for(const row of [1,2]){const id=document.querySelector(`[data-multi-med="${row}"]`)?.value;const med=state.medications.find(m=>m.id===id);if(!med)continue;records.push(doseSnapshot(med,status,local.toISOString(),{doseSnapshot:document.querySelector(`[data-multi-dose="${row}"]`)?.value||'',frequencySnapshot:document.querySelector(`[data-multi-frequency="${row}"]`)?.value||'',note:document.querySelector(`[data-multi-note="${row}"]`)?.value||''}));}
+   setState(s=>s.doses.push(...records));toast('Both medication records added');
+ };
  document.querySelectorAll('[data-log-dose]').forEach(b=>b.onclick=()=>{
    const id=b.dataset.logDose;
    const date=document.querySelector(`[data-dose-date="${id}"]`)?.value;
