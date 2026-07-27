@@ -15,6 +15,12 @@ const localDateTimeValue=(d=new Date())=>{
 const fmtDateTime=v=>v?new Date(v).toLocaleString('en-CA',{year:'numeric',month:'short',day:'numeric',hour:'numeric',minute:'2-digit'}):'';
 const medicationIntervalMs=frequency=>{
  const text=String(frequency||'').trim().toLowerCase();
+ const named={
+   'once daily':24,'twice daily':12,'three times daily':8,'four times daily':6,
+   '1 time daily':24,'2 times daily':12,'3 times daily':8,'4 times daily':6
+ };
+ if(named[text])return named[text]*60*60*1000;
+ if(text.includes('as needed')||text.includes('prn'))return 0;
  let match=text.match(/\bevery\s+(\d+(?:\.\d+)?)\s*(hour|hours|hr|hrs)\b/);
  if(match)return Number(match[1])*60*60*1000;
  match=text.match(/\bq\s*(\d+(?:\.\d+)?)\s*h\b/);
@@ -25,14 +31,47 @@ const medicationIntervalMs=frequency=>{
  if(match)return Number(match[1])*24*60*60*1000;
  return 0;
 };
-const medicationTiming=(med,allDoses)=>{
+const parseClockTime=value=>{
+ const text=String(value||'').trim();
+ if(!text)return '';
+ let match=text.match(/^(\d{1,2}):(\d{2})$/);
+ if(match){const h=Number(match[1]),m=Number(match[2]);return h<24&&m<60?`${String(h).padStart(2,'0')}:${String(m).padStart(2,'0')}`:''}
+ match=text.match(/(\d{1,2})(?::(\d{2}))?\s*(am|pm)/i);
+ if(!match)return '';
+ let h=Number(match[1]),m=Number(match[2]||0);const ap=match[3].toLowerCase();
+ if(h<1||h>12||m>59)return '';
+ if(ap==='pm'&&h!==12)h+=12;if(ap==='am'&&h===12)h=0;
+ return `${String(h).padStart(2,'0')}:${String(m).padStart(2,'0')}`;
+};
+const nextClockOccurrence=(time,now=new Date())=>{
+ if(!time)return null;
+ const [h,m]=time.split(':').map(Number);
+ if(!Number.isFinite(h)||!Number.isFinite(m))return null;
+ const next=new Date(now);next.setHours(h,m,0,0);
+ if(next.getTime()<now.getTime())next.setDate(next.getDate()+1);
+ return next;
+};
+const medicationTiming=(med,allDoses,now=new Date())=>{
  const taken=allDoses
-   .filter(d=>d.medicationId===med.id&&d.status==='Taken'&&d.dateTime)
-   .sort((a,b)=>b.dateTime.localeCompare(a.dateTime));
+   .filter(d=>d.medicationId===med.id&&d.status==='Taken'&&d.dateTime&&!Number.isNaN(new Date(d.dateTime).getTime()))
+   .sort((a,b)=>new Date(b.dateTime)-new Date(a.dateTime));
  const last=taken[0]||null;
  const interval=medicationIntervalMs(med.frequency||med.schedule);
- const next=last&&interval?new Date(new Date(last.dateTime).getTime()+interval):null;
- return {last,next};
+ let next=null,start=null;
+ if(last&&interval){start=new Date(last.dateTime);next=new Date(start.getTime()+interval)}
+ else if(!last&&interval&&med.firstDoseTime){next=nextClockOccurrence(med.firstDoseTime,now);start=new Date(next.getTime()-interval)}
+ const remaining=next?next.getTime()-now.getTime():null;
+ let statusText='No schedule',statusClass='medNeutral';
+ if(next){
+   const abs=Math.abs(remaining),hours=Math.floor(abs/3600000),mins=Math.max(0,Math.ceil((abs%3600000)/60000));
+   const duration=hours?`${hours}h ${mins}m`:`${mins}m`;
+   if(remaining<=-60000){statusText=`Overdue by ${duration}`;statusClass='medOverdue'}
+   else if(remaining<=60000){statusText='Due now';statusClass='medDueNow'}
+   else if(remaining<=30*60000){statusText=`Due in ${duration}`;statusClass='medDueSoon'}
+   else{statusText=`Due in ${duration}`;statusClass='medOnTime'}
+ }
+ const progress=next&&start&&next>start?Math.min(100,Math.max(0,((now-start)/(next-start))*100)):0;
+ return {last,next,start,remaining,statusText,statusClass,progress};
 };
 const daysBetween=(a,b)=>Math.max(0,Math.floor((new Date(b)-new Date(a))/(86400000)));
 
@@ -42,6 +81,24 @@ const defaults={
   tasks:[], questions:[], notes:[], timeline:[]
 };
 let state=load();
+function migrateMedicationData(){
+ let changed=false;
+ state.medications=(state.medications||[]).map(m=>{
+   const copy={...m};
+   if(!copy.frequency&&copy.schedule){copy.frequency=copy.schedule;changed=true}
+   if(!copy.firstDoseTime){
+     const source=copy.usualTimes||copy.times||'';
+     const first=String(source).split(',')[0];
+     const parsed=parseClockTime(first);
+     if(parsed){copy.firstDoseTime=parsed;changed=true}
+   }
+   if(copy.active===undefined&&copy.status){copy.active=copy.status!=='Inactive';changed=true}
+   return copy;
+ });
+ if(!state.dataVersion||state.dataVersion<2){state.dataVersion=2;changed=true}
+ if(changed)save();
+}
+migrateMedicationData();
 let page='dashboard';
 let modal=null;
 let tab='all';
@@ -247,16 +304,25 @@ function injuryCard(i){
 }
 
 function medications(){
- const meds=[...state.medications].sort((a,b)=>(a.active===false)-(b.active===false)||a.name.localeCompare(b.name));
- const history=[...state.doses].sort((a,b)=>b.dateTime.localeCompare(a.dateTime));
+ const now=new Date();
+ const history=[...(state.doses||[])].filter(d=>d.dateTime).sort((a,b)=>new Date(b.dateTime)-new Date(a.dateTime));
+ const meds=[...(state.medications||[])].sort((a,b)=>{
+   if((a.active===false)!==(b.active===false))return a.active===false?1:-1;
+   const at=medicationTiming(a,history,now),bt=medicationTiming(b,history,now);
+   const av=at.next?at.next.getTime():Number.MAX_SAFE_INTEGER,bv=bt.next?bt.next.getTime():Number.MAX_SAFE_INTEGER;
+   return av-bv||String(a.name||'').localeCompare(String(b.name||''));
+ });
+ const attention=meds.filter(m=>m.active!==false).filter(m=>{const t=medicationTiming(m,history,now);return t.next&&t.remaining<=30*60000});
  return appShell(`
  <div class="toolbar"><div><span class="pill">${state.medications.filter(m=>m.active!==false).length} active medications</span></div><button class="btn primary" data-add="medication">+ Add medication</button></div>
+ ${attention.length?`<section class="card medicationAttention"><h2>Needs attention</h2><div class="attentionList">${attention.map(m=>{const t=medicationTiming(m,history,now);return `<div><div><strong>💊 ${esc(m.name)}</strong><span class="${t.statusClass}">${esc(t.statusText)}</span></div><button class="btn primary compactTaken" type="button" data-dose-now="${m.id}" data-status="Taken">✓ Taken now</button></div>`}).join('')}</div></section>`:''}
  <div class="medicationGrid">${meds.length?meds.map(m=>{
    const allMedicationDoses=history.filter(d=>d.medicationId===m.id);
    const doses=allMedicationDoses.slice(0,8);
-   const timing=medicationTiming(m,history);
-   const nextDueText=timing.next?fmtDateTime(timing.next.toISOString()):'Not calculated';
-   const nextDueClass=timing.next&&timing.next.getTime()<=Date.now()?'medDueNow':'';
+   const timing=medicationTiming(m,history,now);
+   const nextDueText=timing.next?fmtDateTime(timing.next.toISOString()):(medicationIntervalMs(m.frequency||m.schedule)?'Set first dose time':'As needed');
+   const lastTakenText=timing.last?fmtDateTime(timing.last.dateTime):'No dose recorded';
+   const progressClass=timing.remaining!==null&&timing.remaining<=0?'overdue':'';
    return `<section class="card medicationCard ${m.active===false?'inactiveMedication':''}" data-medication-card="${m.id}">
     <div class="medicationCollapsedHeader">
       <div class="medicationIcon">💊</div>
@@ -266,9 +332,11 @@ function medications(){
           <button type="button" class="medicationExpandBtn" data-toggle-medication aria-expanded="false" aria-label="Expand ${esc(m.name)}">+</button>
         </div>
         <div class="medicationQuickSummary">
-          <div><span>Last taken</span><strong>${timing.last?fmtDateTime(timing.last.dateTime):'No dose recorded'}</strong></div>
-          <div><span>Next due</span><strong class="${nextDueClass}">${nextDueText}</strong></div>
+          <div><span>Last taken</span><strong>${lastTakenText}</strong></div>
+          <div><span>Next due</span><strong>${nextDueText}</strong><small class="medTimingStatus ${timing.statusClass}">${esc(timing.statusText)}</small></div>
         </div>
+        ${timing.next?`<div class="doseProgress ${progressClass}" aria-label="Time until next dose"><span style="width:${timing.progress.toFixed(1)}%"></span></div>`:''}
+        ${m.active!==false?`<button class="btn primary medicationTakenNow" type="button" data-dose-now="${m.id}" data-status="Taken">✓ Taken now</button>`:''}
       </div>
     </div>
     <div class="medicationExpandableBody">
@@ -276,15 +344,13 @@ function medications(){
         <div class="toolbar medicationHead"><div></div><div class="actions"><button class="iconBtn" data-edit="medication" data-id="${m.id}">Edit</button><button class="iconBtn" data-delete="medication" data-id="${m.id}">Delete</button></div></div>
         <div class="medSchedule">
           <div><span>Frequency</span><strong>${esc(m.frequency||m.schedule||'Not entered')}</strong></div>
-          <div><span>Usual times</span><strong>${esc(m.usualTimes||'Not entered')}</strong></div>
+          <div><span>First dose time</span><strong>${m.firstDoseTime?new Date(`2000-01-01T${m.firstDoseTime}`).toLocaleTimeString('en-CA',{hour:'numeric',minute:'2-digit'}):'Not entered'}</strong></div>
         </div>
         ${m.notes?`<p class="small medNotes">${esc(m.notes)}</p>`:''}
-        ${m.active!==false?`<div class="doseActions">
-          <button class="btn primary" type="button" data-dose-now="${m.id}" data-status="Taken">✓ Taken now</button>
-          <button class="btn secondary" type="button" data-dose-now="${m.id}" data-status="Missed">Mark missed now</button>
-        </div>
+        ${m.active!==false?`<div class="doseActions"><button class="btn secondary" type="button" data-dose-now="${m.id}" data-status="Missed">Mark missed now</button></div>
         <div class="customDoseLog">
-          <div class="field"><label>Log a different time</label><input type="datetime-local" data-dose-time="${m.id}" value="${localDateTimeValue()}"></div>
+          <div class="field"><label>Date taken</label><input type="date" data-dose-date="${m.id}" value="${today()}"></div>
+          <div class="field"><label>Time taken</label><input type="time" data-dose-clock="${m.id}" value="${localDateTimeValue().slice(11,16)}"></div>
           <div class="field"><label>Status</label><select data-dose-status="${m.id}"><option>Taken</option><option>Missed</option></select></div>
           <button class="btn secondary" type="button" data-log-dose="${m.id}">Add to history</button>
         </div>`:`<div class="inactiveBanner">This medication is inactive.</div>`}
@@ -295,7 +361,7 @@ function medications(){
    </section>`;
  }).join(''):`<div class="empty">Add your medications to start tracking doses and exact times.</div>`}</div>
  ${history.length?`<section class="card allDoseHistory"><div class="toolbar"><div><h2>All medication history</h2><p class="muted small">Newest records appear first.</p></div></div><div class="doseHistory">${history.slice(0,30).map(d=>{const m=state.medications.find(x=>x.id===d.medicationId);return `<div class="doseHistoryRow"><div><strong>${esc(m?.name||'Medication')}</strong><span>${esc(d.status)} · ${fmtDateTime(d.dateTime)}</span></div><button class="doseDeleteBtn" type="button" data-delete-dose="${d.id}" aria-label="Delete dose record">×</button></div>`}).join('')}</div></section>`:''}
- `,'Medications','Track what you take, how often you take it, and the exact time of every dose.');
+ `,'Medications','Track actual dose times and see exactly when each medication is due next.');
 }
 
 function receipts(){
@@ -425,7 +491,7 @@ function openForm(type,id){
  if(type==='journal') body=`${field('Date','date',item.date||today(),'date')}${area('How was your day?','notes',item.notes||'')}${photoField('Photo (optional)','photos',item.photos||[],true)}`;
  if(type==='injury') body=`${field('Injury name','name',item.name||'')}${field('Short description (optional)','description',item.description||'')}${selectField('Status','active',['Active','Archived'],item.active===false?'Archived':'Active')}<div class="field span2"><label>Daily tracking fields</label><p class="small muted trackingHelp">Enable only the details that make sense for this injury. Enabled fields will appear in every Daily Log.</p><div class="trackingToggles"><label class="trackingToggle"><input type="checkbox" name="trackSwelling" ${item.trackSwelling?'checked':''}><span>Swelling</span></label><label class="trackingToggle"><input type="checkbox" name="trackStiffness" ${item.trackStiffness?'checked':''}><span>Stiffness</span></label><label class="trackingToggle"><input type="checkbox" name="trackRangeOfMotion" ${item.trackRangeOfMotion?'checked':''}><span>Range of motion</span></label></div></div>`;
  if(type==='injuryLog'){const injuryId=item.injuryId||newInjuryId; const injury=state.injuries.find(x=>x.id===injuryId); body=`<div class="field span2 summaryBox"><strong>${esc(injury?.name||'Injury')}</strong><div class="small muted">Update only what you want to record today.</div></div>${field('Date','date',item.date||today(),'date')}${field('Pain level (0-10)','pain',item.pain??0,'number','min="0" max="10"')}${selectField('Compared with last update','change',['Better','Same','Worse','Not sure'],item.change||'Same')}${area('Notes (optional)','notes',item.notes||'')}${photoField('Photo (optional)','photos',item.photos||[],true)}<input type="hidden" name="injuryId" value="${esc(injuryId)}">`; }
- if(type==='medication') body=`${field('Medication name','name',item.name||'')}${field('Dose','dose',item.dose||'')}${field('Frequency','frequency',item.frequency||item.schedule||'','text','placeholder="Example: Every 8 hours or 3 times daily"')}${field('Usual times','usualTimes',item.usualTimes||'','text','placeholder="Example: 7:00 AM, 3:00 PM, 11:00 PM"')}${selectField('Status','status',['Active','Inactive'],item.active===false?'Inactive':'Active')}${area('Instructions or notes','notes',item.notes||'')}`;
+ if(type==='medication') body=`${field('Medication name','name',item.name||'')}${field('Dose','dose',item.dose||'')}${selectField('Frequency','frequency',['Every 4 hours','Every 6 hours','Every 8 hours','Every 12 hours','Once daily','Twice daily','Three times daily','Four times daily','As needed (PRN)'],item.frequency||item.schedule||'Every 8 hours')}${field('First dose time','firstDoseTime',item.firstDoseTime||parseClockTime(item.usualTimes||''),'time')}${selectField('Status','status',['Active','Inactive'],item.active===false?'Inactive':'Active')}${area('Instructions or notes','notes',item.notes||'')}`;
  if(type==='receipt') body=`${field('Date','date',item.date||today(),'date')}${field('Amount','amount',item.amount||'','number','step="0.01" min="0"')}${field('Description','description',item.description||'')}${selectField('Category','category',['Pharmacy','Physiotherapy','Parking','Mileage','Medical supplies','Legal','Other'],item.category||'Other')}${area('Notes','notes',item.notes||'')}${photoField('Receipt photo','photo',item.photo?[item.photo]:[],false)}`;
  if(type==='appointment'){
    const kind=item.appointmentKind||((item.type||'').toLowerCase().includes('insurance')?'Insurance':'Medical');
@@ -541,10 +607,13 @@ function bind(){
  document.querySelectorAll('[data-dose-now]').forEach(b=>b.onclick=()=>setState(s=>s.doses.push({id:uid(),medicationId:b.dataset.doseNow,status:b.dataset.status,dateTime:new Date().toISOString()})));
  document.querySelectorAll('[data-log-dose]').forEach(b=>b.onclick=()=>{
    const id=b.dataset.logDose;
-   const time=document.querySelector(`[data-dose-time="${id}"]`)?.value;
+   const date=document.querySelector(`[data-dose-date="${id}"]`)?.value;
+   const clock=document.querySelector(`[data-dose-clock="${id}"]`)?.value;
    const status=document.querySelector(`[data-dose-status="${id}"]`)?.value||'Taken';
-   if(!time){alert('Choose a date and time first.');return;}
-   setState(s=>s.doses.push({id:uid(),medicationId:id,status,dateTime:new Date(time).toISOString()}));
+   if(!date||!clock){alert('Choose both a date and time first.');return;}
+   const local=new Date(`${date}T${clock}`);
+   if(Number.isNaN(local.getTime())){alert('That date or time could not be read.');return;}
+   setState(s=>s.doses.push({id:uid(),medicationId:id,status,dateTime:local.toISOString()}));
  });
  document.querySelectorAll('[data-delete-dose]').forEach(b=>b.onclick=()=>{
    if(!confirm('Delete this dose record?'))return;
@@ -586,8 +655,18 @@ function bind(){
  }
  const pf=document.getElementById('profileForm');if(pf)pf.onsubmit=e=>{e.preventDefault();state.profile={...state.profile,...Object.fromEntries(new FormData(pf))};save();toast('Saved')};
  const p=document.getElementById('printReport');if(p)p.onclick=printReport;
- const bb=document.getElementById('backupBtn');if(bb)bb.onclick=()=>{const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([JSON.stringify(state,null,2)],{type:'application/json'}));a.download=`mva-record-keeper-backup-${today()}.json`;a.click();URL.revokeObjectURL(a.href)};
- const ri=document.getElementById('restoreInput');if(ri)ri.onchange=async()=>{try{const data=JSON.parse(await ri.files[0].text());state={...defaults,...data};save();render();toast('Backup restored')}catch{alert('That backup file could not be read.')}};
+ const bb=document.getElementById('backupBtn');if(bb)bb.onclick=()=>{
+   const payload={...state,backupCreatedAt:new Date().toISOString(),dataVersion:state.dataVersion||2};
+   const url=URL.createObjectURL(new Blob([JSON.stringify(payload,null,2)],{type:'application/json'}));
+   const a=document.createElement('a');a.href=url;a.download=`mva-record-keeper-backup-${today()}.json`;document.body.append(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(url),1000);toast('Backup downloaded');
+ };
+ const ri=document.getElementById('restoreInput');if(ri)ri.onchange=async()=>{try{
+   if(!ri.files?.[0])return;
+   const data=JSON.parse(await ri.files[0].text());
+   if(!data||typeof data!=='object'||!Array.isArray(data.medications)||!Array.isArray(data.journal))throw new Error('Invalid backup');
+   if(!confirm('Restore this backup? Your current records on this device will be replaced.'))return;
+   state={...structuredClone(defaults),...data};migrateMedicationData();save();render();toast('Backup restored');
+ }catch{alert('That file is not a valid MVA Record Keeper backup.')}finally{ri.value=''}};
  const rb=document.getElementById('resetBtn');if(rb)rb.onclick=()=>{if(confirm('Erase all MVA app data on this device?')){state=structuredClone(defaults);save();render()}};
 }
 if('serviceWorker' in navigator)window.addEventListener('load',()=>navigator.serviceWorker.register('./sw.js').catch(()=>{}));

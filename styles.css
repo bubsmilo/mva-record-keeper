@@ -182,3 +182,25 @@ input,textarea,select{width:100%;border:1px solid #cfd9e5;border-radius:8px;padd
  .appointmentCollapsedHeader{gap:9px}
  .appointmentTypeIcon{width:39px;height:39px;flex-basis:39px}
 }
+
+/* Medication schedule, quick logging, and due status */
+.medicationTakenNow{width:100%;margin-top:10px;min-height:44px}
+.medTimingStatus{display:block;margin-top:4px;font-weight:800;font-size:12px}
+.medOnTime{color:#18733a}.medDueSoon{color:#9a6500}.medDueNow,.medOverdue{color:#b3261e}.medNeutral{color:#718096}
+.doseProgress{height:7px;border-radius:999px;background:#e7edf4;overflow:hidden;margin-top:10px}
+.doseProgress span{display:block;height:100%;background:#0b63ce;border-radius:inherit;transition:width .3s ease}
+.doseProgress.overdue{background:#f7d6d3}.doseProgress.overdue span{background:#b3261e;width:100%!important}
+.medicationAttention{margin:16px 0;border-color:#f0c9c5;background:#fffafa}
+.medicationAttention h2{margin:0 0 10px;color:#8d201b}
+.attentionList{display:grid;gap:8px}
+.attentionList>div{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:10px;border:1px solid #efd8d5;background:#fff;border-radius:11px}
+.attentionList>div>div{display:flex;flex-direction:column;gap:3px}
+.compactTaken{white-space:nowrap;padding:9px 12px}
+.customDoseLog{grid-template-columns:minmax(130px,1fr) minmax(110px,.8fr) minmax(110px,.8fr) auto}
+@media(max-width:720px){
+ .customDoseLog{grid-template-columns:1fr 1fr}
+ .customDoseLog .btn{grid-column:1/-1}
+ .attentionList>div{align-items:stretch;flex-direction:column}
+ .compactTaken{width:100%}
+}
+@media(max-width:460px){.customDoseLog{grid-template-columns:1fr}}
