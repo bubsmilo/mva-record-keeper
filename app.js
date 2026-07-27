@@ -307,85 +307,19 @@ function receipts(){
 }
 
 function appointments(){
- const items=[...state.appointments].sort((a,b)=>(a.dateTime||'').localeCompare(b.dateTime||''));
- const now=Date.now();
- const appointmentStatus=a=>{
-   if(a.status)return a.status;
-   if(!a.dateTime)return 'Upcoming';
-   return new Date(a.dateTime).getTime()<now?'Completed':'Upcoming';
- };
- return appShell(`
- <div class="toolbar">
-   <div><span class="pill">${items.length} appointment${items.length===1?'':'s'}</span></div>
-   <button class="btn primary" data-add="appointment">+ Add appointment</button>
- </div>
- <div class="appointmentList">
- ${items.length?items.map(a=>{
-   const type=a.appointmentType||a.type||'Medical';
-   const isInsurance=type==='Insurance';
-   const status=appointmentStatus(a);
-   const title=isInsurance
-     ? (a.insuranceCompany||a.contactName||a.title||'Insurance appointment')
-     : (a.provider||a.professionalType||a.title||'Medical appointment');
-   const subtitle=isInsurance
-     ? [a.contactName,a.contactMethod].filter(Boolean).join(' · ')
-     : [a.professionalType,a.location].filter(Boolean).join(' · ');
-   return `<section class="card appointmentCard" data-appointment-card="${a.id}">
-     <div class="appointmentCollapsedHeader">
-       <div class="appointmentTypeIcon">${isInsurance?'🚗':'🏥'}</div>
-       <div class="appointmentHeaderInfo">
-         <div class="appointmentTitleRow">
-           <div>
-             <div class="appointmentTypeLabel">${isInsurance?'Insurance appointment':'Medical appointment'}</div>
-             <h3>${esc(title)}</h3>
-             ${subtitle?`<div class="appointmentSubtitle">${esc(subtitle)}</div>`:''}
-           </div>
-           <button type="button" class="appointmentExpandBtn" data-toggle-appointment aria-expanded="false" aria-label="Expand appointment">+</button>
-         </div>
-         <div class="appointmentQuickSummary">
-           <div><span>Date & time</span><strong>${a.dateTime?fmtDateTime(a.dateTime):'Not entered'}</strong></div>
-           <div><span>Status</span><strong class="appointmentStatus ${status.toLowerCase()}">${esc(status)}</strong></div>
-         </div>
-       </div>
-     </div>
+ const sorted=[...state.appointments].sort((a,b)=>a.date.localeCompare(b.date));
+ return appShell(`<div class="toolbar"><div class="tabs"><button class="${tab==='all'?'active':''}" data-tab="all">All</button><button class="${tab==='upcoming'?'active':''}" data-tab="upcoming">Upcoming</button><button class="${tab==='past'?'active':''}" data-tab="past">Past</button></div><button class="btn primary" data-add="appointment">+ Add appointment</button></div>
+ <div class="list">${filterAppts(sorted).length?filterAppts(sorted).map(a=>`<div class="row"><div class="rowMain"><div class="rowTitle">${esc(a.type)}</div><div class="rowMeta">${fmt(a.date)}${a.time?' · '+esc(a.time):''}</div><div>${esc(a.provider||'')}</div>${a.location?`<div class="small muted">${esc(a.location)}</div>`:''}${a.notes?`<p class="small">${esc(a.notes)}</p>`:''}</div><div class="actions"><button class="iconBtn" data-edit="appointment" data-id="${a.id}">Edit</button><button class="iconBtn" data-delete="appointment" data-id="${a.id}">Delete</button></div></div>`).join(''):`<div class="empty">No appointments in this view.</div>`}</div>`,'Appointments','Track medical, legal, insurance and therapy appointments.');
+}
+function filterAppts(a){return tab==='upcoming'?a.filter(x=>x.date>=today()):tab==='past'?a.filter(x=>x.date<today()):a}
 
-     <div class="appointmentExpandableBody">
-       <div class="appointmentExpandableInner">
-         <div class="appointmentTopActions">
-           <button class="iconBtn" data-edit="appointment" data-id="${a.id}">Edit</button>
-           <button class="iconBtn" data-delete="appointment" data-id="${a.id}">Delete</button>
-         </div>
-
-         ${isInsurance?`
-           <div class="appointmentDetailsGrid">
-             ${a.insuranceCompany?`<div><span>Insurance company</span><strong>${esc(a.insuranceCompany)}</strong></div>`:''}
-             ${a.contactName?`<div><span>Person spoken with</span><strong>${esc(a.contactName)}</strong></div>`:''}
-             ${a.contactMethod?`<div><span>Contact method</span><strong>${esc(a.contactMethod)}</strong></div>`:''}
-             ${a.claimNumber?`<div><span>Claim number</span><strong>${esc(a.claimNumber)}</strong></div>`:''}
-           </div>
-           ${a.discussionNotes?`<div class="appointmentNotesBlock"><span>Discussion notes</span><p>${esc(a.discussionNotes)}</p></div>`:''}
-           ${a.actionItems?`<div class="appointmentNotesBlock"><span>Action items</span><p>${esc(a.actionItems)}</p></div>`:''}
-           ${a.followUp?`<div class="appointmentNotesBlock"><span>Follow-up required</span><p>${esc(a.followUp)}</p></div>`:''}
-         `:`
-           <div class="appointmentDetailsGrid">
-             ${a.provider?`<div><span>Provider</span><strong>${esc(a.provider)}</strong></div>`:''}
-             ${a.professionalType?`<div><span>Professional type</span><strong>${esc(a.professionalType)}</strong></div>`:''}
-             ${a.location?`<div><span>Clinic or hospital</span><strong>${esc(a.location)}</strong></div>`:''}
-             ${a.reason?`<div><span>Reason for visit</span><strong>${esc(a.reason)}</strong></div>`:''}
-           </div>
-           ${a.summary?`<div class="appointmentNotesBlock"><span>Visit summary</span><p>${esc(a.summary)}</p></div>`:''}
-           ${a.testsOrdered?`<div class="appointmentNotesBlock"><span>Tests ordered</span><p>${esc(a.testsOrdered)}</p></div>`:''}
-           ${a.followUp?`<div class="appointmentNotesBlock"><span>Follow-up required</span><p>${esc(a.followUp)}</p></div>`:''}
-           ${a.nextAppointment?`<div class="appointmentNotesBlock"><span>Next appointment</span><p>${fmtDateTime(a.nextAppointment)}</p></div>`:''}
-         `}
-       </div>
-     </div>
-   </section>`;
- }).join(''):`<div class="empty">Add medical appointments and insurance conversations so everything stays organized in one place.</div>`}
- </div>
- `,'Appointments','Track medical visits and conversations with insurance adjusters.');
+function timeline(){
+ const sorted=[...state.timeline].sort((a,b)=>a.date.localeCompare(b.date));
+ return appShell(`<div class="toolbar"><div><span class="pill">${sorted.length} events</span></div><button class="btn primary" data-add="timeline">+ Add event</button></div>
+ ${sorted.length?`<div class="card"><div class="timeline">${sorted.map(t=>`<div class="timelineItem"><div class="toolbar"><div><div class="rowMeta">${fmt(t.date)}</div><div class="rowTitle">${esc(t.title)}</div><div class="small">${esc(t.type||'Event')}</div></div><div class="actions"><button class="iconBtn" data-edit="timeline" data-id="${t.id}">Edit</button><button class="iconBtn" data-delete="timeline" data-id="${t.id}">Delete</button></div></div>${t.notes?`<p>${esc(t.notes)}</p>`:''}</div>`).join('')}</div></div>`:`<div class="empty">Build a chronological record from the accident onward.</div>`}`,'Recovery Timeline','See important events in chronological order.');
 }
 
+function taskRow(t){return `<div class="checkRow"><input type="checkbox" data-check-task="${t.id}" ${t.done?'checked':''}><div class="${t.done?'strike':''}"><div class="rowTitle">${esc(t.title)}</div><div class="rowMeta">${t.due?fmt(t.due):'No due date'} · ${esc(t.priority||'Normal')}</div></div></div>`}
 function tasks(){
  return appShell(`<div class="toolbar"><div><span class="pill">${state.tasks.filter(t=>!t.done).length} open</span></div><button class="btn primary" data-add="task">+ Add task</button></div>
  <div class="card"><div class="list">${state.tasks.length?state.tasks.map(t=>`<div class="row"><div>${taskRow(t)}</div><div class="actions"><button class="iconBtn" data-edit="task" data-id="${t.id}">Edit</button><button class="iconBtn" data-delete="task" data-id="${t.id}">Delete</button></div></div>`).join(''):`<div class="empty">No tasks yet.</div>`}</div></div>`,'Tasks & Paperwork','Stay on top of forms, calls, follow-ups and deadlines.');
@@ -436,34 +370,7 @@ function openForm(type,id){
  if(type==='injuryLog'){const injuryId=item.injuryId||newInjuryId; const injury=state.injuries.find(x=>x.id===injuryId); body=`<div class="field span2 summaryBox"><strong>${esc(injury?.name||'Injury')}</strong><div class="small muted">Update only what you want to record today.</div></div>${field('Date','date',item.date||today(),'date')}${field('Pain level (0-10)','pain',item.pain??0,'number','min="0" max="10"')}${selectField('Compared with last update','change',['Better','Same','Worse','Not sure'],item.change||'Same')}${area('Notes (optional)','notes',item.notes||'')}${photoField('Photo (optional)','photos',item.photos||[],true)}<input type="hidden" name="injuryId" value="${esc(injuryId)}">`; }
  if(type==='medication') body=`${field('Medication name','name',item.name||'')}${field('Dose','dose',item.dose||'')}${field('Frequency','frequency',item.frequency||item.schedule||'','text','placeholder="Example: Every 8 hours or 3 times daily"')}${field('Usual times','usualTimes',item.usualTimes||'','text','placeholder="Example: 7:00 AM, 3:00 PM, 11:00 PM"')}${selectField('Status','status',['Active','Inactive'],item.active===false?'Inactive':'Active')}${area('Instructions or notes','notes',item.notes||'')}`;
  if(type==='receipt') body=`${field('Date','date',item.date||today(),'date')}${field('Amount','amount',item.amount||'','number','step="0.01" min="0"')}${field('Description','description',item.description||'')}${selectField('Category','category',['Pharmacy','Physiotherapy','Parking','Mileage','Medical supplies','Legal','Other'],item.category||'Other')}${area('Notes','notes',item.notes||'')}${photoField('Receipt photo','photo',item.photo?[item.photo]:[],false)}`;
- if(type==='appointment'){
-   const apptType=item.appointmentType||item.type||'Medical';
-   body=`
-   ${selectField('Appointment type','appointmentType',['Medical','Insurance'],apptType)}
-   <div data-appointment-fields="Medical" class="${apptType==='Medical'?'':'hidden'}">
-     ${field('Provider name','provider',item.provider||'')}
-     ${field('Professional type','professionalType',item.professionalType||'','text','placeholder="Example: Orthopedic surgeon or physiotherapist"')}
-     ${field('Clinic or hospital','location',item.location||'')}
-     ${field('Date & time','dateTime',item.dateTime?localDateTimeValue(new Date(item.dateTime)):'','datetime-local')}
-     ${selectField('Status','status',['Upcoming','Completed','Cancelled'],item.status||'Upcoming')}
-     ${field('Reason for visit','reason',item.reason||'')}
-     ${area('Visit summary','summary',item.summary||'')}
-     ${area('Tests ordered','testsOrdered',item.testsOrdered||'')}
-     ${area('Follow-up required','followUp',item.followUp||'')}
-     ${field('Next appointment','nextAppointment',item.nextAppointment?localDateTimeValue(new Date(item.nextAppointment)):'','datetime-local')}
-   </div>
-   <div data-appointment-fields="Insurance" class="${apptType==='Insurance'?'':'hidden'}">
-     ${field('Insurance company','insuranceCompany',item.insuranceCompany||'')}
-     ${field('Person spoken with','contactName',item.contactName||'')}
-     ${selectField('Contact method','contactMethod',['Phone','Email','Virtual meeting','In person'],item.contactMethod||'Phone')}
-     ${field('Claim number','claimNumber',item.claimNumber||'')}
-     ${field('Date & time','dateTimeInsurance',item.dateTime?localDateTimeValue(new Date(item.dateTime)):'','datetime-local')}
-     ${selectField('Status','statusInsurance',['Upcoming','Completed','Cancelled'],item.status||'Completed')}
-     ${area('Discussion notes','discussionNotes',item.discussionNotes||'')}
-     ${area('Action items','actionItems',item.actionItems||'')}
-     ${area('Follow-up required','followUpInsurance',item.followUp||'')}
-   </div>`;
- }
+ if(type==='appointment') body=`${field('Date','date',item.date||today(),'date')}${field('Time','time',item.time||'','time')}${field('Appointment type','type',item.type||'')}${field('Provider / clinic','provider',item.provider||'')}${field('Location','location',item.location||'')}${selectField('Status','status',['Scheduled','Completed','Cancelled'],item.status||'Scheduled')}${area('Outcome / notes','notes',item.notes||'')}`;
  if(type==='timeline') body=`${field('Date','date',item.date||today(),'date')}${field('Event title','title',item.title||'')}${selectField('Event type','type',['Accident','Hospital / ER','Doctor','Imaging','Physiotherapy','Insurance','Lawyer','Medication','Other'],item.type||'Other')}${area('Details','notes',item.notes||'')}`;
  if(type==='task') body=`${field('Task','title',item.title||'')}${field('Due date','due',item.due||'','date')}${selectField('Priority','priority',['Low','Normal','High'],item.priority||'Normal')}${selectField('Status','done',['Open','Completed'],item.done?'Completed':'Open')}`;
  if(type==='question') body=`${area('Question','text',item.text||'')}${selectField('For','forWhom',['Doctor','Lawyer','Insurance','Physiotherapist','Other'],item.forWhom||'Doctor')}${selectField('Status','answered',['Open','Answered'],item.answered?'Answered':'Open')}${area('Answer / notes','answer',item.answer||'')}`;
@@ -556,13 +463,6 @@ function bind(){
    b.textContent=expanded?'−':'+';
    b.setAttribute('aria-expanded',String(expanded));
    b.setAttribute('aria-label',`${expanded?'Collapse':'Expand'} ${card.querySelector('.medicationTitleRow h3')?.textContent||'medication'}`);
- });
- document.querySelectorAll('[data-toggle-appointment]').forEach(b=>b.onclick=()=>{
-   const card=b.closest('[data-appointment-card]');
-   const expanded=card.classList.toggle('is-expanded');
-   b.textContent=expanded?'−':'+';
-   b.setAttribute('aria-expanded',String(expanded));
-   b.setAttribute('aria-label',expanded?'Collapse appointment':'Expand appointment');
  });
  document.querySelectorAll('.painChoice').forEach(b=>b.onclick=()=>{const card=b.closest('[data-injury-id]');card.querySelectorAll('.painChoice').forEach(x=>x.classList.remove('selected'));b.classList.add('selected');card.querySelector('input[name$="_pain"]').value=b.dataset.pain;});
  document.querySelectorAll('.changeChoice').forEach(b=>b.onclick=()=>{const card=b.closest('[data-injury-id]');card.querySelectorAll('.changeChoice').forEach(x=>x.classList.remove('selected'));b.classList.add('selected');card.querySelector('input[name$="_change"]').value=b.dataset.change;});
