@@ -240,3 +240,12 @@ input,textarea,select{width:100%;border:1px solid #cfd9e5;border-radius:8px;padd
 .reportPreview{margin-top:18px;padding:16px;border:1px solid #cfe0f3;border-radius:13px;background:#f7fbff}.reportPreviewHead{display:flex;justify-content:space-between;align-items:flex-start;gap:12px}.reportPreviewHead h3{margin:8px 0 3px}.reportPreviewHead p{margin:0;color:#65758a}.reportPreviewCount{display:grid;place-items:center;width:72px;height:72px;border-radius:50%;background:#0b63ce;color:#fff;font-size:22px;font-weight:800}.reportPreviewCount small{font-size:10px;font-weight:500}.reportPreviewStats{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:9px;margin:16px 0}.reportPreviewStats div{padding:10px;border:1px solid #dce7f3;border-radius:10px;background:#fff}.reportPreviewStats strong,.reportPreviewStats span{display:block}.reportPreviewStats strong{color:#0b63ce}.reportPreviewStats span{font-size:11px;color:#65758a;margin-top:2px}.reportSectionList{display:flex;flex-wrap:wrap;gap:7px}.reportSectionList span{padding:5px 9px;border-radius:999px;background:#e8f2ff;color:#27557f;font-size:12px}
 @media(max-width:1000px){.grid3,.reportOptionGrid{grid-template-columns:1fr 1fr}.reportPreviewStats{grid-template-columns:repeat(3,1fr)}}
 @media(max-width:700px){.reportIntro{display:block}.reportIntroStats{margin-top:16px}.grid3,.reportOptionGrid{grid-template-columns:1fr}.reportDateRange{grid-template-columns:1fr}.reportActions{display:grid}.reportPreviewStats{grid-template-columns:1fr 1fr}}
+
+
+/* Medication historical-name correction */
+.medicationNameSyncBox{border:1px solid #bfd4f2;background:#f4f8ff;border-radius:12px;padding:12px 14px}
+.medicationNameSyncLabel{display:flex!important;align-items:flex-start;gap:11px;margin:0!important;cursor:pointer}
+.medicationNameSyncLabel input{width:20px;height:20px;flex:0 0 20px;margin:2px 0 0;accent-color:#0866ee}
+.medicationNameSyncLabel span{display:grid;gap:3px}
+.medicationNameSyncLabel strong{color:#12375f}
+.medicationNameSyncLabel small{font-weight:500;color:#60748b;line-height:1.35}
