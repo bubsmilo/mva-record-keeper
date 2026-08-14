@@ -3,7 +3,7 @@
 'use strict';
 
 const KEY='mva-record-keeper-v1';
-const APP_VERSION='2.2.1';
+const APP_VERSION='2.3.0';
 document.title=`MVA Record Keeper v${APP_VERSION}`;
 const today=()=>new Date().toISOString().slice(0,10);
 const uid=()=>Date.now().toString(36)+Math.random().toString(36).slice(2,7);
@@ -80,11 +80,21 @@ const daysBetween=(a,b)=>Math.max(0,Math.floor((new Date(b)-new Date(a))/(864000
 
 const defaults={
   profile:{accidentDate:today(),name:'',lawyer:'',claimNumber:''},
+  quickInfo:{
+    insurer:'',policyNumber:'',adjusterName:'',adjusterPhone:'',adjusterEmail:'',
+    physioClinic:'',physiotherapist:'',physioPhone:'',physioEmail:'',physioAddress:'',physioSchedule:'',
+    lawyerFirm:'',lawyerAssistant:'',lawyerPhone:'',lawyerEmail:'',lawyerFileNumber:'',lawyerAddress:'',
+    greenShieldMemberId:'',greenShieldGroupNumber:'',greenShieldPhone:'',greenShieldNotes:'',
+    employer:'',benefitsProvider:'',benefitsClaimNumber:'',benefitsPhone:'',benefitsEmail:'',
+    familyDoctor:'',familyDoctorPhone:'',pharmacy:'',pharmacyPhone:'',importantNotes:''
+  },
   reportSettings:{includePhotos:true,includeMedicationHistory:true,autoPrint:true},
   journal:[], injuries:[], injuryLogs:[], medications:[], doses:[], medicationEvents:[], receipts:[], appointments:[],
   tasks:[], questions:[], notes:[], timeline:[]
 };
 let state=load();
+state.profile={...defaults.profile,...(state.profile||{})};
+state.quickInfo={...defaults.quickInfo,...(state.quickInfo||{})};
 state.reportSettings={...defaults.reportSettings,...(state.reportSettings||{})};
 function migrateMedicationData(){
  let changed=false;
@@ -141,7 +151,7 @@ function appShell(content,title,subtitle=''){
       ${content}
     </main>
     <nav class="bottomNav">${[items[0],items[1],items[2],items[3],['more','•••','More']].map(i=>{
-      const morePages=['receipts','appointments','timeline','tasks','notes','reports','settings'];
+      const morePages=['quickinfo','receipts','appointments','timeline','tasks','notes','reports','settings'];
       const active=i[0]==='more'?morePages.includes(page):page===i[0];
       return `<button data-nav="${i[0]}" class="${active?'active':''}"><span>${i[1]}</span>${i[2]}</button>`;
     }).join('')}</nav>
@@ -168,7 +178,7 @@ function dashboard(){
  <div class="grid grid2" style="margin-top:16px">
   <section class="card"><h2>Quick actions</h2><div class="grid grid2">
    <button class="btn primary" data-add="journal">+ Journal Entry</button><button class="btn secondary" data-add="receipt">+ Receipt</button>
-   <button class="btn secondary" data-add="appointment">+ Appointment</button><button class="btn secondary" data-add="task">+ Task</button>
+   <button class="btn secondary" data-add="appointment">+ Appointment</button><button class="btn secondary" data-nav="quickinfo">📇 Quick Info</button>
   </div></section>
   <section class="card"><h2>Tasks due</h2>${dueTasks.length?`<div class="list">${dueTasks.map(taskRow).join('')}</div>`:`<div class="empty">No open tasks</div>`}</section>
  </div>`, 'Dashboard','A clear picture of your recovery and claim records.');
@@ -353,7 +363,7 @@ function medications(){
  const meds=[...sortMeds(activeMeds),...completedMeds.sort((a,b)=>String(b.completedDate||'').localeCompare(String(a.completedDate||'')))];
  const attention=sortMeds(activeMeds).filter(m=>{const t=medicationTiming(m,history,now);return t.next&&t.remaining<=30*60000});
  return appShell(`
- <div class="toolbar"><div><span class="pill">${activeMeds.length} active · ${completedMeds.length} completed</span></div><button class="btn primary" data-add="medication">+ Add medication</button></div>
+ <div class="toolbar"><div><span class="pill">${activeMeds.length} active · ${completedMeds.length} completed</span></div><div class="toolbarRight"><button class="btn secondary" type="button" data-fix-medication-names>Fix Historical Names</button><button class="btn primary" data-add="medication">+ Add medication</button></div></div>
  ${attention.length?`<section class="card medicationAttention"><h2>Needs attention</h2><div class="attentionList">${attention.map(m=>{const t=medicationTiming(m,history,now);return `<div><div><strong>💊 ${esc(m.name)}</strong><span class="${t.statusClass}">${esc(t.statusText)}</span></div><button class="btn primary compactTaken" type="button" data-dose-now="${m.id}" data-status="Taken">✓ Taken now</button></div>`}).join('')}</div></section>`:''}
  <div class="medicationGrid">${meds.length?meds.map(m=>{
    const allMedicationDoses=history.filter(d=>d.medicationId===m.id);
@@ -370,7 +380,7 @@ function medications(){
       ${m.active!==false?`<button class="btn primary medicationTakenNow" type="button" data-dose-now="${m.id}" data-status="Taken">✓ Taken now</button>`:''}
     </div></div>
     <div class="medicationExpandableBody"><div class="medicationExpandableInner">
-      <div class="toolbar medicationHead"><div></div><div class="actions"><button class="iconBtn syncPastNamesBtn" type="button" data-sync-medication-name="${m.id}">Update Past Names</button><button class="iconBtn" data-edit="medication" data-id="${m.id}">Edit</button><button class="iconBtn" data-delete="medication" data-id="${m.id}">Delete</button></div></div>
+      <div class="toolbar medicationHead"><div></div><div class="actions"><button class="iconBtn" data-edit="medication" data-id="${m.id}">Edit</button><button class="iconBtn" data-delete="medication" data-id="${m.id}">Delete</button></div></div>
       ${m.completedReason?`<div class="inactiveBanner"><strong>Completion note:</strong> ${esc(m.completedReason)}</div>`:''}
       ${m.notes?`<p class="small medNotes">${esc(m.notes)}</p>`:''}
       <div class="customDoseLog"><h4>Add a missed or older record</h4><div class="field"><label>Date</label><input type="date" data-dose-date="${m.id}" value="${today()}"></div><div class="field"><label>Time</label><input type="time" data-dose-clock="${m.id}" value="${localDateTimeValue().slice(11,16)}"></div><div class="field"><label>Status</label><select data-dose-status="${m.id}"><option>Taken</option><option>Missed</option></select></div><div class="field"><label>Dose at that time</label><input data-dose-amount="${m.id}" value="${esc(m.dose||'')}"></div><div class="field"><label>Frequency at that time</label><input data-dose-frequency="${m.id}" value="${esc(m.frequency||m.schedule||'')}"></div><div class="field span2"><label>Note (optional)</label><textarea data-dose-note="${m.id}" placeholder="Only add a note when needed."></textarea></div><button class="btn secondary span2" type="button" data-log-dose="${m.id}">Add to history</button></div>
@@ -494,10 +504,152 @@ function reports(){
  </section>`,'Reports','Create medical, legal, insurance or custom reports.');
 }
 
+
+function quickInfo(){
+ const q={...defaults.quickInfo,...(state.quickInfo||{})};
+ const display=(label,value,copy=true)=>`<div class="quickInfoValue"><span>${esc(label)}</span><div><strong>${esc(value||'Not entered')}</strong>${copy&&value?`<button type="button" class="quickCopyBtn" data-copy-value="${esc(value)}">Copy</button>`:''}</div></div>`;
+ const phone=(label,value)=>display(label,value,true);
+ return appShell(`
+ <div class="quickInfoTopbar">
+   <div><span class="pill">Quick Reference</span><h2>Everything you are commonly asked for</h2><p class="muted">Claim, treatment, legal and benefits information in one place. Tap Copy beside any saved value.</p></div>
+   <div class="quickInfoTopActions"><button class="btn secondary" id="printQuickInfo">Print Information Sheet</button><button class="btn primary" id="openQuickInfoEdit">Edit Information</button></div>
+ </div>
+
+ <div class="quickInfoGrid">
+  <section class="card quickInfoSection"><div class="quickInfoSectionHead"><span>🚗</span><div><h2>Accident & Claim</h2><small>Core claim information</small></div></div>
+    ${display('Claimant',state.profile.name)}
+    ${display('Accident date',fmt(state.profile.accidentDate),false)}
+    ${display('Insurance company',q.insurer)}
+    ${display('Policy number',q.policyNumber)}
+    ${display('Claim number',state.profile.claimNumber)}
+    ${display('Adjuster',q.adjusterName)}
+    ${phone('Adjuster phone',q.adjusterPhone)}
+    ${display('Adjuster email',q.adjusterEmail)}
+  </section>
+
+  <section class="card quickInfoSection"><div class="quickInfoSectionHead"><span>🩺</span><div><h2>Physiotherapy</h2><small>Clinic and appointment information</small></div></div>
+    ${display('Clinic',q.physioClinic)}
+    ${display('Physiotherapist',q.physiotherapist)}
+    ${phone('Clinic phone',q.physioPhone)}
+    ${display('Clinic email',q.physioEmail)}
+    ${display('Address',q.physioAddress)}
+    ${display('Usual appointment / schedule',q.physioSchedule)}
+  </section>
+
+  <section class="card quickInfoSection"><div class="quickInfoSectionHead"><span>⚖️</span><div><h2>Lawyer</h2><small>Legal file contacts</small></div></div>
+    ${display('Lawyer',state.profile.lawyer)}
+    ${display('Firm',q.lawyerFirm)}
+    ${display('Assistant / contact',q.lawyerAssistant)}
+    ${phone('Phone',q.lawyerPhone)}
+    ${display('Email',q.lawyerEmail)}
+    ${display('File number',q.lawyerFileNumber)}
+    ${display('Address',q.lawyerAddress)}
+  </section>
+
+  <section class="card quickInfoSection"><div class="quickInfoSectionHead"><span>🟢</span><div><h2>Green Shield</h2><small>Extended health information</small></div></div>
+    ${display('Member / certificate ID',q.greenShieldMemberId)}
+    ${display('Group / plan number',q.greenShieldGroupNumber)}
+    ${phone('Contact phone',q.greenShieldPhone)}
+    ${display('Coverage / submission notes',q.greenShieldNotes)}
+  </section>
+
+  <section class="card quickInfoSection"><div class="quickInfoSectionHead"><span>💼</span><div><h2>Work & Benefits</h2><small>Employer and disability benefits</small></div></div>
+    ${display('Employer',q.employer)}
+    ${display('Benefits provider',q.benefitsProvider)}
+    ${display('Claim / reference number',q.benefitsClaimNumber)}
+    ${phone('Benefits phone',q.benefitsPhone)}
+    ${display('Benefits email',q.benefitsEmail)}
+  </section>
+
+  <section class="card quickInfoSection"><div class="quickInfoSectionHead"><span>🏥</span><div><h2>Other Healthcare</h2><small>Contacts you may need quickly</small></div></div>
+    ${display('Family doctor',q.familyDoctor)}
+    ${phone('Doctor phone',q.familyDoctorPhone)}
+    ${display('Pharmacy',q.pharmacy)}
+    ${phone('Pharmacy phone',q.pharmacyPhone)}
+  </section>
+ </div>
+
+ ${q.importantNotes?`<section class="card quickInfoNotes"><h2>📝 Important Notes</h2><p>${esc(q.importantNotes).replace(/\n/g,'<br>')}</p></section>`:''}
+
+ <div class="modalBackdrop quickInfoEditBackdrop hidden" id="quickInfoEditBackdrop">
+  <div class="modal quickInfoModal">
+   <div class="modalHead"><div><h2>Edit Quick Reference</h2><p class="muted small">Fields marked Linked also update the same information used elsewhere in the app.</p></div><button type="button" class="iconBtn" id="closeQuickInfoEdit">Close</button></div>
+   <form id="quickInfoForm">
+    <div class="quickEditGroup"><h3>🚗 Accident & Claim</h3><div class="formGrid">
+      <div class="field linkedField"><label>Name <span class="linkedBadge">Linked</span></label><input name="profileName" value="${esc(state.profile.name)}"></div>
+      <div class="field linkedField"><label>Accident date <span class="linkedBadge">Linked</span></label><input name="profileAccidentDate" type="date" value="${esc(state.profile.accidentDate)}"></div>
+      ${field('Insurance company','insurer',q.insurer)}${field('Policy number','policyNumber',q.policyNumber)}
+      <div class="field linkedField"><label>Claim number <span class="linkedBadge">Linked</span></label><input name="profileClaimNumber" value="${esc(state.profile.claimNumber)}"></div>
+      ${field('Adjuster name','adjusterName',q.adjusterName)}${field('Adjuster phone','adjusterPhone',q.adjusterPhone,'tel')}
+      ${field('Adjuster email','adjusterEmail',q.adjusterEmail,'email')}
+    </div></div>
+
+    <div class="quickEditGroup"><h3>🩺 Physiotherapy</h3><div class="formGrid">
+      ${field('Clinic','physioClinic',q.physioClinic)}${field('Physiotherapist','physiotherapist',q.physiotherapist)}
+      ${field('Clinic phone','physioPhone',q.physioPhone,'tel')}${field('Clinic email','physioEmail',q.physioEmail,'email')}
+      ${field('Clinic address','physioAddress',q.physioAddress)}${field('Usual appointment / schedule','physioSchedule',q.physioSchedule)}
+    </div></div>
+
+    <div class="quickEditGroup"><h3>⚖️ Lawyer</h3><div class="formGrid">
+      <div class="field linkedField"><label>Lawyer <span class="linkedBadge">Linked</span></label><input name="profileLawyer" value="${esc(state.profile.lawyer)}"></div>
+      ${field('Firm','lawyerFirm',q.lawyerFirm)}${field('Assistant / contact','lawyerAssistant',q.lawyerAssistant)}
+      ${field('Phone','lawyerPhone',q.lawyerPhone,'tel')}${field('Email','lawyerEmail',q.lawyerEmail,'email')}
+      ${field('File number','lawyerFileNumber',q.lawyerFileNumber)}${field('Address','lawyerAddress',q.lawyerAddress)}
+    </div></div>
+
+    <div class="quickEditGroup"><h3>🟢 Green Shield</h3><div class="formGrid">
+      ${field('Member / certificate ID','greenShieldMemberId',q.greenShieldMemberId)}
+      ${field('Group / plan number','greenShieldGroupNumber',q.greenShieldGroupNumber)}
+      ${field('Contact phone','greenShieldPhone',q.greenShieldPhone,'tel')}
+      ${area('Coverage / submission notes','greenShieldNotes',q.greenShieldNotes)}
+    </div></div>
+
+    <div class="quickEditGroup"><h3>💼 Work & Benefits</h3><div class="formGrid">
+      ${field('Employer','employer',q.employer)}${field('Benefits provider','benefitsProvider',q.benefitsProvider)}
+      ${field('Claim / reference number','benefitsClaimNumber',q.benefitsClaimNumber)}
+      ${field('Benefits phone','benefitsPhone',q.benefitsPhone,'tel')}
+      ${field('Benefits email','benefitsEmail',q.benefitsEmail,'email')}
+    </div></div>
+
+    <div class="quickEditGroup"><h3>🏥 Other Healthcare</h3><div class="formGrid">
+      ${field('Family doctor','familyDoctor',q.familyDoctor)}${field('Doctor phone','familyDoctorPhone',q.familyDoctorPhone,'tel')}
+      ${field('Pharmacy','pharmacy',q.pharmacy)}${field('Pharmacy phone','pharmacyPhone',q.pharmacyPhone,'tel')}
+      ${area('Important notes','importantNotes',q.importantNotes)}
+    </div></div>
+
+    <button class="btn primary wide quickInfoSaveBtn">Save Quick Reference</button>
+   </form>
+  </div>
+ </div>
+ `,'Quick Info','Your claim, treatment and contact information at a glance.');
+}
+
+function printQuickInfoSheet(){
+ const q={...defaults.quickInfo,...(state.quickInfo||{})};
+ const row=(label,value)=>value?`<div class="qiPrintRow"><span>${esc(label)}</span><strong>${esc(value)}</strong></div>`:'';
+ const section=(title,body)=>body.replace(/\s/g,'')?`<section><h2>${title}</h2>${body}</section>`:'';
+ const win=window.open('','_blank');
+ if(!win){alert('Please allow pop-ups to print the information sheet.');return;}
+ const html=`<!doctype html><html><head><title>MVA Quick Reference v${APP_VERSION}</title><style>
+ @page{size:letter;margin:.45in}*{box-sizing:border-box}body{font-family:Arial,sans-serif;color:#15283f;margin:0;font-size:10.5pt}header{border-bottom:3px solid #0b63ce;padding-bottom:12px;margin-bottom:16px}h1{margin:0;font-size:22pt;color:#0b315f}header p{margin:4px 0 0;color:#64758a}h2{font-size:13pt;color:#0b315f;margin:0 0 8px;border-bottom:1px solid #d9e2ec;padding-bottom:4px}section{break-inside:avoid;margin:0 0 15px}.qiGrid{display:grid;grid-template-columns:1fr 1fr;gap:0 24px}.qiPrintRow{display:grid;grid-template-columns:145px 1fr;gap:8px;padding:4px 0;border-bottom:1px dotted #dbe2ea}.qiPrintRow span{color:#68788b}.notes{white-space:pre-wrap;line-height:1.45}footer{margin-top:18px;border-top:1px solid #d9e2ec;padding-top:7px;color:#7b8795;font-size:8.5pt}@media print{button{display:none}}
+ </style></head><body><header><h1>MVA Quick Reference</h1><p>${esc(state.profile.name||'Claimant')} · Generated ${new Date().toLocaleDateString('en-CA')} · App v${APP_VERSION}</p></header>
+ <div class="qiGrid">
+ ${section('Accident & Claim',row('Accident date',fmt(state.profile.accidentDate))+row('Insurance company',q.insurer)+row('Policy number',q.policyNumber)+row('Claim number',state.profile.claimNumber)+row('Adjuster',q.adjusterName)+row('Adjuster phone',q.adjusterPhone)+row('Adjuster email',q.adjusterEmail))}
+ ${section('Physiotherapy',row('Clinic',q.physioClinic)+row('Physiotherapist',q.physiotherapist)+row('Phone',q.physioPhone)+row('Email',q.physioEmail)+row('Address',q.physioAddress)+row('Usual schedule',q.physioSchedule))}
+ ${section('Lawyer',row('Lawyer',state.profile.lawyer)+row('Firm',q.lawyerFirm)+row('Assistant / contact',q.lawyerAssistant)+row('Phone',q.lawyerPhone)+row('Email',q.lawyerEmail)+row('File number',q.lawyerFileNumber)+row('Address',q.lawyerAddress))}
+ ${section('Green Shield',row('Member / certificate ID',q.greenShieldMemberId)+row('Group / plan number',q.greenShieldGroupNumber)+row('Contact phone',q.greenShieldPhone)+row('Notes',q.greenShieldNotes))}
+ ${section('Work & Benefits',row('Employer',q.employer)+row('Benefits provider',q.benefitsProvider)+row('Claim / reference',q.benefitsClaimNumber)+row('Phone',q.benefitsPhone)+row('Email',q.benefitsEmail))}
+ ${section('Other Healthcare',row('Family doctor',q.familyDoctor)+row('Doctor phone',q.familyDoctorPhone)+row('Pharmacy',q.pharmacy)+row('Pharmacy phone',q.pharmacyPhone))}
+ </div>
+ ${q.importantNotes?`<section><h2>Important Notes</h2><div class="notes">${esc(q.importantNotes)}</div></section>`:''}
+ <footer>Private recovery information · MVA Record Keeper</footer><script>window.onload=()=>setTimeout(()=>window.print(),250)<\/script></body></html>`;
+ win.document.write(html);win.document.close();
+}
+
 function settings(){
  const rs={...defaults.reportSettings,...(state.reportSettings||{})};
  return appShell(`<div class="grid grid2 settingsGrid">
- <section class="card"><div class="settingsIcon">📱</div><h2>App</h2><p>Share the MVA Record Keeper so it can be opened on another phone, tablet or computer.</p><button class="btn primary wide" id="shareAppBtn">Share App</button><div class="small muted shareUrl">mva-record-keeper.vercel.app</div><hr class="settingsDivider"><h3>About</h3><div class="summaryBox"><strong>MVA Record Keeper</strong><br><span class="small">Recovery records, medication tracking and claim documentation.</span><br><span class="small muted">App version 2.1</span></div></section>
+ <section class="card"><div class="settingsIcon">📱</div><h2>App</h2><p>Share the MVA Record Keeper so it can be opened on another phone, tablet or computer.</p><button class="btn primary wide" id="shareAppBtn">Share App</button><div class="small muted shareUrl">mva-record-keeper.vercel.app</div><hr class="settingsDivider"><h3>About</h3><div class="summaryBox"><strong>MVA Record Keeper</strong><br><span class="small">Recovery records, medication tracking and claim documentation.</span><br><span class="small muted">App version ${APP_VERSION}</span></div></section>
  <section class="card"><div class="settingsIcon">👤</div><h2>Claim information</h2><form id="profileForm" class="formGrid">
  ${field('Name','name',state.profile.name)}${field('Accident date','accidentDate',state.profile.accidentDate,'date')}
  ${field('Lawyer','lawyer',state.profile.lawyer)}${field('Claim number','claimNumber',state.profile.claimNumber)}
@@ -513,7 +665,7 @@ function settings(){
 }
 function more(){
  return appShell(`<div class="grid grid2">${[
- ['receipts','🧾','Receipts'],['appointments','🩺','Appointments'],['timeline','🕒','Recovery Timeline'],['tasks','✅','Tasks & Paperwork'],['notes','📝','Notes & Questions'],['reports','📄','Reports'],['settings','⚙️','Settings']
+ ['quickinfo','📇','Quick Info'],['receipts','🧾','Receipts'],['appointments','🩺','Appointments'],['timeline','🕒','Recovery Timeline'],['tasks','✅','Tasks & Paperwork'],['notes','📝','Notes & Questions'],['reports','📄','Reports'],['settings','⚙️','Settings']
  ].map(i=>`<button class="card" data-nav="${i[0]}" style="text-align:left;border:1px solid #dde5ef"><div style="font-size:28px">${i[1]}</div><h3>${i[2]}</h3></button>`).join('')}</div>`,'More','All additional tools and records.');
 }
 
@@ -720,12 +872,35 @@ function printReport(config=reportPreset('legal')){
  win.document.write(html);win.document.close();setTimeout(()=>win.focus(),250);
 }
 function render(){
- const views={dashboard,journal,injuries,medications,receipts,appointments,timeline,tasks,notes,reports,settings,more};
+ const views={dashboard,journal,injuries,medications,quickinfo:quickInfo,receipts,appointments,timeline,tasks,notes,reports,settings,more};
  document.getElementById('app').innerHTML=views[page]();
  bind();
 }
 function bind(){
  document.querySelectorAll('[data-nav]').forEach(b=>b.onclick=()=>nav(b.dataset.nav));
+ const openQuickInfoEdit=document.getElementById('openQuickInfoEdit');
+ const quickInfoBackdrop=document.getElementById('quickInfoEditBackdrop');
+ if(openQuickInfoEdit&&quickInfoBackdrop)openQuickInfoEdit.onclick=()=>quickInfoBackdrop.classList.remove('hidden');
+ const closeQuickInfoEdit=document.getElementById('closeQuickInfoEdit');
+ if(closeQuickInfoEdit&&quickInfoBackdrop)closeQuickInfoEdit.onclick=()=>quickInfoBackdrop.classList.add('hidden');
+ document.querySelectorAll('.quickCopyBtn').forEach(b=>b.onclick=async()=>{
+   const value=b.dataset.copyValue||'';
+   try{await navigator.clipboard.writeText(value);toast('Copied')}catch{prompt('Copy this value:',value)}
+ });
+ const quickInfoForm=document.getElementById('quickInfoForm');
+ if(quickInfoForm)quickInfoForm.onsubmit=e=>{
+   e.preventDefault();
+   const fd=new FormData(quickInfoForm);
+   state.profile.name=String(fd.get('profileName')||'').trim();
+   state.profile.accidentDate=String(fd.get('profileAccidentDate')||today());
+   state.profile.claimNumber=String(fd.get('profileClaimNumber')||'').trim();
+   state.profile.lawyer=String(fd.get('profileLawyer')||'').trim();
+   Object.keys(defaults.quickInfo).forEach(key=>state.quickInfo[key]=String(fd.get(key)||'').trim());
+   save();render();toast('Quick reference saved');
+ };
+ const printQuickInfo=document.getElementById('printQuickInfo');
+ if(printQuickInfo)printQuickInfo.onclick=printQuickInfoSheet;
+
  document.querySelectorAll('[data-add]').forEach(b=>b.onclick=()=>openForm(b.dataset.add));
  document.querySelectorAll('[data-log-injury]').forEach(b=>b.onclick=()=>openForm('injuryLog','new:'+b.dataset.logInjury));
  document.querySelectorAll('[data-edit]').forEach(b=>b.onclick=()=>openForm(b.dataset.edit,b.dataset.id));
@@ -735,16 +910,31 @@ function bind(){
  document.querySelectorAll('[data-tab]').forEach(b=>b.onclick=()=>{tab=b.dataset.tab;render()});
  document.querySelectorAll('[data-check-task]').forEach(c=>c.onchange=()=>setState(s=>{const t=s.tasks.find(x=>x.id===c.dataset.checkTask);if(t)t.done=c.checked}));
  document.querySelectorAll('[data-dose-now]').forEach(b=>b.onclick=()=>{const med=state.medications.find(m=>m.id===b.dataset.doseNow);if(!med)return;setState(s=>s.doses.push(doseSnapshot(med,b.dataset.status,new Date().toISOString())));toast(`${med.name} recorded as ${String(b.dataset.status).toLowerCase()}`)});
- document.querySelectorAll('[data-sync-medication-name]').forEach(b=>b.onclick=()=>{
-   const med=state.medications.find(m=>m.id===b.dataset.syncMedicationName);
-   if(!med)return;
-   const matching=(state.doses||[]).filter(d=>d.medicationId===med.id);
-   if(!matching.length){toast('No past dose records found for this medication');return;}
-   if(!confirm(`Change the medication name to "${med.name}" in all ${matching.length} past dose record${matching.length===1?'':'s'}?\n\nDose, frequency, date, time and notes will not change.`))return;
-   matching.forEach(d=>{d.medicationNameSnapshot=med.name||'Medication';});
+ document.querySelectorAll('[data-fix-medication-names]').forEach(b=>b.onclick=()=>{
+   const historicalNames=[...new Set((state.doses||[]).map(d=>String(d.medicationNameSnapshot||'').trim()).filter(Boolean))].sort((a,b)=>a.localeCompare(b));
+   if(!historicalNames.length){alert('No historical medication names were found.');return;}
+   const oldName=prompt(`Enter the OLD medication name exactly as it appears in history.\n\nHistorical names found:\n${historicalNames.join('\n')}`);
+   if(oldName===null)return;
+   const oldTrim=oldName.trim();
+   if(!oldTrim){alert('Enter the old medication name.');return;}
+   const matches=(state.doses||[]).filter(d=>String(d.medicationNameSnapshot||'').trim().toLowerCase()===oldTrim.toLowerCase());
+   if(!matches.length){alert(`No historical records were found with the name "${oldTrim}".`);return;}
+   const currentNames=(state.medications||[]).map(m=>m.name).filter(Boolean).sort((a,b)=>a.localeCompare(b));
+   const newName=prompt(`Enter the CORRECT medication name.\n\nCurrent medications:\n${currentNames.join('\n')}`,currentNames[0]||'');
+   if(newName===null)return;
+   const newTrim=newName.trim();
+   if(!newTrim){alert('Enter the correct medication name.');return;}
+   if(!confirm(`Change "${oldTrim}" to "${newTrim}" in ${matches.length} historical record${matches.length===1?'':'s'}?\n\nDose, frequency, date, time and notes will stay exactly the same.`))return;
+   let changed=0;
+   (state.doses||[]).forEach(d=>{
+     if(String(d.medicationNameSnapshot||'').trim().toLowerCase()===oldTrim.toLowerCase()){
+       d.medicationNameSnapshot=newTrim;
+       changed++;
+     }
+   });
    save();
    render();
-   toast(`Updated ${matching.length} past medication record${matching.length===1?'':'s'}`);
+   toast(`Changed ${changed} historical record${changed===1?'':'s'} to ${newTrim}`);
  });
 
  document.querySelectorAll('[data-multi-med]').forEach(select=>select.onchange=()=>{const row=select.dataset.multiMed;const med=state.medications.find(m=>m.id===select.value);const dose=document.querySelector(`[data-multi-dose="${row}"]`);const frequency=document.querySelector(`[data-multi-frequency="${row}"]`);if(dose)dose.value=med?.dose||'';if(frequency)frequency.value=med?.frequency||med?.schedule||'';});

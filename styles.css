@@ -242,14 +242,26 @@ input,textarea,select{width:100%;border:1px solid #cfd9e5;border-radius:8px;padd
 @media(max-width:700px){.reportIntro{display:block}.reportIntroStats{margin-top:16px}.grid3,.reportOptionGrid{grid-template-columns:1fr}.reportDateRange{grid-template-columns:1fr}.reportActions{display:grid}.reportPreviewStats{grid-template-columns:1fr 1fr}}
 
 
-/* v2.2.1 medication-name history sync */
-.syncPastNamesBtn{
+/* v2.2.2 historical medication name cleanup */
+[data-fix-medication-names]{
   border-color:#8ab7ef;
   background:#edf5ff;
   color:#0759bc;
 }
-.syncPastNamesBtn:hover{
+[data-fix-medication-names]:hover{
   background:#dfeeff;
   border-color:#5f9ee8;
 }
-.appVersionCard .metric{letter-spacing:.01em}
+
+
+/* v2.3.0 Quick Reference / Claim Information */
+.quickInfoTopbar{display:flex;justify-content:space-between;align-items:flex-start;gap:16px;margin-bottom:16px;padding:18px;background:linear-gradient(135deg,#eaf4ff,#fff);border:1px solid #cfdef1;border-radius:14px}
+.quickInfoTopbar h2{margin:7px 0 4px;font-size:23px}.quickInfoTopbar p{margin:0}.quickInfoTopActions{display:flex;gap:8px;flex-wrap:wrap}
+.quickInfoGrid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:16px}
+.quickInfoSection{padding:0;overflow:hidden}.quickInfoSectionHead{display:flex;gap:11px;align-items:center;padding:15px 17px;background:#f5f9ff;border-bottom:1px solid #e0e9f3}.quickInfoSectionHead>span{font-size:24px}.quickInfoSectionHead h2{margin:0;font-size:17px}.quickInfoSectionHead small{color:#718096}
+.quickInfoValue{display:grid;grid-template-columns:145px 1fr;gap:12px;padding:10px 17px;border-bottom:1px solid #edf1f5;align-items:center}.quickInfoValue:last-child{border-bottom:0}.quickInfoValue>span{font-size:12px;color:#6c7c91;font-weight:750}.quickInfoValue>div{display:flex;align-items:center;justify-content:space-between;gap:8px;min-width:0}.quickInfoValue strong{overflow-wrap:anywhere}.quickCopyBtn{border:1px solid #c8d8eb;background:#f6faff;color:#075bd4;border-radius:7px;padding:5px 8px;font-size:11px;font-weight:800;flex:0 0 auto}
+.quickInfoNotes{margin-top:16px}.quickInfoNotes p{margin:0;line-height:1.55}
+.quickInfoModal{max-width:850px}.quickEditGroup{border-top:1px solid #e1e8f0;padding-top:16px;margin-top:16px}.quickEditGroup:first-of-type{border-top:0;padding-top:0}.quickEditGroup h3{margin:0 0 12px}.quickInfoSaveBtn{margin-top:18px;padding:13px}
+.linkedField{background:#f4f8ff;border:1px solid #d4e3f6;padding:10px;border-radius:10px}.linkedBadge{display:inline-block;margin-left:5px;border-radius:999px;padding:2px 6px;background:#dcecff;color:#0759bc;font-size:10px;font-weight:800}
+@media(max-width:850px){.quickInfoGrid{grid-template-columns:1fr}.quickInfoTopbar{flex-direction:column}.quickInfoTopActions{width:100%}.quickInfoTopActions .btn{flex:1}}
+@media(max-width:520px){.quickInfoValue{grid-template-columns:1fr;gap:3px}.quickInfoValue>div{align-items:flex-start}.quickInfoTopActions{display:grid;grid-template-columns:1fr}.quickInfoTopActions .btn{width:100%}}
