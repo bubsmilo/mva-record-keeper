@@ -242,10 +242,14 @@ input,textarea,select{width:100%;border:1px solid #cfd9e5;border-radius:8px;padd
 @media(max-width:700px){.reportIntro{display:block}.reportIntroStats{margin-top:16px}.grid3,.reportOptionGrid{grid-template-columns:1fr}.reportDateRange{grid-template-columns:1fr}.reportActions{display:grid}.reportPreviewStats{grid-template-columns:1fr 1fr}}
 
 
-/* Medication historical-name correction */
-.medicationNameSyncBox{border:1px solid #bfd4f2;background:#f4f8ff;border-radius:12px;padding:12px 14px}
-.medicationNameSyncLabel{display:flex!important;align-items:flex-start;gap:11px;margin:0!important;cursor:pointer}
-.medicationNameSyncLabel input{width:20px;height:20px;flex:0 0 20px;margin:2px 0 0;accent-color:#0866ee}
-.medicationNameSyncLabel span{display:grid;gap:3px}
-.medicationNameSyncLabel strong{color:#12375f}
-.medicationNameSyncLabel small{font-weight:500;color:#60748b;line-height:1.35}
+/* v2.2.1 medication-name history sync */
+.syncPastNamesBtn{
+  border-color:#8ab7ef;
+  background:#edf5ff;
+  color:#0759bc;
+}
+.syncPastNamesBtn:hover{
+  background:#dfeeff;
+  border-color:#5f9ee8;
+}
+.appVersionCard .metric{letter-spacing:.01em}
