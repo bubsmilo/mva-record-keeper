@@ -265,3 +265,12 @@ input,textarea,select{width:100%;border:1px solid #cfd9e5;border-radius:8px;padd
 .linkedField{background:#f4f8ff;border:1px solid #d4e3f6;padding:10px;border-radius:10px}.linkedBadge{display:inline-block;margin-left:5px;border-radius:999px;padding:2px 6px;background:#dcecff;color:#0759bc;font-size:10px;font-weight:800}
 @media(max-width:850px){.quickInfoGrid{grid-template-columns:1fr}.quickInfoTopbar{flex-direction:column}.quickInfoTopActions{width:100%}.quickInfoTopActions .btn{flex:1}}
 @media(max-width:520px){.quickInfoValue{grid-template-columns:1fr;gap:3px}.quickInfoValue>div{align-items:flex-start}.quickInfoTopActions{display:grid;grid-template-columns:1fr}.quickInfoTopActions .btn{width:100%}}
+
+
+/* v2.3.1 Quick Info refinements */
+.quickInfoProviderBlock{padding:12px 17px;border-top:1px solid #e7edf4;background:#fbfdff}
+.quickInfoProviderTitle{display:flex;justify-content:space-between;gap:10px;margin-bottom:8px}.quickInfoProviderTitle span{font-size:12px;color:#6f8094;font-weight:700}
+.quickInfoProviderBlock>div:not(.quickInfoProviderTitle){display:grid;grid-template-columns:90px 1fr auto;gap:8px;align-items:center;padding:4px 0}
+.quickInfoProviderBlock>div>span{font-size:11px;color:#6c7c91;font-weight:750}.quickInfoProviderBlock>div>strong{overflow-wrap:anywhere}
+.otherProviderEditor{margin-top:8px}.otherProviderRow{border:1px solid #d9e4f0;border-radius:12px;padding:13px;margin-top:10px;background:#fbfdff}.otherProviderRowHead{display:flex;justify-content:space-between;align-items:center;margin-bottom:12px}
+@media(max-width:520px){.quickInfoProviderBlock>div:not(.quickInfoProviderTitle){grid-template-columns:1fr}.quickInfoProviderTitle{flex-direction:column}}

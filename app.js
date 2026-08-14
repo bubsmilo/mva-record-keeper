@@ -3,7 +3,7 @@
 'use strict';
 
 const KEY='mva-record-keeper-v1';
-const APP_VERSION='2.3.0';
+const APP_VERSION='2.3.1';
 document.title=`MVA Record Keeper v${APP_VERSION}`;
 const today=()=>new Date().toISOString().slice(0,10);
 const uid=()=>Date.now().toString(36)+Math.random().toString(36).slice(2,7);
@@ -84,9 +84,12 @@ const defaults={
     insurer:'',policyNumber:'',adjusterName:'',adjusterPhone:'',adjusterEmail:'',
     physioClinic:'',physiotherapist:'',physioPhone:'',physioEmail:'',physioAddress:'',physioSchedule:'',
     lawyerFirm:'',lawyerAssistant:'',lawyerPhone:'',lawyerEmail:'',lawyerFileNumber:'',lawyerAddress:'',
-    greenShieldMemberId:'',greenShieldGroupNumber:'',greenShieldPhone:'',greenShieldNotes:'',
-    employer:'',benefitsProvider:'',benefitsClaimNumber:'',benefitsPhone:'',benefitsEmail:'',
-    familyDoctor:'',familyDoctorPhone:'',pharmacy:'',pharmacyPhone:'',importantNotes:''
+    greenShieldPlanName:'',greenShieldPlanNumber:'',greenShieldSecondaryPlanName:'',greenShieldSecondaryPlanNumber:'',
+    employer:'',benefitsProvider:'',benefitsGroupPlanNumber:'',employeeIdNumber:'',portfolioId:'',
+    benefitsContactName:'',benefitsContactPhone:'',benefitsContactEmail:'',
+    familyDoctor:'',familyDoctorPhone:'',clinicName:'',clinicAddress:'',
+    pharmacy:'',pharmacyPhone:'',pharmacyAddress:'',importantNotes:'',
+    otherHealthcareProviders:[]
   },
   reportSettings:{includePhotos:true,includeMedicationHistory:true,autoPrint:true},
   journal:[], injuries:[], injuryLogs:[], medications:[], doses:[], medicationEvents:[], receipts:[], appointments:[],
@@ -95,6 +98,7 @@ const defaults={
 let state=load();
 state.profile={...defaults.profile,...(state.profile||{})};
 state.quickInfo={...defaults.quickInfo,...(state.quickInfo||{})};
+state.quickInfo.otherHealthcareProviders=Array.isArray(state.quickInfo.otherHealthcareProviders)?state.quickInfo.otherHealthcareProviders:[];
 state.reportSettings={...defaults.reportSettings,...(state.reportSettings||{})};
 function migrateMedicationData(){
  let changed=false;
@@ -505,6 +509,21 @@ function reports(){
 }
 
 
+
+function otherProviderEditRow(p={},ix=0){
+ return `<div class="otherProviderRow" data-provider-row>
+   <div class="otherProviderRowHead"><strong>Provider ${ix+1}</strong><button type="button" class="iconBtn removeOtherProvider">Remove</button></div>
+   <div class="formGrid">
+     ${field('Provider / specialist name','providerName',p.name||'')}
+     ${field('Specialty','providerSpecialty',p.specialty||'')}
+     ${field('Clinic / hospital','providerClinic',p.clinic||'')}
+     ${field('Phone','providerPhone',p.phone||'','tel')}
+     ${field('Email','providerEmail',p.email||'','email')}
+     ${field('Address','providerAddress',p.address||'')}
+   </div>
+ </div>`;
+}
+
 function quickInfo(){
  const q={...defaults.quickInfo,...(state.quickInfo||{})};
  const display=(label,value,copy=true)=>`<div class="quickInfoValue"><span>${esc(label)}</span><div><strong>${esc(value||'Not entered')}</strong>${copy&&value?`<button type="button" class="quickCopyBtn" data-copy-value="${esc(value)}">Copy</button>`:''}</div></div>`;
@@ -546,26 +565,40 @@ function quickInfo(){
     ${display('Address',q.lawyerAddress)}
   </section>
 
-  <section class="card quickInfoSection"><div class="quickInfoSectionHead"><span>🟢</span><div><h2>Green Shield</h2><small>Extended health information</small></div></div>
-    ${display('Member / certificate ID',q.greenShieldMemberId)}
-    ${display('Group / plan number',q.greenShieldGroupNumber)}
-    ${phone('Contact phone',q.greenShieldPhone)}
-    ${display('Coverage / submission notes',q.greenShieldNotes)}
+  <section class="card quickInfoSection"><div class="quickInfoSectionHead"><span>🟢</span><div><h2>Green Shield</h2><small>Primary and secondary coverage</small></div></div>
+    ${display('Primary plan name',q.greenShieldPlanName)}
+    ${display('Primary plan number',q.greenShieldPlanNumber)}
+    ${display('Secondary plan name',q.greenShieldSecondaryPlanName)}
+    ${display('Secondary plan number',q.greenShieldSecondaryPlanNumber)}
   </section>
 
-  <section class="card quickInfoSection"><div class="quickInfoSectionHead"><span>💼</span><div><h2>Work & Benefits</h2><small>Employer and disability benefits</small></div></div>
+  <section class="card quickInfoSection"><div class="quickInfoSectionHead"><span>💼</span><div><h2>Work & Benefits</h2><small>Plan IDs and benefits contact</small></div></div>
     ${display('Employer',q.employer)}
     ${display('Benefits provider',q.benefitsProvider)}
-    ${display('Claim / reference number',q.benefitsClaimNumber)}
-    ${phone('Benefits phone',q.benefitsPhone)}
-    ${display('Benefits email',q.benefitsEmail)}
+    ${display('Group plan number',q.benefitsGroupPlanNumber)}
+    ${display('Employee ID number',q.employeeIdNumber)}
+    ${display('Portfolio ID',q.portfolioId)}
+    ${display('Contact person',q.benefitsContactName)}
+    ${phone('Contact phone',q.benefitsContactPhone)}
+    ${display('Contact email',q.benefitsContactEmail)}
   </section>
 
-  <section class="card quickInfoSection"><div class="quickInfoSectionHead"><span>🏥</span><div><h2>Other Healthcare</h2><small>Contacts you may need quickly</small></div></div>
+  <section class="card quickInfoSection"><div class="quickInfoSectionHead"><span>🏥</span><div><h2>Other Healthcare</h2><small>Doctor, clinic, pharmacy and specialists</small></div></div>
     ${display('Family doctor',q.familyDoctor)}
     ${phone('Doctor phone',q.familyDoctorPhone)}
+    ${display('Clinic name',q.clinicName)}
+    ${display('Clinic address',q.clinicAddress)}
     ${display('Pharmacy',q.pharmacy)}
     ${phone('Pharmacy phone',q.pharmacyPhone)}
+    ${display('Pharmacy address',q.pharmacyAddress)}
+    ${(q.otherHealthcareProviders||[]).map((p,ix)=>`
+      <div class="quickInfoProviderBlock">
+        <div class="quickInfoProviderTitle"><strong>${esc(p.name||`Healthcare provider ${ix+1}`)}</strong>${p.specialty?`<span>${esc(p.specialty)}</span>`:''}</div>
+        ${p.clinic?`<div><span>Clinic</span><strong>${esc(p.clinic)}</strong></div>`:''}
+        ${p.phone?`<div><span>Phone</span><strong>${esc(p.phone)}</strong><button type="button" class="quickCopyBtn" data-copy-value="${esc(p.phone)}">Copy</button></div>`:''}
+        ${p.email?`<div><span>Email</span><strong>${esc(p.email)}</strong><button type="button" class="quickCopyBtn" data-copy-value="${esc(p.email)}">Copy</button></div>`:''}
+        ${p.address?`<div><span>Address</span><strong>${esc(p.address)}</strong></div>`:''}
+      </div>`).join('')}
   </section>
  </div>
 
@@ -598,24 +631,36 @@ function quickInfo(){
     </div></div>
 
     <div class="quickEditGroup"><h3>🟢 Green Shield</h3><div class="formGrid">
-      ${field('Member / certificate ID','greenShieldMemberId',q.greenShieldMemberId)}
-      ${field('Group / plan number','greenShieldGroupNumber',q.greenShieldGroupNumber)}
-      ${field('Contact phone','greenShieldPhone',q.greenShieldPhone,'tel')}
-      ${area('Coverage / submission notes','greenShieldNotes',q.greenShieldNotes)}
+      ${field('Primary plan name','greenShieldPlanName',q.greenShieldPlanName)}
+      ${field('Primary plan number','greenShieldPlanNumber',q.greenShieldPlanNumber)}
+      ${field('Secondary plan name','greenShieldSecondaryPlanName',q.greenShieldSecondaryPlanName)}
+      ${field('Secondary plan number','greenShieldSecondaryPlanNumber',q.greenShieldSecondaryPlanNumber)}
     </div></div>
 
     <div class="quickEditGroup"><h3>💼 Work & Benefits</h3><div class="formGrid">
       ${field('Employer','employer',q.employer)}${field('Benefits provider','benefitsProvider',q.benefitsProvider)}
-      ${field('Claim / reference number','benefitsClaimNumber',q.benefitsClaimNumber)}
-      ${field('Benefits phone','benefitsPhone',q.benefitsPhone,'tel')}
-      ${field('Benefits email','benefitsEmail',q.benefitsEmail,'email')}
+      ${field('Group plan number','benefitsGroupPlanNumber',q.benefitsGroupPlanNumber)}
+      ${field('Employee ID number','employeeIdNumber',q.employeeIdNumber)}
+      ${field('Portfolio ID','portfolioId',q.portfolioId)}
+      ${field('Contact person','benefitsContactName',q.benefitsContactName)}
+      ${field('Contact phone','benefitsContactPhone',q.benefitsContactPhone,'tel')}
+      ${field('Contact email','benefitsContactEmail',q.benefitsContactEmail,'email')}
     </div></div>
 
     <div class="quickEditGroup"><h3>🏥 Other Healthcare</h3><div class="formGrid">
       ${field('Family doctor','familyDoctor',q.familyDoctor)}${field('Doctor phone','familyDoctorPhone',q.familyDoctorPhone,'tel')}
+      ${field('Clinic name','clinicName',q.clinicName)}${field('Clinic address','clinicAddress',q.clinicAddress)}
       ${field('Pharmacy','pharmacy',q.pharmacy)}${field('Pharmacy phone','pharmacyPhone',q.pharmacyPhone,'tel')}
-      ${area('Important notes','importantNotes',q.importantNotes)}
-    </div></div>
+      ${field('Pharmacy address','pharmacyAddress',q.pharmacyAddress)}
+    </div>
+    <div class="otherProviderEditor">
+      <div class="toolbar" style="margin-top:16px"><div><h4 style="margin:0">Other healthcare providers / specialists</h4><p class="muted small">Add as many specialists or other providers as you need.</p></div><button class="btn secondary" type="button" id="addOtherProvider">+ Add Provider</button></div>
+      <div id="otherProviderRows">
+        ${(q.otherHealthcareProviders||[]).map((p,ix)=>otherProviderEditRow(p,ix)).join('')}
+      </div>
+    </div>
+    ${area('Important notes','importantNotes',q.importantNotes)}
+    </div>
 
     <button class="btn primary wide quickInfoSaveBtn">Save Quick Reference</button>
    </form>
@@ -637,9 +682,9 @@ function printQuickInfoSheet(){
  ${section('Accident & Claim',row('Accident date',fmt(state.profile.accidentDate))+row('Insurance company',q.insurer)+row('Policy number',q.policyNumber)+row('Claim number',state.profile.claimNumber)+row('Adjuster',q.adjusterName)+row('Adjuster phone',q.adjusterPhone)+row('Adjuster email',q.adjusterEmail))}
  ${section('Physiotherapy',row('Clinic',q.physioClinic)+row('Physiotherapist',q.physiotherapist)+row('Phone',q.physioPhone)+row('Email',q.physioEmail)+row('Address',q.physioAddress)+row('Usual schedule',q.physioSchedule))}
  ${section('Lawyer',row('Lawyer',state.profile.lawyer)+row('Firm',q.lawyerFirm)+row('Assistant / contact',q.lawyerAssistant)+row('Phone',q.lawyerPhone)+row('Email',q.lawyerEmail)+row('File number',q.lawyerFileNumber)+row('Address',q.lawyerAddress))}
- ${section('Green Shield',row('Member / certificate ID',q.greenShieldMemberId)+row('Group / plan number',q.greenShieldGroupNumber)+row('Contact phone',q.greenShieldPhone)+row('Notes',q.greenShieldNotes))}
- ${section('Work & Benefits',row('Employer',q.employer)+row('Benefits provider',q.benefitsProvider)+row('Claim / reference',q.benefitsClaimNumber)+row('Phone',q.benefitsPhone)+row('Email',q.benefitsEmail))}
- ${section('Other Healthcare',row('Family doctor',q.familyDoctor)+row('Doctor phone',q.familyDoctorPhone)+row('Pharmacy',q.pharmacy)+row('Pharmacy phone',q.pharmacyPhone))}
+ ${section('Green Shield',row('Primary plan name',q.greenShieldPlanName)+row('Primary plan number',q.greenShieldPlanNumber)+row('Secondary plan name',q.greenShieldSecondaryPlanName)+row('Secondary plan number',q.greenShieldSecondaryPlanNumber))}
+ ${section('Work & Benefits',row('Employer',q.employer)+row('Benefits provider',q.benefitsProvider)+row('Group plan number',q.benefitsGroupPlanNumber)+row('Employee ID number',q.employeeIdNumber)+row('Portfolio ID',q.portfolioId)+row('Contact person',q.benefitsContactName)+row('Contact phone',q.benefitsContactPhone)+row('Contact email',q.benefitsContactEmail))}
+ ${section('Other Healthcare',row('Family doctor',q.familyDoctor)+row('Doctor phone',q.familyDoctorPhone)+row('Clinic name',q.clinicName)+row('Clinic address',q.clinicAddress)+row('Pharmacy',q.pharmacy)+row('Pharmacy phone',q.pharmacyPhone)+row('Pharmacy address',q.pharmacyAddress)+(q.otherHealthcareProviders||[]).map((p,ix)=>row(`Provider ${ix+1}`, [p.name,p.specialty,p.clinic,p.phone,p.email,p.address].filter(Boolean).join(' · '))).join(''))}
  </div>
  ${q.importantNotes?`<section><h2>Important Notes</h2><div class="notes">${esc(q.importantNotes)}</div></section>`:''}
  <footer>Private recovery information · MVA Record Keeper</footer><script>window.onload=()=>setTimeout(()=>window.print(),250)<\/script></body></html>`;
@@ -895,11 +940,40 @@ function bind(){
    state.profile.accidentDate=String(fd.get('profileAccidentDate')||today());
    state.profile.claimNumber=String(fd.get('profileClaimNumber')||'').trim();
    state.profile.lawyer=String(fd.get('profileLawyer')||'').trim();
-   Object.keys(defaults.quickInfo).forEach(key=>state.quickInfo[key]=String(fd.get(key)||'').trim());
+   Object.keys(defaults.quickInfo).forEach(key=>{
+     if(key!=='otherHealthcareProviders')state.quickInfo[key]=String(fd.get(key)||'').trim();
+   });
+   const rows=[...quickInfoForm.querySelectorAll('[data-provider-row]')];
+   state.quickInfo.otherHealthcareProviders=rows.map(row=>({
+     name:String(row.querySelector('[name="providerName"]')?.value||'').trim(),
+     specialty:String(row.querySelector('[name="providerSpecialty"]')?.value||'').trim(),
+     clinic:String(row.querySelector('[name="providerClinic"]')?.value||'').trim(),
+     phone:String(row.querySelector('[name="providerPhone"]')?.value||'').trim(),
+     email:String(row.querySelector('[name="providerEmail"]')?.value||'').trim(),
+     address:String(row.querySelector('[name="providerAddress"]')?.value||'').trim()
+   })).filter(p=>Object.values(p).some(Boolean));
    save();render();toast('Quick reference saved');
  };
  const printQuickInfo=document.getElementById('printQuickInfo');
  if(printQuickInfo)printQuickInfo.onclick=printQuickInfoSheet;
+ const providerRows=document.getElementById('otherProviderRows');
+ const bindProviderRemove=()=>{
+   document.querySelectorAll('.removeOtherProvider').forEach(btn=>btn.onclick=()=>{
+     btn.closest('[data-provider-row]')?.remove();
+     [...document.querySelectorAll('[data-provider-row]')].forEach((row,ix)=>{
+       const label=row.querySelector('.otherProviderRowHead strong');if(label)label.textContent=`Provider ${ix+1}`;
+     });
+   });
+ };
+ const addOtherProvider=document.getElementById('addOtherProvider');
+ if(addOtherProvider&&providerRows)addOtherProvider.onclick=()=>{
+   const wrap=document.createElement('div');
+   wrap.innerHTML=otherProviderEditRow({},providerRows.querySelectorAll('[data-provider-row]').length);
+   providerRows.appendChild(wrap.firstElementChild);
+   bindProviderRemove();
+ };
+ bindProviderRemove();
+
 
  document.querySelectorAll('[data-add]').forEach(b=>b.onclick=()=>openForm(b.dataset.add));
  document.querySelectorAll('[data-log-injury]').forEach(b=>b.onclick=()=>openForm('injuryLog','new:'+b.dataset.logInjury));
