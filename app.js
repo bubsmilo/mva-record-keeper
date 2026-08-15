@@ -3,7 +3,7 @@
 'use strict';
 
 const KEY='mva-record-keeper-v1';
-const APP_VERSION='2.3.3';
+const APP_VERSION='2.3.5';
 document.title=`MVA Record Keeper v${APP_VERSION}`;
 const today=()=>new Date().toISOString().slice(0,10);
 const uid=()=>Date.now().toString(36)+Math.random().toString(36).slice(2,7);
@@ -87,7 +87,7 @@ const defaults={
     greenShieldPlanName:'',greenShieldPlanNumber:'',greenShieldSecondaryPlanName:'',greenShieldSecondaryPlanNumber:'',
     employer:'',benefitsProvider:'',benefitsGroupPlanNumber:'',employeeIdNumber:'',portfolioId:'',
     benefitsContactName:'',benefitsContactPhone:'',benefitsContactEmail:'',
-    familyDoctor:'',familyDoctorPhone:'',clinicName:'',clinicAddress:'',
+    familyDoctor:'',familyDoctorPhone:'',familyDoctorEmail:'',clinicName:'',clinicAddress:'',
     pharmacy:'',pharmacyPhone:'',pharmacyAddress:'',importantNotes:'',
     otherHealthcareProviders:[]
   },
@@ -530,7 +530,13 @@ function otherProviderEditRow(p={},ix=0){
 function quickInfo(){
  const q={...defaults.quickInfo,...(state.quickInfo||{})};
  const display=(label,value,copy=true)=>`<div class="quickInfoValue"><span>${esc(label)}</span><div><strong>${esc(value||'Not entered')}</strong>${copy&&value?`<button type="button" class="quickCopyBtn" data-copy-value="${esc(value)}">Copy</button>`:''}</div></div>`;
- const phone=(label,value)=>display(label,value,true);
+ const phone=(label,value)=>{
+   const clean=String(value||'').replace(/[^0-9+*#,;]/g,'');
+   return `<div class="quickInfoValue"><span>${esc(label)}</span><div>${value?`<a class="quickContactLink phoneLink" href="tel:${esc(clean)}">${esc(value)}</a>`:`<strong>Not entered</strong>`}${value?`<button type="button" class="quickCopyBtn" data-copy-value="${esc(value)}">Copy</button>`:''}</div></div>`;
+ };
+ const email=(label,value)=>{
+   return `<div class="quickInfoValue"><span>${esc(label)}</span><div>${value?`<a class="quickContactLink emailLink" href="mailto:${esc(value)}">${esc(value)}</a>`:`<strong>Not entered</strong>`}${value?`<button type="button" class="quickCopyBtn" data-copy-value="${esc(value)}">Copy</button>`:''}</div></div>`;
+ };
  return appShell(`
  <div class="quickInfoTopbar">
    <div><span class="pill">Quick Reference</span><h2>Everything you are commonly asked for</h2><p class="muted">Claim, treatment, legal and benefits information in one place. Tap Copy beside any saved value.</p></div>
@@ -546,12 +552,13 @@ function quickInfo(){
     ${display('Claim number',state.profile.claimNumber)}
     ${display('Adjuster',q.adjusterName)}
     ${phone('Adjuster phone',q.adjusterPhone)}
-    ${display('Adjuster email',q.adjusterEmail)}
+    ${email('Adjuster email',q.adjusterEmail)}
   </section>
 
   <section class="card quickInfoSection"><div class="quickInfoSectionHead"><span>👩‍⚕️</span><div><h2>Family Doctor</h2><small>Primary care information</small></div></div>
     ${display('Doctor',q.familyDoctor)}
     ${phone('Doctor phone',q.familyDoctorPhone)}
+    ${email('Doctor email',q.familyDoctorEmail)}
     ${display('Clinic name',q.clinicName)}
     ${display('Clinic address',q.clinicAddress)}
   </section>
@@ -560,7 +567,7 @@ function quickInfo(){
     ${display('Clinic',q.physioClinic)}
     ${display('Physiotherapist',q.physiotherapist)}
     ${phone('Clinic phone',q.physioPhone)}
-    ${display('Clinic email',q.physioEmail)}
+    ${email('Clinic email',q.physioEmail)}
     ${display('Address',q.physioAddress)}
     ${display('Usual appointment / schedule',q.physioSchedule)}
   </section>
@@ -570,7 +577,7 @@ function quickInfo(){
     ${display('Firm',q.lawyerFirm)}
     ${display('Assistant / contact',q.lawyerAssistant)}
     ${phone('Phone',q.lawyerPhone)}
-    ${display('Email',q.lawyerEmail)}
+    ${email('Email',q.lawyerEmail)}
     ${display('File number',q.lawyerFileNumber)}
     ${display('Address',q.lawyerAddress)}
   </section>
@@ -590,7 +597,7 @@ function quickInfo(){
     ${display('Portfolio ID',q.portfolioId)}
     ${display('Contact person',q.benefitsContactName)}
     ${phone('Contact phone',q.benefitsContactPhone)}
-    ${display('Contact email',q.benefitsContactEmail)}
+    ${email('Contact email',q.benefitsContactEmail)}
   </section>
 
   <section class="card quickInfoSection"><div class="quickInfoSectionHead"><span>🏥</span><div><h2>Other Healthcare</h2><small>Healthcare contacts grouped by provider</small></div></div>
@@ -611,8 +618,8 @@ function quickInfo(){
               <span class="providerNumber">${ix+1}</span>
             </div>
             ${p.clinic?`<div class="providerDetail"><span>Clinic / hospital</span><strong>${esc(p.clinic)}</strong></div>`:''}
-            ${p.phone?`<div class="providerDetail"><span>Phone</span><div><strong>${esc(p.phone)}</strong><button type="button" class="quickCopyBtn" data-copy-value="${esc(p.phone)}">Copy</button></div></div>`:''}
-            ${p.email?`<div class="providerDetail"><span>Email</span><div><strong>${esc(p.email)}</strong><button type="button" class="quickCopyBtn" data-copy-value="${esc(p.email)}">Copy</button></div></div>`:''}
+            ${p.phone?`<div class="providerDetail"><span>Phone</span><div><a class="quickContactLink phoneLink" href="tel:${esc(String(p.phone).replace(/[^0-9+*#,;]/g,''))}">${esc(p.phone)}</a><button type="button" class="quickCopyBtn" data-copy-value="${esc(p.phone)}">Copy</button></div></div>`:''}
+            ${p.email?`<div class="providerDetail"><span>Email</span><div><a class="quickContactLink emailLink" href="mailto:${esc(p.email)}">${esc(p.email)}</a><button type="button" class="quickCopyBtn" data-copy-value="${esc(p.email)}">Copy</button></div></div>`:''}
             ${p.address?`<div class="providerDetail"><span>Address</span><strong>${esc(p.address)}</strong></div>`:''}
           </div>`).join('')
         : `<div class="empty compactEmpty">No additional healthcare professionals added yet.</div>`}
@@ -638,6 +645,7 @@ function quickInfo(){
     <div class="quickEditGroup"><h3>👩‍⚕️ Family Doctor</h3><div class="formGrid">
       ${field('Family doctor','familyDoctor',q.familyDoctor)}
       ${field('Doctor phone','familyDoctorPhone',q.familyDoctorPhone,'tel')}
+      ${field('Doctor email','familyDoctorEmail',q.familyDoctorEmail,'email')}
       ${field('Clinic name','clinicName',q.clinicName)}
       ${field('Clinic address','clinicAddress',q.clinicAddress)}
     </div></div>
@@ -714,12 +722,21 @@ function printQuickInfoSheet(){
  </style></head><body><header><h1>MVA Quick Reference</h1><p>${esc(state.profile.name||'Claimant')} · Generated ${new Date().toLocaleDateString('en-CA')} · App v${APP_VERSION}</p></header>
  <div class="qiGrid">
  ${section('Accident & Claim',row('Accident date',fmt(state.profile.accidentDate))+row('Insurance company',q.insurer)+row('Policy number',q.policyNumber)+row('Claim number',state.profile.claimNumber)+row('Adjuster',q.adjusterName)+row('Adjuster phone',q.adjusterPhone)+row('Adjuster email',q.adjusterEmail))}
- ${section('Family Doctor',row('Doctor',q.familyDoctor)+row('Doctor phone',q.familyDoctorPhone)+row('Clinic name',q.clinicName)+row('Clinic address',q.clinicAddress))}
+ ${section('Family Doctor',row('Doctor',q.familyDoctor)+row('Doctor phone',q.familyDoctorPhone)+row('Doctor email',q.familyDoctorEmail)+row('Clinic name',q.clinicName)+row('Clinic address',q.clinicAddress))}
+ ${(q.otherHealthcareProviders||[]).map((p,ix)=>section(
+   p.specialty?`${esc(p.specialty)} — ${esc(p.name||`Provider ${ix+1}`)}`:`Additional Healthcare Provider ${ix+1}`,
+   row('Provider',p.name)+
+   row('Specialty',p.specialty)+
+   row('Clinic / hospital',p.clinic)+
+   row('Phone',p.phone)+
+   row('Email',p.email)+
+   row('Address',p.address)
+ )).join('')}
  ${section('Physiotherapy',row('Clinic',q.physioClinic)+row('Physiotherapist',q.physiotherapist)+row('Phone',q.physioPhone)+row('Email',q.physioEmail)+row('Address',q.physioAddress)+row('Usual schedule',q.physioSchedule))}
  ${section('Lawyer',row('Lawyer',state.profile.lawyer)+row('Firm',q.lawyerFirm)+row('Assistant / contact',q.lawyerAssistant)+row('Phone',q.lawyerPhone)+row('Email',q.lawyerEmail)+row('File number',q.lawyerFileNumber)+row('Address',q.lawyerAddress))}
  ${section('Green Shield',row('Primary plan name',q.greenShieldPlanName)+row('Primary plan number',q.greenShieldPlanNumber)+row('Secondary plan name',q.greenShieldSecondaryPlanName)+row('Secondary plan number',q.greenShieldSecondaryPlanNumber))}
  ${section('Work & Benefits',row('Employer',q.employer)+row('Benefits provider',q.benefitsProvider)+row('Group plan number',q.benefitsGroupPlanNumber)+row('Employee ID number',q.employeeIdNumber)+row('Portfolio ID',q.portfolioId)+row('Contact person',q.benefitsContactName)+row('Contact phone',q.benefitsContactPhone)+row('Contact email',q.benefitsContactEmail))}
- ${section('Other Healthcare',row('Pharmacy',q.pharmacy)+row('Pharmacy phone',q.pharmacyPhone)+row('Pharmacy address',q.pharmacyAddress)+(q.otherHealthcareProviders||[]).map((p,ix)=>row(`Provider ${ix+1}`, [p.name,p.specialty,p.clinic,p.phone,p.email,p.address].filter(Boolean).join(' · '))).join(''))}
+ ${section('Pharmacy',row('Pharmacy name',q.pharmacy)+row('Pharmacy phone',q.pharmacyPhone)+row('Pharmacy address',q.pharmacyAddress))}
  </div>
  ${q.importantNotes?`<section><h2>Important Notes</h2><div class="notes">${esc(q.importantNotes)}</div></section>`:''}
  <footer>Private recovery information · MVA Record Keeper</footer><script>window.onload=()=>setTimeout(()=>window.print(),250)<\/script></body></html>`;
