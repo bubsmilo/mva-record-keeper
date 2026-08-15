@@ -3,7 +3,7 @@
 'use strict';
 
 const KEY='mva-record-keeper-v1';
-const APP_VERSION='2.6.1';
+const APP_VERSION='2.6.2';
 document.title=`MVA Record Keeper v${APP_VERSION}`;
 
 const ATTACHMENT_DB='mva-record-keeper-attachments';
@@ -667,8 +667,11 @@ function physio(){
    <button class="physioCompactLink" data-add="physioVisit">${upcoming?'Add / Update':'Add Visit'}</button>
  </section>
 
- <section class="physioSection physioExerciseSection">
-  <div class="toolbar"><div><h2>🏠 Home Exercise Program</h2><p class="muted small">Tap Done Now each time you complete an exercise. Your daily count updates automatically.</p></div><div class="toolbarRight"><span class="pill">${activeExercises} active</span><button class="btn secondary" data-add="physioExercise">+ Add Exercise</button></div></div>
+ <section class="card physioSectionCard physioExerciseSection">
+  <div class="physioSectionCardHead">
+    <div><h2>🏠 Home Exercise Program</h2><p class="muted small">Tap Done Now each time you complete an exercise. Your daily count updates automatically.</p></div>
+    <div class="toolbarRight"><span class="pill">${activeExercises} active</span><button class="btn secondary" data-add="physioExercise">+ Add Exercise</button></div>
+  </div>
   <div class="physioExerciseGrid">${exercises.length?exercises.map(ex=>{
     const logs=[...(state.physioExerciseLogs||[])].filter(l=>l.exerciseId===ex.id).sort((a,b)=>new Date(b.dateTime)-new Date(a.dateTime));
     const lastDone=logs.find(l=>l.status==='Done');
@@ -700,19 +703,12 @@ function physio(){
   }).join(''):`<div class="empty">Add the home exercises your physiotherapist prescribed. Once added, they become one-tap daily tracking cards.</div>`}</div>
  </section>
 
- <section class="card physioSecondaryActions">
-   <div>
-     <h3>Other Physio Records</h3>
-     <p class="muted small">Add prescriptions, referrals, documents, or photos when you need them.</p>
-   </div>
-   <div class="physioActions">
-     <button class="btn secondary" data-add="physioPrescription">+ Prescription / Referral</button>
-     <button class="btn secondary" data-add="physioDocument">+ Document / Photo</button>
-   </div>
- </section>
-
- <section class="physioSection">
-  <div class="toolbar"><div><h2>📋 Prescriptions & Referrals</h2><p class="muted small">Keep the specialist's script and the treatment instructions together.</p></div><button class="btn secondary" data-add="physioPrescription">+ Add</button></div>
+ <section class="card physioSectionCard physioDocumentsSection">
+  <div class="physioSectionCardHead">
+    <div><h2>📋 Prescriptions & Treatment Documents</h2><p class="muted small">Scripts, referrals, exercise sheets, specialist instructions and other treatment paperwork.</p></div>
+    <div class="toolbarRight"><button class="btn secondary" data-add="physioPrescription">+ Prescription</button><button class="btn secondary" data-add="physioDocument">+ Document</button></div>
+  </div>
+  <div class="physioSubsectionLabel">Prescriptions & Referrals</div>
   <div class="list">${prescriptions.length?prescriptions.map(p=>`<article class="card physioRecordCard physioPrescriptionCard" data-physio-prescription="${p.id}">
    <div class="physioPrescriptionHeader">
     <div>
@@ -738,31 +734,53 @@ function physio(){
     </div>
    </div>
   </article>`).join(''):`<div class="empty">No physio prescriptions or referrals have been saved.</div>`}</div>
- </section>
-
- <section class="physioSection">
-  <div class="toolbar"><div><h2>🗓 Physio Visits</h2><p class="muted small">Visits added here also appear in your regular Appointments section.</p></div><button class="btn secondary" data-add="physioVisit">+ Add Visit</button></div>
-  <div class="list">${visits.length?visits.map(v=>`<article class="card physioRecordCard">
-   <div class="toolbar"><div><h3>${fmt(v.date)}${v.time?' · '+esc(v.time):''}</h3><div class="rowMeta">${esc(v.therapist||state.quickInfo.physiotherapist||'Physiotherapy')}${v.clinic?' · '+esc(v.clinic):''}</div></div><div class="actions"><button class="iconBtn" data-edit="physioVisit" data-id="${v.id}">Edit</button><button class="iconBtn" data-delete="physioVisit" data-id="${v.id}">Delete</button></div></div>
-   <div class="physioRecordGrid">
-    ${v.status?`<div><span>Status</span><strong>${esc(v.status)}</strong></div>`:''}
-    ${v.focus?`<div><span>Focus</span><strong>${esc(v.focus)}</strong></div>`:''}
+  <div class="physioSubsectionDivider"></div>
+  <div class="physioSubsectionHead">
+    <div><span class="physioSubsectionLabel">Documents & Photos</span><p class="muted small">Exercise sheets, specialist instructions, handouts, images and PDFs.</p></div>
+  </div>
+  <div class="list">${documents.length?documents.map(d=>`<article class="physioCompactDocument">
+   <div class="physioCompactDocHead">
+    <div><strong>${esc(d.title||'Physio document')}</strong><span>${fmt(d.date)}${d.category?' · '+esc(d.category):''}${d.source?' · '+esc(d.source):''}</span></div>
+    <button type="button" class="physioExpandBtn compact" data-toggle-physio-document aria-expanded="false">+</button>
    </div>
-   ${v.treatments?`<div class="physioDetailBlock"><span>What was done</span><p>${esc(v.treatments).replace(/\n/g,'<br>')}</p></div>`:''}
-   ${v.exercisesSuggested?`<div class="physioDetailBlock"><span>Exercises / suggestions</span><p>${esc(v.exercisesSuggested).replace(/\n/g,'<br>')}</p></div>`:''}
-   ${v.restrictions?`<div class="physioDetailBlock"><span>Restrictions / precautions</span><p>${esc(v.restrictions).replace(/\n/g,'<br>')}</p></div>`:''}
-   ${v.notes?`<div class="physioDetailBlock"><span>Notes</span><p>${esc(v.notes).replace(/\n/g,'<br>')}</p></div>`:''}
-   ${physioPhotoGallery(v.photos||[])}
-  </article>`).join(''):`<div class="empty">No physio visits recorded yet.</div>`}</div>
+   <div class="physioDocumentExpandable">
+    <div class="physioDocumentInner">
+      ${d.notes?`<div class="physioDetailBlock"><span>Notes</span><p>${esc(d.notes).replace(/\n/g,'<br>')}</p></div>`:''}
+      ${physioPhotoGallery(d.photos||[])}
+      <div class="actions physioPrescriptionActions"><button class="iconBtn" data-edit="physioDocument" data-id="${d.id}">Edit</button><button class="iconBtn" data-delete="physioDocument" data-id="${d.id}">Delete</button></div>
+    </div>
+   </div>
+  </article>`).join(''):`<div class="empty compactEmpty">No treatment documents saved yet.</div>`}</div>
  </section>
 
- <section class="physioSection">
-  <div class="toolbar"><div><h2>📎 Documents & Photos</h2><p class="muted small">Photograph exercise sheets, specialist scripts, referrals or other physio paperwork.</p></div><button class="btn secondary" data-add="physioDocument">+ Add Document</button></div>
-  <div class="list">${documents.length?documents.map(d=>`<article class="card physioRecordCard">
-   <div class="toolbar"><div><h3>${esc(d.title||'Physio document')}</h3><div class="rowMeta">${fmt(d.date)}${d.category?' · '+esc(d.category):''}${d.source?' · '+esc(d.source):''}</div></div><div class="actions"><button class="iconBtn" data-edit="physioDocument" data-id="${d.id}">Edit</button><button class="iconBtn" data-delete="physioDocument" data-id="${d.id}">Delete</button></div></div>
-   ${d.notes?`<div class="physioDetailBlock"><span>Notes</span><p>${esc(d.notes).replace(/\n/g,'<br>')}</p></div>`:''}
-   ${physioPhotoGallery(d.photos||[])}
-  </article>`).join(''):`<div class="empty">No standalone physio documents saved yet.</div>`}</div>
+ <section class="card physioSectionCard physioVisitsSection">
+  <div class="physioSectionCardHead">
+    <div><h2>🗓 Physio Visit History</h2><p class="muted small">Visits added here also appear in your regular Appointments section.</p></div>
+    <button class="btn secondary" data-add="physioVisit">+ Add Visit</button>
+  </div>
+  <div class="list">${visits.length?visits.map(v=>`<article class="physioVisitCompact" data-physio-visit="${v.id}">
+   <div class="physioVisitCompactHead">
+     <div>
+       <strong>${fmt(v.date)}${v.time?' · '+esc(v.time):''}</strong>
+       <span>${esc(v.therapist||state.quickInfo.physiotherapist||'Physiotherapy')}${v.focus?' · '+esc(v.focus):''}</span>
+     </div>
+     <button type="button" class="physioExpandBtn compact" data-toggle-physio-visit aria-expanded="false">+</button>
+   </div>
+   <div class="physioVisitExpandable">
+    <div class="physioVisitInner">
+      <div class="physioRecordGrid">
+       ${v.status?`<div><span>Status</span><strong>${esc(v.status)}</strong></div>`:''}
+       ${v.clinic?`<div><span>Clinic</span><strong>${esc(v.clinic)}</strong></div>`:''}
+      </div>
+      ${v.treatments?`<div class="physioDetailBlock"><span>What was done</span><p>${esc(v.treatments).replace(/\n/g,'<br>')}</p></div>`:''}
+      ${v.exercisesSuggested?`<div class="physioDetailBlock"><span>Exercises / suggestions</span><p>${esc(v.exercisesSuggested).replace(/\n/g,'<br>')}</p></div>`:''}
+      ${v.restrictions?`<div class="physioDetailBlock"><span>Restrictions / precautions</span><p>${esc(v.restrictions).replace(/\n/g,'<br>')}</p></div>`:''}
+      ${v.notes?`<div class="physioDetailBlock"><span>Notes</span><p>${esc(v.notes).replace(/\n/g,'<br>')}</p></div>`:''}
+      ${physioPhotoGallery(v.photos||[])}
+      <div class="actions physioPrescriptionActions"><button class="iconBtn" data-edit="physioVisit" data-id="${v.id}">Edit</button><button class="iconBtn" data-delete="physioVisit" data-id="${v.id}">Delete</button></div>
+    </div>
+   </div>
+  </article>`).join(''):`<div class="empty">No physio visits recorded yet.</div>`}</div>
  </section>
 
  <div class="physioPhotoViewer hidden" id="physioPhotoViewer"><button type="button" class="physioPhotoClose" id="closePhysioPhoto">✕</button><img id="physioPhotoViewerImage" alt="Attached document"></div>
@@ -1562,6 +1580,19 @@ function bind(){
    b.setAttribute('aria-expanded',String(expanded));
    b.setAttribute('aria-label',expanded?'Collapse prescription':'Expand prescription');
  });
+ document.querySelectorAll('[data-toggle-physio-visit]').forEach(b=>b.onclick=()=>{
+   const card=b.closest('[data-physio-visit]');if(!card)return;
+   const expanded=card.classList.toggle('is-expanded');
+   b.textContent=expanded?'−':'+';
+   b.setAttribute('aria-expanded',String(expanded));
+ });
+ document.querySelectorAll('[data-toggle-physio-document]').forEach(b=>b.onclick=()=>{
+   const card=b.closest('.physioCompactDocument');if(!card)return;
+   const expanded=card.classList.toggle('is-expanded');
+   b.textContent=expanded?'−':'+';
+   b.setAttribute('aria-expanded',String(expanded));
+ });
+
 
  document.querySelectorAll('[data-view-photo]').forEach(b=>b.onclick=()=>{
    const viewer=document.getElementById('physioPhotoViewer'),img=document.getElementById('physioPhotoViewerImage');if(!viewer||!img)return;
