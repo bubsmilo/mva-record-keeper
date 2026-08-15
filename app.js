@@ -3,7 +3,7 @@
 'use strict';
 
 const KEY='mva-record-keeper-v1';
-const APP_VERSION='2.6.3';
+const APP_VERSION='2.6.4';
 document.title=`MVA Record Keeper v${APP_VERSION}`;
 
 const ATTACHMENT_DB='mva-record-keeper-attachments';
@@ -550,10 +550,30 @@ function medicationEventText(e){
  if(e.eventType==='Changed')return `${e.field} changed from “${e.from||'Not entered'}” to “${e.to||'Not entered'}”`;
  return e.eventType||'Medication update';
 }
+
+const MEDICATION_COLOR_CLASSES=['medColor0','medColor1','medColor2','medColor3','medColor4','medColor5','medColor6','medColor7'];
+function medicationColorClass(medicationId,name=''){
+ const meds=[...(state.medications||[])];
+ let ix=meds.findIndex(m=>m.id===medicationId);
+ if(ix<0&&name){
+   const clean=String(name).trim().toLowerCase();
+   ix=meds.findIndex(m=>String(m.name||'').trim().toLowerCase()===clean);
+ }
+ if(ix<0){
+   let hash=0;const text=String(medicationId||name||'Medication');
+   for(let i=0;i<text.length;i++)hash=((hash<<5)-hash)+text.charCodeAt(i);
+   ix=Math.abs(hash);
+ }
+ return MEDICATION_COLOR_CLASSES[ix%MEDICATION_COLOR_CLASSES.length];
+}
+function medicationColorDot(medicationId,name=''){
+ return `<span class="medicationColorDot ${medicationColorClass(medicationId,name)}" aria-hidden="true"></span>`;
+}
+
 function doseHistoryRow(d,showMedication=false){
  const med=state.medications.find(x=>x.id===d.medicationId);
  const name=d.medicationNameSnapshot||med?.name||'Medication';
- return `<div class="doseHistoryRow detailedDoseRow"><div>${showMedication?`<strong>${esc(name)}</strong>`:`<strong class="${d.status==='Missed'?'missedDose':'takenDose'}">${esc(d.status)}</strong>`}<span>${showMedication?`${esc(d.status)} · `:''}${fmtDateTime(d.dateTime)}</span><div class="doseSnapshotLine">${d.doseSnapshot?`<span><b>Dose:</b> ${esc(d.doseSnapshot)}</span>`:''}${d.frequencySnapshot?`<span><b>Frequency:</b> ${esc(d.frequencySnapshot)}</span>`:''}</div>${d.note?`<small>${esc(d.note)}</small>`:''}${d.legacySnapshot?`<small class="muted">Older imported record — details use the best information available.</small>`:''}</div><div class="doseRowActions"><button class="iconBtn" type="button" data-edit="dose" data-id="${d.id}">Edit</button><button class="doseDeleteBtn" type="button" data-delete-dose="${d.id}" aria-label="Delete dose record">×</button></div></div>`;
+ return `<div class="doseHistoryRow detailedDoseRow medicationHistoryColored ${medicationColorClass(d.medicationId,name)}"><div>${showMedication?`<div class="medicationHistoryName">${medicationColorDot(d.medicationId,name)}<strong>${esc(name)}</strong></div>`:`<strong class="${d.status==='Missed'?'missedDose':'takenDose'}">${esc(d.status)}</strong>`}<span>${showMedication?`${esc(d.status)} · `:''}${fmtDateTime(d.dateTime)}</span><div class="doseSnapshotLine">${d.doseSnapshot?`<span><b>Dose:</b> ${esc(d.doseSnapshot)}</span>`:''}${d.frequencySnapshot?`<span><b>Frequency:</b> ${esc(d.frequencySnapshot)}</span>`:''}</div>${d.note?`<small>${esc(d.note)}</small>`:''}${d.legacySnapshot?`<small class="muted">Older imported record — details use the best information available.</small>`:''}</div><div class="doseRowActions"><button class="iconBtn" type="button" data-edit="dose" data-id="${d.id}">Edit</button><button class="doseDeleteBtn" type="button" data-delete-dose="${d.id}" aria-label="Delete dose record">×</button></div></div>`;
 }
 function medications(){
  const now=new Date();
@@ -575,7 +595,7 @@ function medications(){
    const lastTakenText=timing.last?fmtDateTime(timing.last.dateTime):'No dose recorded';
    return `<section class="card medicationCard ${m.active===false?'inactiveMedication':''}" data-medication-card="${m.id}">
     <div class="medicationCollapsedHeader"><div class="medicationIcon">💊</div><div class="medicationHeaderInfo">
-      <div class="medicationTitleRow"><div><h3>${esc(m.name)}</h3><div class="medDose">${esc(m.dose||'Dose not entered')} · ${esc(m.frequency||m.schedule||'Frequency not entered')}</div>${m.active===false?`<span class="completedMedicationTag">Completed${m.completedDate?' · '+fmt(m.completedDate):''}</span>`:''}</div><button type="button" class="medicationExpandBtn" data-toggle-medication aria-expanded="false">+</button></div>
+      <div class="medicationTitleRow"><div><h3 class="medicationCardTitle">${medicationColorDot(m.id,m.name)}${esc(m.name)}</h3><div class="medDose">${esc(m.dose||'Dose not entered')} · ${esc(m.frequency||m.schedule||'Frequency not entered')}</div>${m.active===false?`<span class="completedMedicationTag">Completed${m.completedDate?' · '+fmt(m.completedDate):''}</span>`:''}</div><button type="button" class="medicationExpandBtn" data-toggle-medication aria-expanded="false">+</button></div>
       <div class="medicationQuickSummary"><div><span>Last taken</span><strong>${lastTakenText}</strong></div><div><span>Next due</span><strong>${m.active===false?'Completed':nextDueText}</strong>${m.active!==false?`<small class="medTimingStatus ${timing.statusClass}">${esc(timing.statusText)}</small>`:''}</div></div>
       ${timing.next&&m.active!==false?`<div class="doseProgress ${timing.remaining<=0?'overdue':''}"><span style="width:${timing.progress.toFixed(1)}%"></span></div>`:''}
       ${m.active!==false?`<button class="btn primary medicationTakenNow" type="button" data-dose-now="${m.id}" data-status="Taken">✓ Taken now</button>`:''}
@@ -1503,7 +1523,7 @@ function printReport(config=reportPreset('legal')){
  ${config.journal?section('journal','Daily Logs',journal.map(x=>`<div class="item"><strong>${fmt(x.date)}</strong><p>${esc(x.notes||'')}</p></div>`).join('')):''}
  ${config.injuries?section('injuries','Injury Progress',state.injuries.map(i=>{const logs=injuryLogs.filter(l=>l.injuryId===i.id);return `<div class="item"><strong>${esc(i.name)}</strong>${i.description?`<p class="meta">${esc(i.description)}</p>`:''}${logs.map(l=>`<p><b>${fmt(l.date)} — Pain ${l.pain}/10${l.change?' — '+esc(l.change):''}</b><br>${esc(l.notes||'')}</p>`).join('')||'<p class="muted">No entries in range.</p>'}</div>`}).join('')):''}
  ${config.medications?section('medications','Medication Timeline',state.medications.map(m=>`<div class="item"><div class="medHeader"><strong>${esc(m.name)} — ${esc(m.dose||'Dose not entered')}</strong><span class="badge">${m.active===false?'Completed':'Active'}</span></div><p class="meta">Current frequency: ${esc(m.frequency||m.schedule||'Not entered')}</p>${medicationTimelineForReport(m,config)}</div>`).join('')):''}
- ${config.doseHistory?section('doses','Detailed Dose History',doses.map(d=>{const m=state.medications.find(x=>x.id===d.medicationId);return `<div class="timelineLine"><time>${fmtDateTime(d.dateTime)}</time><span><strong>${esc(d.medicationNameSnapshot||m?.name||'Medication')} — ${esc(d.status)}</strong><br>${esc(d.doseSnapshot||'')}${d.frequencySnapshot?' · '+esc(d.frequencySnapshot):''}${d.note?'<br>'+esc(d.note):''}</span></div>`}).join('')):''}
+ ${config.doseHistory?section('doses','Detailed Dose History',doses.map(d=>{const m=state.medications.find(x=>x.id===d.medicationId);return `<div class="timelineLine medicationReportLine ${medicationColorClass(d.medicationId,d.medicationNameSnapshot||m?.name||'Medication')}"><time>${fmtDateTime(d.dateTime)}</time><span><strong>${esc(d.medicationNameSnapshot||m?.name||'Medication')} — ${esc(d.status)}</strong><br>${esc(d.doseSnapshot||'')}${d.frequencySnapshot?' · '+esc(d.frequencySnapshot):''}${d.note?'<br>'+esc(d.note):''}</span></div>`}).join('')):''}
  ${config.appointments?section('appointments','Appointments',appointments.map(a=>`<div class="item"><strong>${fmt(a.date)} ${esc(a.time||'')} — ${esc(a.appointmentKind||a.type||'Appointment')}</strong><div class="meta">${esc(a.provider||a.insuranceCompany||'')} ${esc(a.location||a.contactName||'')}</div><p>${esc(a.notes||a.visitSummary||a.discussionNotes||'')}</p></div>`).join('')):''}
  ${config.receipts?section('receipts','Receipts and Expenses',`<p class="receiptTotal"><strong>Total: ${money(total)}</strong></p>`+receipts.map(r=>`<div class="item"><strong>${fmt(r.date)} — ${esc(r.description)} — ${money(r.amount)}</strong><div class="meta">${esc(r.category||'Other')}</div>${r.notes?`<p>${esc(r.notes)}</p>`:''}</div>`).join('')):''}
  ${config.notes?section('notes','Notes and Questions',notes.map(n=>`<div class="item"><strong>${fmt(n.date)} — ${esc(n.title)}</strong><p>${esc(n.text)}</p></div>`).join('')+state.questions.map(q=>`<div class="item"><strong>Question for ${esc(q.forWhom||'')}</strong><p>${esc(q.text)}</p>${q.answer?`<p><b>Answer:</b> ${esc(q.answer)}</p>`:''}</div>`).join('')):''}

@@ -812,3 +812,42 @@ input,textarea,select{width:100%;border:1px solid #cfd9e5;border-radius:8px;padd
 @media(max-width:520px){
   .physioExerciseQuickProgress{grid-template-columns:1fr}
 }
+
+
+/* v2.6.4 medication colour coding */
+.medicationHistoryColored{
+  border-left:6px solid transparent;
+  transition:border-color .15s ease,background .15s ease;
+}
+.medicationHistoryColored.medColor0{background:#f2f7ff;border-left-color:#79aaf2}
+.medicationHistoryColored.medColor1{background:#f7f2ff;border-left-color:#a98be8}
+.medicationHistoryColored.medColor2{background:#f1fbf5;border-left-color:#71b991}
+.medicationHistoryColored.medColor3{background:#fff7ed;border-left-color:#e5a35c}
+.medicationHistoryColored.medColor4{background:#fff1f5;border-left-color:#df87a6}
+.medicationHistoryColored.medColor5{background:#effbfb;border-left-color:#68b9bd}
+.medicationHistoryColored.medColor6{background:#fffbea;border-left-color:#d8bd58}
+.medicationHistoryColored.medColor7{background:#f3f4f6;border-left-color:#8b98aa}
+
+.medicationHistoryName{display:flex;align-items:center;gap:7px;margin-bottom:1px}
+.medicationColorDot{
+  width:11px;height:11px;border-radius:50%;display:inline-block;flex:0 0 11px;
+  border:1px solid rgba(0,0,0,.08);
+}
+.medicationColorDot.medColor0{background:#79aaf2}
+.medicationColorDot.medColor1{background:#a98be8}
+.medicationColorDot.medColor2{background:#71b991}
+.medicationColorDot.medColor3{background:#e5a35c}
+.medicationColorDot.medColor4{background:#df87a6}
+.medicationColorDot.medColor5{background:#68b9bd}
+.medicationColorDot.medColor6{background:#d8bd58}
+.medicationColorDot.medColor7{background:#8b98aa}
+.medicationCardTitle{display:flex;align-items:center;gap:7px}
+
+.medicationReportLine.medColor0{border-left:4px solid #79aaf2;padding-left:8px}
+.medicationReportLine.medColor1{border-left:4px solid #a98be8;padding-left:8px}
+.medicationReportLine.medColor2{border-left:4px solid #71b991;padding-left:8px}
+.medicationReportLine.medColor3{border-left:4px solid #e5a35c;padding-left:8px}
+.medicationReportLine.medColor4{border-left:4px solid #df87a6;padding-left:8px}
+.medicationReportLine.medColor5{border-left:4px solid #68b9bd;padding-left:8px}
+.medicationReportLine.medColor6{border-left:4px solid #d8bd58;padding-left:8px}
+.medicationReportLine.medColor7{border-left:4px solid #8b98aa;padding-left:8px}
