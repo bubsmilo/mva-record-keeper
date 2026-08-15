@@ -3,7 +3,7 @@
 'use strict';
 
 const KEY='mva-record-keeper-v1';
-const APP_VERSION='2.6.5';
+const APP_VERSION='2.6.6';
 document.title=`MVA Record Keeper v${APP_VERSION}`;
 
 const ATTACHMENT_DB='mva-record-keeper-attachments';
@@ -584,6 +584,7 @@ function medicationHistoryByDayHtml(records=[]){
    groups.get(day).push(d);
  });
  return [...groups.entries()].map(([day,items])=>{
+   items.sort((a,b)=>new Date(a.dateTime||0)-new Date(b.dateTime||0));
    const taken=items.filter(d=>d.status==='Taken').length;
    const missed=items.filter(d=>d.status==='Missed').length;
    return `<section class="medicationDayGroup">
