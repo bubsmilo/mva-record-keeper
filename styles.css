@@ -1460,3 +1460,14 @@ input,textarea,select{width:100%;border:1px solid #cfd9e5;border-radius:8px;padd
   .previousInjuryHead{align-items:flex-start;flex-direction:column;gap:3px}
   .previousInjuryHead strong{text-align:left}
 }
+
+/* v2.7.6 Daily Journal injury cards aligned with redesigned Injuries page */
+.journalMockInjuryCard{border:1px solid #d8e3ee;border-radius:14px;overflow:hidden;background:#fff}
+.journalMockInjuryHead{background:linear-gradient(90deg,#f2f7ff,#fff);border-bottom:1px solid #e1e9f1}
+.journalMockInjuryCard:nth-child(3n+1) .journalMockInjuryHead{background:linear-gradient(90deg,#fff1f1,#fff)}
+.journalMockInjuryCard:nth-child(3n+2) .journalMockInjuryHead{background:linear-gradient(90deg,#eef5ff,#fff)}
+.journalMockInjuryCard:nth-child(3n+3) .journalMockInjuryHead{background:linear-gradient(90deg,#f4efff,#fff)}
+.journalMockInjuryCard .dailyInjuryBody{padding-top:10px}
+.journalMockInjuryCard .previousInjuryStrip{margin:0 12px 10px}
+.journalMockInjuryCard .painScale{display:grid;grid-template-columns:repeat(11,1fr);gap:3px}
+.journalMockInjuryCard .changeChoices{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}
