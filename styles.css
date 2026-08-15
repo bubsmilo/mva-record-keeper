@@ -961,3 +961,33 @@ input,textarea,select{width:100%;border:1px solid #cfd9e5;border-radius:8px;padd
     align-items:flex-end;
   }
 }
+
+
+/* v2.6.8 keep daily taken/missed summary bubbles on one line */
+.medicationDayCounts{
+  display:flex;
+  flex-direction:row;
+  align-items:center;
+  flex-wrap:nowrap;
+  gap:6px;
+  white-space:nowrap;
+}
+.medicationDayCounts span{
+  white-space:nowrap;
+}
+@media(max-width:520px){
+  .medicationDayCounts{
+    max-width:none;
+    flex-wrap:nowrap;
+  }
+  .medicationDayHeader{
+    gap:7px;
+  }
+  .medicationDayHeaderRight{
+    gap:6px;
+  }
+  .medicationDayCounts span{
+    padding:4px 6px;
+    font-size:9px;
+  }
+}
