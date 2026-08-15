@@ -1093,3 +1093,22 @@ input,textarea,select{width:100%;border:1px solid #cfd9e5;border-radius:8px;padd
   .injuryMetricsGrid{grid-template-columns:1fr}
   .injuryQuickActions{display:grid;grid-template-columns:1fr 1fr}
 }
+
+
+/* v2.7.0 appointment rebooking */
+.appointmentTopActions{
+  display:flex;
+  justify-content:flex-end;
+  flex-wrap:wrap;
+  gap:7px;
+}
+.appointmentRebookBtn{
+  background:#eef6ff;
+  border-color:#b8d1ec;
+  color:#0759bc;
+  font-weight:800;
+}
+.appointmentRebookBtn:hover{
+  background:#e0efff;
+  border-color:#8bb6e4;
+}

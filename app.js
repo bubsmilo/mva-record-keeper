@@ -3,7 +3,7 @@
 'use strict';
 
 const KEY='mva-record-keeper-v1';
-const APP_VERSION='2.6.9';
+const APP_VERSION='2.7.0';
 document.title=`MVA Record Keeper v${APP_VERSION}`;
 
 const ATTACHMENT_DB='mva-record-keeper-attachments';
@@ -354,8 +354,14 @@ function dashboard(){
    </section>
 
    <section class="dashboardAppointmentsGrid">
-     ${appointmentCard('medical',upcomingMedical,'🩺','No upcoming medical appointment','appointments')}
-     ${appointmentCard('physio',upcomingPhysio,'🧘','No upcoming physio appointment','physio')}
+     ${[
+       {kind:'medical',item:upcomingMedical,icon:'🩺',empty:'No upcoming medical appointment',nav:'appointments'},
+       {kind:'physio',item:upcomingPhysio,icon:'🧘',empty:'No upcoming physio appointment',nav:'physio'}
+     ].sort((a,b)=>{
+       const ak=a.item?`${a.item.date||'9999-12-31'}T${a.item.time||'23:59'}`:'9999-12-31T23:59';
+       const bk=b.item?`${b.item.date||'9999-12-31'}T${b.item.time||'23:59'}`:'9999-12-31T23:59';
+       return ak.localeCompare(bk);
+     }).map(x=>appointmentCard(x.kind,x.item,x.icon,x.empty,x.nav)).join('')}
    </section>
 
    <section class="grid grid3 dashboardStatusGrid">
@@ -962,7 +968,7 @@ function appointments(){
     </div>
     <div class="appointmentExpandableBody">
       <div class="appointmentExpandableInner">
-        <div class="appointmentTopActions"><button class="iconBtn" data-edit="appointment" data-id="${a.id}">Edit</button><button class="iconBtn" data-delete="appointment" data-id="${a.id}">Delete</button></div>
+        <div class="appointmentTopActions"><button class="iconBtn appointmentRebookBtn" type="button" data-rebook-appointment="${a.id}">↻ Rebook</button><button class="iconBtn" data-edit="appointment" data-id="${a.id}">Edit</button><button class="iconBtn" data-delete="appointment" data-id="${a.id}">Delete</button></div>
         ${insurance?`
           <div class="appointmentDetailsGrid">
             ${a.insuranceCompany?`<div><span>Insurance company</span><strong>${esc(a.insuranceCompany)}</strong></div>`:''}
@@ -1297,11 +1303,26 @@ function openForm(type,id){
  const newInjuryId=type==='injuryLog'&&String(id||'').startsWith('new:')?String(id).slice(4):'';
  const newExerciseId=type==='physioExerciseLog'&&String(id||'').startsWith('new:')?String(id).slice(4):'';
  const newDoseDate=type==='dose'&&String(id||'').startsWith('newday:')?String(id).slice(7):'';
- if(newInjuryId||newExerciseId||newDoseDate)id='';
+ const rebookId=(type==='appointment'||type==='physioVisit')&&String(id||'').startsWith('rebook:')?String(id).slice(7):'';
+ if(newInjuryId||newExerciseId||newDoseDate||rebookId)id='';
  const map={journal:'journal',injury:'injuries',injuryLog:'injuryLogs',medication:'medications',dose:'doses',receipt:'receipts',appointment:'appointments',physioPrescription:'physioPrescriptions',physioVisit:'physioVisits',physioExercise:'physioExercises',physioExerciseLog:'physioExerciseLogs',physioDocument:'physioDocuments',timeline:'timeline',task:'tasks',question:'questions',note:'notes'};
- const arr=state[map[type]]||[], item=id?arr.find(x=>x.id===id):{};
+ const arr=state[map[type]]||[];
+ let item=id?arr.find(x=>x.id===id):{};
+ if(rebookId){
+   const source=arr.find(x=>x.id===rebookId)||{};
+   item={...source,id:'',date:'',time:'',status:'Scheduled'};
+   if(type==='appointment'){
+     delete item.physioVisitId;
+     item.visitSummary='';item.testsOrdered='';item.followUp='';
+     item.discussionNotes='';item.actionItems='';item.notes='';
+   }
+   if(type==='physioVisit'){
+     delete item.appointmentId;
+     item.treatments='';item.exercisesSuggested='';item.restrictions='';item.notes='';item.photos=[];
+   }
+ }
  const titles={physioPrescription:'Physio Prescription / Referral',physioVisit:'Physio Visit',physioExercise:'Home Exercise',physioExerciseLog:'Exercise Completion',physioDocument:'Physio Document / Photo'};
- let body='', title=type==='injuryLog'?'Update Injury':(type==='dose'&&!id?'Add Medication Record':(titles[type]?`${id?'Edit':'Add'} ${titles[type]}`:(id?'Edit ':'Add ')+type[0].toUpperCase()+type.slice(1)));
+ let body='', title=rebookId?`Rebook ${type==='physioVisit'?'Physio Visit':'Appointment'}`:(type==='injuryLog'?'Update Injury':(type==='dose'&&!id?'Add Medication Record':(titles[type]?`${id?'Edit':'Add'} ${titles[type]}`:(id?'Edit ':'Add ')+type[0].toUpperCase()+type.slice(1))));
  if(type==='journal') body=`${field('Date','date',item.date||today(),'date')}${area('How was your day?','notes',item.notes||'')}${photoField('Photo or PDF (optional)','photos',item.photos||[],true)}`;
  if(type==='injury') body=`${field('Injury name','name',item.name||'')}${field('Short description (optional)','description',item.description||'')}${selectField('Status','active',['Active','Archived'],item.active===false?'Archived':'Active')}<div class="field span2"><label>Daily tracking fields</label><p class="small muted trackingHelp">Enable only the details that make sense for this injury. Enabled fields will appear in every Daily Log.</p><div class="trackingToggles"><label class="trackingToggle"><input type="checkbox" name="trackSwelling" ${item.trackSwelling?'checked':''}><span>Swelling</span></label><label class="trackingToggle"><input type="checkbox" name="trackStiffness" ${item.trackStiffness?'checked':''}><span>Stiffness</span></label><label class="trackingToggle"><input type="checkbox" name="trackRangeOfMotion" ${item.trackRangeOfMotion?'checked':''}><span>Range of motion</span></label></div></div>`;
  if(type==='injuryLog'){const injuryId=item.injuryId||newInjuryId; const injury=state.injuries.find(x=>x.id===injuryId); body=`<div class="field span2 summaryBox"><strong>${esc(injury?.name||'Injury')}</strong><div class="small muted">Update only what you want to record today.</div></div>${field('Date','date',item.date||today(),'date')}${field('Pain level (0-10)','pain',item.pain??0,'number','min="0" max="10"')}${selectField('Compared with last update','change',['Better','Same','Worse','Not sure'],item.change||'Same')}${area('Notes (optional)','notes',item.notes||'')}${photoField('Photo or PDF (optional)','photos',item.photos||[],true)}<input type="hidden" name="injuryId" value="${esc(injuryId)}">`; }
@@ -1320,8 +1341,8 @@ function openForm(type,id){
  if(type==='appointment'){
    const kind=item.appointmentKind||((item.type||'').toLowerCase().includes('insurance')?'Insurance':'Medical');
    body=`${selectField('Appointment type','appointmentKind',['Medical','Insurance'],kind)}
-   ${field('Date','date',item.date||today(),'date')}
-   ${field('Time','time',item.time||'','time')}
+   ${field('Date','date',rebookId?'':(item.date||today()),'date')}
+   ${field('Time','time',rebookId?'':(item.time||''),'time')}
    ${selectField('Status','status',['Scheduled','Completed','Cancelled'],item.status||'Scheduled')}
    <div class="${kind==='Medical'?'':'hidden'}" data-appointment-fields="Medical">
      ${field('Provider name','provider',item.provider||'')}
@@ -1343,7 +1364,7 @@ function openForm(type,id){
    </div>`;
  }
  if(type==='physioPrescription') body=`${field('Date prescribed','date',item.date||today(),'date')}${field('Title','title',item.title||'Physiotherapy prescription')}${physioProviderSelect(item.prescribedBy||'')}${area('Injury / condition being treated','treatmentFor',item.treatmentFor||'')}${field('Frequency ordered','frequency',item.frequency||'','text','placeholder="Example: 2 times per week"')}${field('Duration ordered','duration',item.duration||'','text','placeholder="Example: 6 weeks"')}${selectField('Status','status',['Active','Completed'],item.status||'Active')}${area('Special instructions','instructions',item.instructions||'')}${photoField('Prescription / referral image or PDF','photos',item.photos||[],true)}`;
- if(type==='physioVisit') body=`${field('Date','date',item.date||today(),'date')}${field('Time','time',item.time||'','time')}${selectField('Status','status',['Scheduled','Completed','Cancelled'],item.status||'Completed')}${field('Physiotherapist','therapist',item.therapist||state.quickInfo.physiotherapist||'')}${field('Clinic','clinic',item.clinic||state.quickInfo.physioClinic||'')}${field('What was the visit focused on?','focus',item.focus||'')}${area('Treatment / what was done','treatments',item.treatments||'')}${area('Exercises or suggestions from physio','exercisesSuggested',item.exercisesSuggested||'')}${area('Restrictions / precautions','restrictions',item.restrictions||'')}${area('Visit notes','notes',item.notes||'')}${photoField('Handouts, photos or PDFs from this visit','photos',item.photos||[],true)}`;
+ if(type==='physioVisit') body=`${field('Date','date',rebookId?'':(item.date||today()),'date')}${field('Time','time',rebookId?'':(item.time||''),'time')}${selectField('Status','status',['Scheduled','Completed','Cancelled'],rebookId?'Scheduled':(item.status||'Completed'))}${field('Physiotherapist','therapist',item.therapist||state.quickInfo.physiotherapist||'')}${field('Clinic','clinic',item.clinic||state.quickInfo.physioClinic||'')}${field('What was the visit focused on?','focus',item.focus||'')}${area('Treatment / what was done','treatments',item.treatments||'')}${area('Exercises or suggestions from physio','exercisesSuggested',item.exercisesSuggested||'')}${area('Restrictions / precautions','restrictions',item.restrictions||'')}${area('Visit notes','notes',item.notes||'')}${photoField('Handouts, photos or PDFs from this visit','photos',item.photos||[],true)}`;
  if(type==='physioExercise') body=`${field('Exercise name','name',item.name||'')}${field('Prescribed by','prescribedBy',item.prescribedBy||state.quickInfo.physiotherapist||'')}${field('Start date','startDate',item.startDate||today(),'date')}${field('Sets','sets',item.sets||'')}${field('Reps','reps',item.reps||'')}${field('Hold time','holdTime',item.holdTime||'','text','placeholder="Example: 10 seconds"')}${field('Times per day','timesPerDay',item.timesPerDay||exerciseTimesPerDay(item)||'','number','min="1" max="24" step="1" placeholder="Example: 3"')}${selectField('Status','status',['Active','Completed'],item.active===false?'Completed':'Active')}<div class="field span2"><label>Exercise thumbnail image</label><input type="file" name="thumbnail" accept="image/*"><div class="attachmentHint">Choose an image from your gallery. The app will automatically make a small copy for the exercise card.</div><div class="thumbnailSaveStatus" data-thumbnail-status></div>${item.thumbnail?`<div class="exerciseThumbnailPreview"><img src="${attachmentSrc(item.thumbnail)}" alt="Current exercise thumbnail"><span>Current thumbnail</span></div>`:''}</div>${area('Instructions / technique','instructions',item.instructions||'')}${photoField('Exercise sheet, photo or PDF','photos',item.photos||[],true)}`;
  if(type==='physioExerciseLog'){const exerciseId=item.exerciseId||newExerciseId;const exercise=state.physioExercises.find(e=>e.id===exerciseId);body=`<div class="field span2 summaryBox"><strong>${esc(exercise?.name||'Home exercise')}</strong><div class="small muted">Add or correct a completion record.</div></div>${field('Date','exerciseDate',item.dateTime?localDateKey(item.dateTime):today(),'date')}${field('Time','exerciseTime',item.dateTime?localDateTimeValue(new Date(item.dateTime)).slice(11,16):localDateTimeValue().slice(11,16),'time')}${selectField('Status','status',['Done','Unable'],item.status||'Done')}${area('Note (optional)','note',item.note||'')}<input type="hidden" name="exerciseId" value="${esc(exerciseId||'')}">`; }
  if(type==='physioDocument') body=`${field('Date','date',item.date||today(),'date')}${field('Document title','title',item.title||'')}${selectField('Type','category',['Exercise sheet','Prescription / Script','Referral','Specialist instructions','Physio handout','Other'],item.category||'Other')}${field('Given by / source','source',item.source||'')}${area('Notes','notes',item.notes||'')}${photoField('Document images or PDFs','photos',item.photos||[],true)}`;
@@ -1857,6 +1878,16 @@ function bind(){
    b.textContent=expanded?'−':'+';
    b.setAttribute('aria-expanded',String(expanded));
  });
+ document.querySelectorAll('[data-rebook-appointment]').forEach(b=>b.onclick=()=>{
+   const source=state.appointments.find(a=>a.id===b.dataset.rebookAppointment);
+   if(!source)return;
+   if(source.physioVisitId&&state.physioVisits.some(v=>v.id===source.physioVisitId)){
+     openForm('physioVisit','rebook:'+source.physioVisitId);
+   }else{
+     openForm('appointment','rebook:'+source.id);
+   }
+ });
+
  document.querySelectorAll('.painChoice').forEach(b=>b.onclick=()=>{const card=b.closest('[data-injury-id]');card.querySelectorAll('.painChoice').forEach(x=>x.classList.remove('selected'));b.classList.add('selected');card.querySelector('input[name$="_pain"]').value=b.dataset.pain;});
  document.querySelectorAll('.changeChoice').forEach(b=>b.onclick=()=>{const card=b.closest('[data-injury-id]');card.querySelectorAll('.changeChoice').forEach(x=>x.classList.remove('selected'));b.classList.add('selected');card.querySelector('input[name$="_change"]').value=b.dataset.change;});
  document.querySelectorAll('.symptomChoice').forEach(b=>b.onclick=()=>{const field=b.closest('.symptomField');field.querySelectorAll('.symptomChoice').forEach(x=>x.classList.remove('selected'));b.classList.add('selected');field.querySelector('input[type="hidden"]').value=b.dataset.symptomValue;});
