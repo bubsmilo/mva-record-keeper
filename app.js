@@ -3,7 +3,7 @@
 'use strict';
 
 const KEY='mva-record-keeper-v1';
-const APP_VERSION='2.6.2';
+const APP_VERSION='2.6.3';
 document.title=`MVA Record Keeper v${APP_VERSION}`;
 
 const ATTACHMENT_DB='mva-record-keeper-attachments';
@@ -640,6 +640,22 @@ function exerciseDoneToday(exerciseId){
  return (state.physioExerciseLogs||[]).filter(l=>l.exerciseId===exerciseId&&l.status==='Done'&&localDateKey(l.dateTime)===key).length;
 }
 
+function exerciseDailyProgressHtml(exercise){
+ const target=exerciseTimesPerDay(exercise);
+ const done=exerciseDoneToday(exercise.id);
+ if(!target){
+   return `<div class="exerciseDailyProgress noTarget"><div class="exerciseProgressTop"><span>Today</span><strong>${done} completed</strong></div></div>`;
+ }
+ const capped=Math.min(done,target);
+ const segments=Array.from({length:target},(_,i)=>`<span class="exerciseProgressSegment ${i<capped?'is-complete':''}" aria-hidden="true"></span>`).join('');
+ return `<div class="exerciseDailyProgress">
+   <div class="exerciseProgressTop"><span>Today</span><strong>${done} / ${target} completed</strong></div>
+   <div class="exerciseProgressBar" role="progressbar" aria-label="${esc(exercise.name||'Exercise')} daily progress" aria-valuemin="0" aria-valuemax="${target}" aria-valuenow="${capped}">
+     ${segments}
+   </div>
+ </div>`;
+}
+
 function physioExerciseLogRow(log){
  const when=fmtDateTime(log.dateTime);
  return `<div class="physioExerciseLogRow">
@@ -681,9 +697,9 @@ function physio(){
        <div class="physioExerciseTitle"><h3>${esc(ex.name)}</h3><p>${[ex.sets&&`${ex.sets} sets`,ex.reps&&`${ex.reps} reps`,ex.holdTime&&`${ex.holdTime} hold`,exerciseTimesPerDay(ex)&&`${exerciseTimesPerDay(ex)}× daily`].filter(Boolean).map(esc).join(' · ')||'Exercise details not entered'}</p></div>
        <button type="button" class="physioExpandBtn" data-toggle-physio-exercise aria-expanded="false">+</button>
       </div>
-      <div class="physioExerciseQuick">
-       <div><span>Last completed</span><strong>${lastDone?fmtDateTime(lastDone.dateTime):'Not recorded yet'}</strong></div>
-       <div><span>Today</span><strong>${exerciseDoneToday(ex.id)}${exerciseTimesPerDay(ex)?` / ${exerciseTimesPerDay(ex)}`:''} completed</strong></div>
+      <div class="physioExerciseQuick physioExerciseQuickProgress">
+       <div class="exerciseLastCompleted"><span>Last completed</span><strong>${lastDone?fmtDateTime(lastDone.dateTime):'Not recorded yet'}</strong></div>
+       ${exerciseDailyProgressHtml(ex)}
       </div>
       ${ex.active!==false?`<div class="physioExerciseButtons"><button class="btn primary" type="button" data-exercise-done="${ex.id}">✓ Done Now</button><button class="btn secondary" type="button" data-exercise-unable="${ex.id}">Unable</button></div>`:''}
       <div class="physioExpandable">
