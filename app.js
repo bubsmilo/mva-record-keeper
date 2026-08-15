@@ -3,7 +3,7 @@
 'use strict';
 
 const KEY='mva-record-keeper-v1';
-const APP_VERSION='2.7.1';
+const APP_VERSION='2.7.2';
 document.title=`MVA Record Keeper v${APP_VERSION}`;
 
 const ATTACHMENT_DB='mva-record-keeper-attachments';
@@ -831,6 +831,31 @@ function exerciseDailyProgressHtml(exercise){
  </div>`;
 }
 
+
+function physioExerciseHistoryByDayHtml(logs=[]){
+ const groups=new Map();
+ logs.forEach(log=>{
+   const day=localDateKey(log.dateTime)||'Unknown';
+   if(!groups.has(day))groups.set(day,[]);
+   groups.get(day).push(log);
+ });
+ return [...groups.entries()].map(([day,items])=>{
+   items.sort((a,b)=>new Date(a.dateTime||0)-new Date(b.dateTime||0));
+   const done=items.filter(x=>x.status==='Done').length;
+   const unable=items.filter(x=>x.status==='Unable').length;
+   return `<section class="physioHistoryDay">
+     <div class="physioHistoryDayHead">
+       <div><strong>${day==='Unknown'?'Unknown date':fmt(day)}</strong><span>${items.length} record${items.length===1?'':'s'}</span></div>
+       <div class="physioHistoryDayCounts">
+         <span class="physioDoneCount">✓ ${done} completed</span>
+         ${unable?`<span class="physioUnableCount">× ${unable} unable</span>`:''}
+       </div>
+     </div>
+     <div class="physioHistoryDayRows">${items.map(physioExerciseLogRow).join('')}</div>
+   </section>`;
+ }).join('');
+}
+
 function physioExerciseLogRow(log){
  const when=fmtDateTime(log.dateTime);
  return `<div class="physioExerciseLogRow">
@@ -863,11 +888,20 @@ function physio(){
     <div><h2>🏠 Home Exercise Program</h2><p class="muted small">Tap Done Now each time you complete an exercise. The app spaces your daily sessions through your chosen time window.</p></div>
     <div class="toolbarRight"><span class="pill">${activeExercises} active</span><button class="btn secondary" data-add="physioExercise">+ Add Exercise</button></div>
   </div>
-  <div class="physioWindowBar">
-    <div><span>Daily exercise window</span><strong>${formatClock(physioClockDate(state.physioSettings.startTime))} – ${formatClock(physioClockDate(state.physioSettings.endTime))}</strong></div>
-    <label><span>Start</span><input type="time" id="physioStartTime" value="${esc(state.physioSettings.startTime)}"></label>
-    <label><span>Finish</span><input type="time" id="physioEndTime" value="${esc(state.physioSettings.endTime)}"></label>
-    <button type="button" class="btn secondary" id="savePhysioWindow">Save Window</button>
+  <div class="physioWindowShell" data-physio-window>
+    <button type="button" class="physioWindowSummary" id="togglePhysioWindow" aria-expanded="false">
+      <div><span>Daily exercise window</span><strong>${formatClock(physioClockDate(state.physioSettings.startTime))} – ${formatClock(physioClockDate(state.physioSettings.endTime))}</strong></div>
+      <span class="physioWindowToggleIcon">+</span>
+    </button>
+    <div class="physioWindowExpandable">
+      <div class="physioWindowExpandableInner">
+        <div class="physioWindowBar">
+          <label><span>Start</span><input type="time" id="physioStartTime" value="${esc(state.physioSettings.startTime)}"></label>
+          <label><span>Finish</span><input type="time" id="physioEndTime" value="${esc(state.physioSettings.endTime)}"></label>
+          <button type="button" class="btn secondary" id="savePhysioWindow">Save Window</button>
+        </div>
+      </div>
+    </div>
   </div>
   <div class="physioExerciseGrid">${exercises.length?exercises.map(ex=>{
     const logs=[...(state.physioExerciseLogs||[])].filter(l=>l.exerciseId===ex.id).sort((a,b)=>new Date(b.dateTime)-new Date(a.dateTime));
@@ -895,7 +929,7 @@ function physio(){
         ${physioPhotoGallery(ex.photos||[])}
         <div class="actions"><button class="iconBtn" data-new-exercise-log="${ex.id}">Log Earlier</button><button class="iconBtn" data-edit="physioExercise" data-id="${ex.id}">Edit Exercise</button><button class="iconBtn" data-delete="physioExercise" data-id="${ex.id}">Delete</button></div>
         <div class="physioHistoryHead"><strong>Completion history</strong><span>${logs.length} records</span></div>
-        ${logs.length?`<div class="physioExerciseHistory">${logs.slice(0,20).map(physioExerciseLogRow).join('')}</div>`:`<div class="empty compactEmpty">No exercise completions recorded yet.</div>`}
+        ${logs.length?`<div class="physioExerciseHistoryGrouped">${physioExerciseHistoryByDayHtml(logs.slice(0,60))}</div>`:`<div class="empty compactEmpty">No exercise completions recorded yet.</div>`}
        </div>
       </div>
     </article>`;
@@ -1839,6 +1873,17 @@ function bind(){
  });
  const closePhysioPhoto=document.getElementById('closePhysioPhoto');
  if(closePhysioPhoto)closePhysioPhoto.onclick=()=>document.getElementById('physioPhotoViewer')?.classList.add('hidden');
+ const togglePhysioWindow=document.getElementById('togglePhysioWindow');
+ if(togglePhysioWindow){
+   togglePhysioWindow.onclick=()=>{
+     const shell=togglePhysioWindow.closest('[data-physio-window]');
+     if(!shell)return;
+     const expanded=shell.classList.toggle('is-expanded');
+     togglePhysioWindow.setAttribute('aria-expanded',String(expanded));
+     const icon=togglePhysioWindow.querySelector('.physioWindowToggleIcon');
+     if(icon)icon.textContent=expanded?'−':'+';
+   };
+ }
  const savePhysioWindow=document.getElementById('savePhysioWindow');
  if(savePhysioWindow)savePhysioWindow.onclick=()=>{
    const start=document.getElementById('physioStartTime')?.value||'';

@@ -1144,3 +1144,133 @@ input,textarea,select{width:100%;border:1px solid #cfd9e5;border-radius:8px;padd
  .physioWindowBar>div{grid-column:1/-1}
  .physioWindowBar .btn{grid-column:1/-1}
 }
+
+
+/* v2.7.2 collapsible physio window + grouped exercise history */
+.physioWindowShell{
+  border-bottom:1px solid #e1e9f2;
+  background:#fbfdff;
+}
+.physioWindowSummary{
+  width:100%;
+  appearance:none;
+  border:0;
+  background:transparent;
+  display:flex;
+  justify-content:space-between;
+  align-items:center;
+  gap:12px;
+  padding:10px 14px;
+  text-align:left;
+  cursor:pointer;
+  color:inherit;
+}
+.physioWindowSummary>div{display:grid;gap:1px}
+.physioWindowSummary span{
+  font-size:9px;
+  text-transform:uppercase;
+  letter-spacing:.05em;
+  color:#748397;
+  font-weight:850;
+}
+.physioWindowSummary strong{
+  font-size:13px;
+  color:#24435f;
+}
+.physioWindowToggleIcon{
+  width:30px;height:30px;border:1px solid #cbd9e8;border-radius:8px;
+  display:grid;place-items:center;background:#fff;color:#075bd4;
+  font-size:20px!important;line-height:1;flex:0 0 30px;
+}
+.physioWindowExpandable{
+  display:grid;
+  grid-template-rows:0fr;
+  opacity:0;
+  transition:grid-template-rows .2s ease,opacity .16s ease;
+}
+.physioWindowExpandableInner{
+  min-height:0;
+  overflow:hidden;
+}
+.physioWindowShell.is-expanded .physioWindowExpandable{
+  grid-template-rows:1fr;
+  opacity:1;
+}
+.physioWindowShell.is-expanded .physioWindowExpandableInner{
+  overflow:visible;
+}
+.physioWindowShell .physioWindowBar{
+  border-top:1px solid #edf2f6;
+  border-bottom:0;
+  grid-template-columns:1fr 1fr auto;
+}
+.physioWindowShell .physioWindowBar>div{display:none}
+
+.physioExerciseHistoryGrouped{
+  display:grid;
+  gap:10px;
+  margin-top:8px;
+}
+.physioHistoryDay{
+  border:1px solid #dfe7ef;
+  border-radius:10px;
+  overflow:hidden;
+  background:#fff;
+}
+.physioHistoryDayHead{
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:10px;
+  padding:8px 10px;
+  background:#f8fbff;
+  border-bottom:1px solid #e7edf4;
+}
+.physioHistoryDayHead>div:first-child{
+  display:grid;
+  gap:1px;
+}
+.physioHistoryDayHead strong{
+  font-size:12px;
+  color:#1e405f;
+}
+.physioHistoryDayHead>div:first-child span{
+  font-size:9px;
+  color:#758599;
+}
+.physioHistoryDayCounts{
+  display:flex;
+  gap:5px;
+  flex-wrap:nowrap;
+  align-items:center;
+}
+.physioHistoryDayCounts span{
+  border-radius:999px;
+  padding:3px 6px;
+  font-size:9px;
+  font-weight:850;
+  white-space:nowrap;
+}
+.physioDoneCount{
+  background:#edf8f1;
+  border:1px solid #cfe7d8;
+  color:#247443;
+}
+.physioUnableCount{
+  background:#fff0f0;
+  border:1px solid #efcece;
+  color:#a43a3a;
+}
+.physioHistoryDayRows{
+  display:grid;
+  gap:6px;
+  padding:7px;
+}
+.physioHistoryDayRows .physioExerciseLogRow{
+  margin:0;
+}
+
+@media(max-width:650px){
+  .physioWindowShell .physioWindowBar{grid-template-columns:1fr 1fr}
+  .physioWindowShell .physioWindowBar .btn{grid-column:1/-1}
+}
