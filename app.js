@@ -3,7 +3,7 @@
 'use strict';
 
 const KEY='mva-record-keeper-v1';
-const APP_VERSION='2.7.6';
+const APP_VERSION='2.7.7';
 document.title=`MVA Record Keeper v${APP_VERSION}`;
 
 const ATTACHMENT_DB='mva-record-keeper-attachments';
@@ -1958,12 +1958,7 @@ function bind(){
    b.textContent=expanded?'−':'+';
    b.setAttribute('aria-expanded',String(expanded));
  });
- document.querySelectorAll('[data-toggle-injury-card]').forEach(b=>b.onclick=()=>{
-   const card=b.closest('[data-injury-card]');if(!card)return;
-   const expanded=card.classList.toggle('is-expanded');
-   b.textContent=expanded?'−':'+';
-   b.setAttribute('aria-expanded',String(expanded));
- });
+
  const getOrCreateTodayInjuryLog=(injuryId)=>{
    let log=state.injuryLogs.find(l=>l.injuryId===injuryId&&l.date===today());
    if(!log){
@@ -2200,6 +2195,32 @@ function bind(){
  }catch(err){console.error(err);alert('That file could not be restored as an MVA Record Keeper backup.')}finally{ri.value=''}};
  const rb=document.getElementById('resetBtn');if(rb)rb.onclick=async()=>{if(confirm('Erase all MVA app data and stored attachments on this device?')){await clearAttachmentDB();state=structuredClone(defaults);save();render();toast('All app data erased')}};
 }
+
+// Robust navigation handling. This is delegated so bottom-nav buttons keep
+// working even after render() replaces the page HTML.
+document.addEventListener('click',function(e){
+ const injuryToggle=e.target.closest('[data-toggle-injury-card]');
+ if(injuryToggle){
+   e.preventDefault();
+   e.stopPropagation();
+   const card=injuryToggle.closest('[data-injury-card]');
+   if(!card)return;
+   const expanded=card.classList.toggle('is-expanded');
+   injuryToggle.textContent=expanded?'−':'+';
+   injuryToggle.setAttribute('aria-expanded',String(expanded));
+   return;
+ }
+
+ const navBtn=e.target.closest('[data-nav]');
+ if(!navBtn)return;
+ const destination=navBtn.dataset.nav;
+ if(!destination)return;
+ e.preventDefault();
+ page=destination;
+ render();
+ // NAV_DELEGATE_END
+});
+
 async function startApp(){
  try{
    const existing=await loadAttachmentCache();

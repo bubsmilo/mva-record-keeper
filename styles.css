@@ -1471,3 +1471,13 @@ input,textarea,select{width:100%;border:1px solid #cfd9e5;border-radius:8px;padd
 .journalMockInjuryCard .previousInjuryStrip{margin:0 12px 10px}
 .journalMockInjuryCard .painScale{display:grid;grid-template-columns:repeat(11,1fr);gap:3px}
 .journalMockInjuryCard .changeChoices{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}
+
+
+/* v2.7.7 navigation/toggle usability */
+[data-nav],
+[data-toggle-injury-card]{
+  cursor:pointer;
+}
+.injuryHeaderToggle{
+  touch-action:manipulation;
+}
