@@ -3,7 +3,7 @@
 'use strict';
 
 const KEY='mva-record-keeper-v1';
-const APP_VERSION='2.5.1';
+const APP_VERSION='2.5.3';
 document.title=`MVA Record Keeper v${APP_VERSION}`;
 const today=()=>new Date().toISOString().slice(0,10);
 const uid=()=>Date.now().toString(36)+Math.random().toString(36).slice(2,7);
@@ -490,6 +490,26 @@ function physioPhotoGallery(photos=[]){
  ).join('')}</div>`:'';
 }
 
+
+function exerciseTimesPerDay(exercise){
+ const direct=Number(exercise.timesPerDay);
+ if(Number.isFinite(direct)&&direct>0)return Math.round(direct);
+ const text=String(exercise.frequency||'').toLowerCase();
+ let m=text.match(/(\d+)\s*(?:x|times?)\s*(?:per|a)?\s*day/);
+ if(m)return Math.max(1,Number(m[1]));
+ m=text.match(/(\d+)\s*(?:daily|\/day)/);
+ if(m)return Math.max(1,Number(m[1]));
+ if(text.includes('once daily'))return 1;
+ if(text.includes('twice daily'))return 2;
+ if(text.includes('three times daily'))return 3;
+ if(text.includes('four times daily'))return 4;
+ return 0;
+}
+function exerciseDoneToday(exerciseId){
+ const key=localDateKey(new Date().toISOString());
+ return (state.physioExerciseLogs||[]).filter(l=>l.exerciseId===exerciseId&&l.status==='Done'&&localDateKey(l.dateTime)===key).length;
+}
+
 function physioExerciseLogRow(log){
  const when=fmtDateTime(log.dateTime);
  return `<div class="physioExerciseLogRow">
@@ -508,35 +528,37 @@ function physio(){
  const activeExercises=exercises.filter(e=>e.active!==false).length;
 
  return appShell(`
- <section class="card physioNextCard">
-  <div>
-    <span class="muted small">Next physio appointment</span>
-    <div class="physioNextLarge">${upcoming?`<strong>${fmt(upcoming.date)}</strong>${upcoming.time?`<span>${esc(upcoming.time)}</span>`:''}${upcoming.therapist||upcoming.clinic?`<small>${[upcoming.therapist,upcoming.clinic].filter(Boolean).map(esc).join(' · ')}</small>`:''}`:'<strong>No appointment scheduled</strong>'}</div>
-  </div>
-  <div class="physioTopActions">
-    <button class="btn primary" data-add="physioVisit">+ Add Physio Visit</button>
-    <button class="btn secondary" data-add="physioExercise">+ Add Exercise</button>
-  </div>
+ <section class="card physioNextCompact">
+   <div class="physioNextCompactIcon">🧘</div>
+   <div class="physioNextCompactLabel">
+     <span>Next Physio</span>
+     ${upcoming?`<strong>${fmt(upcoming.date)}${upcoming.time?` · ${esc(upcoming.time)}`:''}</strong>${upcoming.therapist||upcoming.clinic?`<small>${[upcoming.therapist,upcoming.clinic].filter(Boolean).map(esc).join(' · ')}</small>`:''}`:`<strong>No appointment scheduled</strong>`}
+   </div>
+   <button class="physioCompactLink" data-add="physioVisit">${upcoming?'Add / Update':'Add Visit'}</button>
  </section>
 
  <section class="physioSection physioExerciseSection">
-  <div class="toolbar"><div><h2>🏠 Home Exercise Program</h2><p class="muted small">Tap Done Now when you complete an exercise. No note is required.</p></div><span class="pill">${activeExercises} active</span></div>
+  <div class="toolbar"><div><h2>🏠 Home Exercise Program</h2><p class="muted small">Tap Done Now each time you complete an exercise. Your daily count updates automatically.</p></div><div class="toolbarRight"><span class="pill">${activeExercises} active</span><button class="btn secondary" data-add="physioExercise">+ Add Exercise</button></div></div>
   <div class="physioExerciseGrid">${exercises.length?exercises.map(ex=>{
     const logs=[...(state.physioExerciseLogs||[])].filter(l=>l.exerciseId===ex.id).sort((a,b)=>new Date(b.dateTime)-new Date(a.dateTime));
     const lastDone=logs.find(l=>l.status==='Done');
     return `<article class="card physioExerciseCard ${ex.active===false?'physioInactive':''}" data-physio-exercise="${ex.id}">
       <div class="physioExerciseHeader">
-       <div class="physioExerciseIcon">🏃</div>
-       <div class="physioExerciseTitle"><h3>${esc(ex.name)}</h3><p>${[ex.sets&&`${ex.sets} sets`,ex.reps&&`${ex.reps} reps`,ex.holdTime&&`${ex.holdTime} hold`,ex.frequency].filter(Boolean).map(esc).join(' · ')||'Exercise details not entered'}</p></div>
+       <div class="physioExerciseIcon">${ex.thumbnail?`<img src="${ex.thumbnail}" alt="${esc(ex.name||'Exercise')} thumbnail">`:'🏃'}</div>
+       <div class="physioExerciseTitle"><h3>${esc(ex.name)}</h3><p>${[ex.sets&&`${ex.sets} sets`,ex.reps&&`${ex.reps} reps`,ex.holdTime&&`${ex.holdTime} hold`,exerciseTimesPerDay(ex)&&`${exerciseTimesPerDay(ex)}× daily`].filter(Boolean).map(esc).join(' · ')||'Exercise details not entered'}</p></div>
        <button type="button" class="physioExpandBtn" data-toggle-physio-exercise aria-expanded="false">+</button>
       </div>
       <div class="physioExerciseQuick">
        <div><span>Last completed</span><strong>${lastDone?fmtDateTime(lastDone.dateTime):'Not recorded yet'}</strong></div>
-       <div><span>Prescribed by</span><strong>${esc(ex.prescribedBy||'Not entered')}</strong></div>
+       <div><span>Today</span><strong>${exerciseDoneToday(ex.id)}${exerciseTimesPerDay(ex)?` / ${exerciseTimesPerDay(ex)}`:''} completed</strong></div>
       </div>
       ${ex.active!==false?`<div class="physioExerciseButtons"><button class="btn primary" type="button" data-exercise-done="${ex.id}">✓ Done Now</button><button class="btn secondary" type="button" data-exercise-unable="${ex.id}">Unable</button></div>`:''}
       <div class="physioExpandable">
        <div class="physioExpandableInner">
+        <div class="physioRecordGrid physioExerciseExpandedInfo">
+          ${ex.prescribedBy?`<div><span>Prescribed by</span><strong>${esc(ex.prescribedBy)}</strong></div>`:''}
+          ${exerciseTimesPerDay(ex)?`<div><span>Daily target</span><strong>${exerciseTimesPerDay(ex)} time${exerciseTimesPerDay(ex)===1?'':'s'} per day</strong></div>`:''}
+        </div>
         ${ex.instructions?`<div class="physioDetailBlock"><span>Instructions</span><p>${esc(ex.instructions).replace(/\n/g,'<br>')}</p></div>`:''}
         ${physioPhotoGallery(ex.photos||[])}
         <div class="actions"><button class="iconBtn" data-new-exercise-log="${ex.id}">Log Earlier</button><button class="iconBtn" data-edit="physioExercise" data-id="${ex.id}">Edit Exercise</button><button class="iconBtn" data-delete="physioExercise" data-id="${ex.id}">Delete</button></div>
@@ -1031,7 +1053,7 @@ function openForm(type,id){
  }
  if(type==='physioPrescription') body=`${field('Date prescribed','date',item.date||today(),'date')}${field('Title','title',item.title||'Physiotherapy prescription')}${physioProviderSelect(item.prescribedBy||'')}${area('Injury / condition being treated','treatmentFor',item.treatmentFor||'')}${field('Frequency ordered','frequency',item.frequency||'','text','placeholder="Example: 2 times per week"')}${field('Duration ordered','duration',item.duration||'','text','placeholder="Example: 6 weeks"')}${selectField('Status','status',['Active','Completed'],item.status||'Active')}${area('Special instructions','instructions',item.instructions||'')}${photoField('Prescription / referral image or PDF','photos',item.photos||[],true)}`;
  if(type==='physioVisit') body=`${field('Date','date',item.date||today(),'date')}${field('Time','time',item.time||'','time')}${selectField('Status','status',['Scheduled','Completed','Cancelled'],item.status||'Completed')}${field('Physiotherapist','therapist',item.therapist||state.quickInfo.physiotherapist||'')}${field('Clinic','clinic',item.clinic||state.quickInfo.physioClinic||'')}${field('What was the visit focused on?','focus',item.focus||'')}${area('Treatment / what was done','treatments',item.treatments||'')}${area('Exercises or suggestions from physio','exercisesSuggested',item.exercisesSuggested||'')}${area('Restrictions / precautions','restrictions',item.restrictions||'')}${area('Visit notes','notes',item.notes||'')}${photoField('Handouts, photos or PDFs from this visit','photos',item.photos||[],true)}`;
- if(type==='physioExercise') body=`${field('Exercise name','name',item.name||'')}${field('Prescribed by','prescribedBy',item.prescribedBy||state.quickInfo.physiotherapist||'')}${field('Start date','startDate',item.startDate||today(),'date')}${field('Sets','sets',item.sets||'')}${field('Reps','reps',item.reps||'')}${field('Hold time','holdTime',item.holdTime||'','text','placeholder="Example: 10 seconds"')}${field('Frequency','frequency',item.frequency||'','text','placeholder="Example: 2 times daily"')}${selectField('Status','status',['Active','Completed'],item.active===false?'Completed':'Active')}${area('Instructions / technique','instructions',item.instructions||'')}${photoField('Exercise sheet, photo or PDF','photos',item.photos||[],true)}`;
+ if(type==='physioExercise') body=`${field('Exercise name','name',item.name||'')}${field('Prescribed by','prescribedBy',item.prescribedBy||state.quickInfo.physiotherapist||'')}${field('Start date','startDate',item.startDate||today(),'date')}${field('Sets','sets',item.sets||'')}${field('Reps','reps',item.reps||'')}${field('Hold time','holdTime',item.holdTime||'','text','placeholder="Example: 10 seconds"')}${field('Times per day','timesPerDay',item.timesPerDay||exerciseTimesPerDay(item)||'','number','min="1" max="24" step="1" placeholder="Example: 3"')}${selectField('Status','status',['Active','Completed'],item.active===false?'Completed':'Active')}<div class="field span2"><label>Exercise thumbnail image</label><input type="file" name="thumbnail" accept="image/*"><div class="attachmentHint">Choose a simple image that helps you recognize this exercise quickly.</div>${item.thumbnail?`<div class="exerciseThumbnailPreview"><img src="${item.thumbnail}" alt="Current exercise thumbnail"></div>`:''}</div>${area('Instructions / technique','instructions',item.instructions||'')}${photoField('Exercise sheet, photo or PDF','photos',item.photos||[],true)}`;
  if(type==='physioExerciseLog'){const exerciseId=item.exerciseId||newExerciseId;const exercise=state.physioExercises.find(e=>e.id===exerciseId);body=`<div class="field span2 summaryBox"><strong>${esc(exercise?.name||'Home exercise')}</strong><div class="small muted">Add or correct a completion record.</div></div>${field('Date','exerciseDate',item.dateTime?localDateKey(item.dateTime):today(),'date')}${field('Time','exerciseTime',item.dateTime?localDateTimeValue(new Date(item.dateTime)).slice(11,16):localDateTimeValue().slice(11,16),'time')}${selectField('Status','status',['Done','Unable'],item.status||'Done')}${area('Note (optional)','note',item.note||'')}<input type="hidden" name="exerciseId" value="${esc(exerciseId||'')}">`; }
  if(type==='physioDocument') body=`${field('Date','date',item.date||today(),'date')}${field('Document title','title',item.title||'')}${selectField('Type','category',['Exercise sheet','Prescription / Script','Referral','Specialist instructions','Physio handout','Other'],item.category||'Other')}${field('Given by / source','source',item.source||'')}${area('Notes','notes',item.notes||'')}${photoField('Document images or PDFs','photos',item.photos||[],true)}`;
 
@@ -1139,7 +1161,12 @@ async function saveForm(form){
    const existing=state.physioExercises.find(x=>x.id===id);
    obj.photos=existing?.photos||[];
    const inp=form.elements.photos;if(inp?.files?.length)obj.photos.push(...await filesToData(inp));
+   obj.thumbnail=existing?.thumbnail||'';
+   const thumbInput=form.elements.thumbnail;
+   if(thumbInput?.files?.length)obj.thumbnail=(await filesToData(thumbInput))[0];
    obj.active=obj.status==='Active';
+   obj.timesPerDay=Math.max(0,Math.round(Number(obj.timesPerDay||0)));
+   if(obj.timesPerDay)obj.frequency=`${obj.timesPerDay} times daily`;
  }
  if(type==='physioExerciseLog'){
    const local=new Date(`${obj.exerciseDate}T${obj.exerciseTime}`);

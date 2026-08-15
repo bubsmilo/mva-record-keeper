@@ -554,3 +554,70 @@ input,textarea,select{width:100%;border:1px solid #cfd9e5;border-radius:8px;padd
   pointer-events:none;
   z-index:-2;
 }
+
+
+/* v2.5.2 compact physio header + daily exercise targets */
+.physioNextCompact{
+  min-height:68px;
+  display:grid;
+  grid-template-columns:auto 1fr auto;
+  align-items:center;
+  gap:11px;
+  padding:10px 13px;
+  margin-bottom:8px;
+  background:linear-gradient(135deg,#eef8ff,#fff);
+}
+.physioNextCompactIcon{
+  width:40px;height:40px;border-radius:12px;
+  display:grid;place-items:center;background:#e4f4ff;font-size:20px;
+}
+.physioNextCompactLabel{display:grid;gap:1px;min-width:0}
+.physioNextCompactLabel>span{
+  font-size:9px;text-transform:uppercase;letter-spacing:.07em;
+  color:#718397;font-weight:900;
+}
+.physioNextCompactLabel strong{
+  font-size:15px;color:#143a60;overflow-wrap:anywhere;
+}
+.physioNextCompactLabel small{
+  font-size:10px;color:#6f8094;overflow-wrap:anywhere;
+}
+.physioCompactLink{
+  border:0;background:transparent;color:#075bd4;font-weight:800;
+  font-size:11px;padding:7px;white-space:nowrap;
+}
+.physioExerciseSection{margin-top:10px}
+.physioExerciseExpandedInfo{margin:10px 0 0}
+.physioExerciseQuick>div:last-child strong{color:#0759bc}
+
+@media(max-width:520px){
+  .physioNextCompact{grid-template-columns:auto 1fr}
+  .physioCompactLink{grid-column:2;justify-self:start;padding:2px 0}
+}
+
+
+/* v2.5.3 exercise thumbnail images */
+.physioExerciseIcon{
+  overflow:hidden;
+}
+.physioExerciseIcon img{
+  width:100%;
+  height:100%;
+  object-fit:cover;
+  display:block;
+}
+.exerciseThumbnailPreview{
+  margin-top:9px;
+  width:86px;
+  height:86px;
+  border-radius:12px;
+  overflow:hidden;
+  border:1px solid #d8e3ed;
+  background:#f8fafc;
+}
+.exerciseThumbnailPreview img{
+  width:100%;
+  height:100%;
+  object-fit:cover;
+  display:block;
+}
