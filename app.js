@@ -3,7 +3,7 @@
 'use strict';
 
 const KEY='mva-record-keeper-v1';
-const APP_VERSION='2.4.2';
+const APP_VERSION='2.5.0';
 document.title=`MVA Record Keeper v${APP_VERSION}`;
 const today=()=>new Date().toISOString().slice(0,10);
 const uid=()=>Date.now().toString(36)+Math.random().toString(36).slice(2,7);
@@ -165,30 +165,96 @@ function appShell(content,title,subtitle=''){
 }
 
 function dashboard(){
- const expense=state.receipts.reduce((s,r)=>s+Number(r.amount||0),0);
- const next=state.appointments.filter(a=>a.date>=today()).sort((a,b)=>a.date.localeCompare(b.date))[0];
- const meds=state.medications.filter(m=>m.active!==false);
- const dueTasks=state.tasks.filter(t=>!t.done).slice(0,4);
- return appShell(`
- <div class="grid grid2">
-  <section class="card hero"><div><div class="muted small">Days since accident</div><div class="metric">${daysBetween(state.profile.accidentDate,today())}</div><div>${fmt(state.profile.accidentDate)}</div></div><img src="./mva-logo-192.png"></section>
-  <section class="card"><div class="muted small">Next appointment</div>${next?`<div class="rowTitle">${esc(next.type)}</div><div class="rowMeta">${fmt(next.date)}${next.time?' at '+esc(next.time):''}</div><div>${esc(next.provider||'')}</div>`:`<div class="empty">No upcoming appointment</div>`}</section>
- </div>
- <div class="grid grid4" style="margin-top:16px">
-  <section class="card"><div class="muted small">Journal entries</div><div class="metric">${state.journal.length}</div></section>
-  <section class="card"><div class="muted small">Active medications</div><div class="metric">${meds.length}</div></section>
-  <section class="card"><div class="muted small">Receipt total</div><div class="metric">${money(expense)}</div></section>
-  <section class="card"><div class="muted small">Open tasks</div><div class="metric">${state.tasks.filter(t=>!t.done).length}</div></section>
- </div>
- <div class="grid grid2" style="margin-top:16px">
-  <section class="card"><h2>Quick actions</h2><div class="grid grid2">
-   <button class="btn primary" data-add="journal">+ Journal Entry</button><button class="btn secondary" data-nav="physio">🧘 Physio</button>
-   <button class="btn secondary" data-add="appointment">+ Appointment</button><button class="btn secondary" data-nav="quickinfo">📇 Quick Info</button>
-  </div></section>
-  <section class="card"><h2>Tasks due</h2>${dueTasks.length?`<div class="list">${dueTasks.map(taskRow).join('')}</div>`:`<div class="empty">No open tasks</div>`}</section>
- </div>`, 'Dashboard','A clear picture of your recovery and claim records.');
-}
+ const upcomingPhysio=[...(state.physioVisits||[])]
+   .filter(v=>v.status!=='Completed'&&v.status!=='Cancelled'&&v.date>=today())
+   .sort((a,b)=>`${a.date||''}${a.time||''}`.localeCompare(`${b.date||''}${b.time||''}`))[0];
 
+ const upcomingMedical=[...(state.appointments||[])]
+   .filter(a=>{
+     if(a.physioVisitId)return false;
+     if(a.status==='Completed'||a.status==='Cancelled')return false;
+     if(!a.date||a.date<today())return false;
+     const kind=String(a.appointmentKind||a.type||'').toLowerCase();
+     return kind!=='insurance';
+   })
+   .sort((a,b)=>`${a.date||''}${a.time||''}`.localeCompare(`${b.date||''}${b.time||''}`))[0];
+
+ const recentJournal=[...(state.journal||[])].sort((a,b)=>(b.date||'').localeCompare(a.date||''))[0];
+ const activeMeds=(state.medications||[]).filter(m=>m.active!==false);
+ const openTasks=(state.tasks||[]).filter(t=>!t.done);
+ const recentInjuryLogs=[...(state.injuryLogs||[])].sort((a,b)=>(b.date||'').localeCompare(a.date||'')).slice(0,3);
+
+ const appointmentCard=(kind,item,icon,emptyText,nav)=>{
+   if(!item)return `<section class="card dashboardAppointmentCard ${kind}">
+     <div class="dashboardAppointmentHead"><span>${icon}</span><div><small>UPCOMING</small><h3>${kind==='physio'?'Next Physio Appointment':'Next Medical Appointment'}</h3></div></div>
+     <div class="dashboardAppointmentEmpty">${emptyText}</div>
+     <button class="btn secondary" data-nav="${nav}">View ${kind==='physio'?'Physio':'Appointments'}</button>
+   </section>`;
+   const provider=kind==='physio'
+     ? (item.therapist||state.quickInfo.physiotherapist||'Physiotherapy')
+     : (item.provider||item.professionalType||item.reason||'Medical appointment');
+   const location=kind==='physio'
+     ? (item.clinic||state.quickInfo.physioClinic||'')
+     : (item.location||'');
+   const reason=kind==='physio'?(item.focus||'Physiotherapy'):(item.reason||'');
+   return `<section class="card dashboardAppointmentCard ${kind}">
+     <div class="dashboardAppointmentHead"><span>${icon}</span><div><small>UPCOMING</small><h3>${kind==='physio'?'Next Physio Appointment':'Next Medical Appointment'}</h3></div></div>
+     <div class="dashboardAppointmentDate"><strong>${fmt(item.date)}</strong>${item.time?`<span>${esc(item.time)}</span>`:''}</div>
+     <div class="dashboardAppointmentDetails"><strong>${esc(provider)}</strong>${reason?`<span>${esc(reason)}</span>`:''}${location?`<small>${esc(location)}</small>`:''}</div>
+     <button class="btn secondary" data-nav="${nav}">View ${kind==='physio'?'Physio':'Appointments'}</button>
+   </section>`;
+ };
+
+ return appShell(`
+   <section class="dashboardQuickSection">
+     <div class="dashboardQuickGrid">
+       <button class="dashboardQuickCard" data-add="journal">
+         <span class="dashboardQuickIcon">📖</span><strong>Daily Log</strong><small>Record today</small>
+       </button>
+       <button class="dashboardQuickCard" data-nav="medications">
+         <span class="dashboardQuickIcon">💊</span><strong>Medication</strong><small>Take or log dose</small>
+       </button>
+       <button class="dashboardQuickCard" data-nav="physio">
+         <span class="dashboardQuickIcon">🧘</span><strong>Physio</strong><small>Exercises & treatment</small>
+       </button>
+       <button class="dashboardQuickCard" data-nav="quickinfo">
+         <span class="dashboardQuickIcon">📇</span><strong>Quick Info</strong><small>Claim & contacts</small>
+       </button>
+     </div>
+   </section>
+
+   <section class="dashboardAppointmentsGrid">
+     ${appointmentCard('medical',upcomingMedical,'🩺','No upcoming medical appointment','appointments')}
+     ${appointmentCard('physio',upcomingPhysio,'🧘','No upcoming physio appointment','physio')}
+   </section>
+
+   <section class="grid grid3 dashboardStatusGrid">
+     <article class="card">
+       <div class="muted small">Latest Daily Log</div>
+       <div class="dashboardStatusValue">${recentJournal?fmt(recentJournal.date):'None yet'}</div>
+       <button class="textButton" data-nav="journal">View daily logs →</button>
+     </article>
+     <article class="card">
+       <div class="muted small">Active Medications</div>
+       <div class="dashboardStatusValue">${activeMeds.length}</div>
+       <button class="textButton" data-nav="medications">Open medications →</button>
+     </article>
+     <article class="card">
+       <div class="muted small">Open Tasks</div>
+       <div class="dashboardStatusValue">${openTasks.length}</div>
+       <button class="textButton" data-nav="tasks">View tasks →</button>
+     </article>
+   </section>
+
+   ${recentInjuryLogs.length?`<section class="card dashboardRecent">
+     <div class="toolbar"><div><h2>Recent Injury Updates</h2><p class="muted small">Your latest recorded injury changes.</p></div><button class="btn secondary" data-nav="injuries">View Injuries</button></div>
+     <div class="dashboardRecentList">${recentInjuryLogs.map(l=>{
+       const inj=(state.injuries||[]).find(i=>i.id===l.injuryId);
+       return `<div><strong>${esc(inj?.name||'Injury')}</strong><span>${fmt(l.date)}${l.pain!==''&&l.pain!=null?` · Pain ${esc(l.pain)}/10`:''}${l.change?` · ${esc(l.change)}`:''}</span></div>`;
+     }).join('')}</div>
+   </section>`:''}
+ `,'Dashboard','Your MVA record at a glance.');
+}
 function latestInjuryLog(injuryId){
  return [...state.injuryLogs].filter(x=>x.injuryId===injuryId).sort((a,b)=>(b.date+b.id).localeCompare(a.date+a.id))[0];
 }
@@ -399,6 +465,24 @@ function medications(){
  `,'Medications','Track actual dose times while preserving changes to dose and frequency over time.');
 }
 
+
+function physioProviderChoices(selected=''){
+ const providers=[];
+ const add=(name,type='')=>{
+   const clean=String(name||'').trim();
+   if(!clean)return;
+   if(!providers.some(p=>p.name.toLowerCase()===clean.toLowerCase()))providers.push({name:clean,type:String(type||'').trim()});
+ };
+ add(state.quickInfo.familyDoctor,'Family Doctor');
+ add(state.quickInfo.physiotherapist,'Physiotherapist');
+ (state.quickInfo.otherHealthcareProviders||[]).forEach(p=>add(p.name,p.specialty||'Healthcare Provider'));
+ if(selected&&!providers.some(p=>p.name.toLowerCase()===String(selected).trim().toLowerCase()))add(selected,'Previously entered');
+ return providers;
+}
+function physioProviderSelect(selected=''){
+ const providers=physioProviderChoices(selected);
+ return `<div class="field"><label>Prescribed / referred by</label><select name="prescribedBy"><option value="">Select provider</option>${providers.map(p=>`<option value="${esc(p.name)}" ${p.name===selected?'selected':''}>${esc(p.name)}${p.type?` — ${esc(p.type)}`:''}</option>`).join('')}</select><div class="providerSelectHint">This list comes from Quick Info → Family Doctor, Physiotherapist, and Additional Healthcare Professionals.</div></div>`;
+}
 function physioPhotoGallery(photos=[]){
  return photos?.length?`<div class="physioPhotoGrid">${photos.map((p,ix)=>isPdfAttachment(p)
    ? `<a class="physioPdfButton" href="${p}" target="_blank" rel="noopener" aria-label="Open attached PDF ${ix+1}"><span>PDF</span><small>Open document</small></a>`
@@ -477,16 +561,30 @@ function physio(){
 
  <section class="physioSection">
   <div class="toolbar"><div><h2>📋 Prescriptions & Referrals</h2><p class="muted small">Keep the specialist's script and the treatment instructions together.</p></div><button class="btn secondary" data-add="physioPrescription">+ Add</button></div>
-  <div class="list">${prescriptions.length?prescriptions.map(p=>`<article class="card physioRecordCard">
-   <div class="toolbar"><div><h3>${esc(p.title||'Physiotherapy prescription')}</h3><div class="rowMeta">${fmt(p.date)}${p.prescribedBy?' · '+esc(p.prescribedBy):''}</div></div><div class="actions"><button class="iconBtn" data-edit="physioPrescription" data-id="${p.id}">Edit</button><button class="iconBtn" data-delete="physioPrescription" data-id="${p.id}">Delete</button></div></div>
-   <div class="physioRecordGrid">
-    ${p.treatmentFor?`<div><span>Treating</span><strong>${esc(p.treatmentFor)}</strong></div>`:''}
-    ${p.frequency?`<div><span>Frequency</span><strong>${esc(p.frequency)}</strong></div>`:''}
-    ${p.duration?`<div><span>Duration</span><strong>${esc(p.duration)}</strong></div>`:''}
-    ${p.status?`<div><span>Status</span><strong>${esc(p.status)}</strong></div>`:''}
+  <div class="list">${prescriptions.length?prescriptions.map(p=>`<article class="card physioRecordCard physioPrescriptionCard" data-physio-prescription="${p.id}">
+   <div class="physioPrescriptionHeader">
+    <div>
+      <h3>${esc(p.title||'Physiotherapy prescription')}</h3>
+      <div class="rowMeta">${fmt(p.date)}${p.prescribedBy?' · '+esc(p.prescribedBy):''}</div>
+    </div>
+    <button type="button" class="physioExpandBtn" data-toggle-physio-prescription aria-expanded="false" aria-label="Expand prescription">+</button>
    </div>
-   ${p.instructions?`<div class="physioDetailBlock"><span>Instructions</span><p>${esc(p.instructions).replace(/\n/g,'<br>')}</p></div>`:''}
-   ${physioPhotoGallery(p.photos||[])}
+   <div class="physioPrescriptionSummary">
+    <div><span>Injury / condition</span><strong>${esc(p.treatmentFor||'Not entered')}</strong></div>
+    <div><span>Frequency</span><strong>${esc(p.frequency||'Not entered')}</strong></div>
+    <div><span>Duration</span><strong>${esc(p.duration||'Not entered')}</strong></div>
+   </div>
+   <div class="physioPrescriptionExpandable">
+    <div class="physioPrescriptionInner">
+      <div class="physioRecordGrid">
+       ${p.prescribedBy?`<div><span>Prescribed by</span><strong>${esc(p.prescribedBy)}</strong></div>`:''}
+       ${p.status?`<div><span>Status</span><strong>${esc(p.status)}</strong></div>`:''}
+      </div>
+      ${p.instructions?`<div class="physioDetailBlock"><span>Instructions</span><p>${esc(p.instructions).replace(/\n/g,'<br>')}</p></div>`:''}
+      ${physioPhotoGallery(p.photos||[])}
+      <div class="actions physioPrescriptionActions"><button class="iconBtn" data-edit="physioPrescription" data-id="${p.id}">Edit</button><button class="iconBtn" data-delete="physioPrescription" data-id="${p.id}">Delete</button></div>
+    </div>
+   </div>
   </article>`).join(''):`<div class="empty">No physio prescriptions or referrals have been saved.</div>`}</div>
  </section>
 
@@ -931,7 +1029,7 @@ function openForm(type,id){
      ${area('Follow-up required','followUpInsurance',item.followUp||'')}
    </div>`;
  }
- if(type==='physioPrescription') body=`${field('Date prescribed','date',item.date||today(),'date')}${field('Title','title',item.title||'Physiotherapy prescription')}${field('Prescribed / referred by','prescribedBy',item.prescribedBy||'')}${field('Provider type','providerType',item.providerType||'','text','placeholder="Example: Orthopedic surgeon"')}${area('Injury / condition being treated','treatmentFor',item.treatmentFor||'')}${field('Frequency ordered','frequency',item.frequency||'','text','placeholder="Example: 2 times per week"')}${field('Duration ordered','duration',item.duration||'','text','placeholder="Example: 6 weeks"')}${selectField('Status','status',['Active','Completed'],item.status||'Active')}${area('Special instructions','instructions',item.instructions||'')}${photoField('Prescription / referral image or PDF','photos',item.photos||[],true)}`;
+ if(type==='physioPrescription') body=`${field('Date prescribed','date',item.date||today(),'date')}${field('Title','title',item.title||'Physiotherapy prescription')}${physioProviderSelect(item.prescribedBy||'')}${area('Injury / condition being treated','treatmentFor',item.treatmentFor||'')}${field('Frequency ordered','frequency',item.frequency||'','text','placeholder="Example: 2 times per week"')}${field('Duration ordered','duration',item.duration||'','text','placeholder="Example: 6 weeks"')}${selectField('Status','status',['Active','Completed'],item.status||'Active')}${area('Special instructions','instructions',item.instructions||'')}${photoField('Prescription / referral image or PDF','photos',item.photos||[],true)}`;
  if(type==='physioVisit') body=`${field('Date','date',item.date||today(),'date')}${field('Time','time',item.time||'','time')}${selectField('Status','status',['Scheduled','Completed','Cancelled'],item.status||'Completed')}${field('Physiotherapist','therapist',item.therapist||state.quickInfo.physiotherapist||'')}${field('Clinic','clinic',item.clinic||state.quickInfo.physioClinic||'')}${field('What was the visit focused on?','focus',item.focus||'')}${area('Treatment / what was done','treatments',item.treatments||'')}${area('Exercises or suggestions from physio','exercisesSuggested',item.exercisesSuggested||'')}${area('Restrictions / precautions','restrictions',item.restrictions||'')}${area('Visit notes','notes',item.notes||'')}${photoField('Handouts, photos or PDFs from this visit','photos',item.photos||[],true)}`;
  if(type==='physioExercise') body=`${field('Exercise name','name',item.name||'')}${field('Prescribed by','prescribedBy',item.prescribedBy||state.quickInfo.physiotherapist||'')}${field('Start date','startDate',item.startDate||today(),'date')}${field('Sets','sets',item.sets||'')}${field('Reps','reps',item.reps||'')}${field('Hold time','holdTime',item.holdTime||'','text','placeholder="Example: 10 seconds"')}${field('Frequency','frequency',item.frequency||'','text','placeholder="Example: 2 times daily"')}${selectField('Status','status',['Active','Completed'],item.active===false?'Completed':'Active')}${area('Instructions / technique','instructions',item.instructions||'')}${photoField('Exercise sheet, photo or PDF','photos',item.photos||[],true)}`;
  if(type==='physioExerciseLog'){const exerciseId=item.exerciseId||newExerciseId;const exercise=state.physioExercises.find(e=>e.id===exerciseId);body=`<div class="field span2 summaryBox"><strong>${esc(exercise?.name||'Home exercise')}</strong><div class="small muted">Add or correct a completion record.</div></div>${field('Date','exerciseDate',item.dateTime?localDateKey(item.dateTime):today(),'date')}${field('Time','exerciseTime',item.dateTime?localDateTimeValue(new Date(item.dateTime)).slice(11,16):localDateTimeValue().slice(11,16),'time')}${selectField('Status','status',['Done','Unable'],item.status||'Done')}${area('Note (optional)','note',item.note||'')}<input type="hidden" name="exerciseId" value="${esc(exerciseId||'')}">`; }
@@ -1254,6 +1352,14 @@ function bind(){
    const card=b.closest('[data-physio-exercise]');if(!card)return;
    const expanded=card.classList.toggle('is-expanded');b.textContent=expanded?'−':'+';b.setAttribute('aria-expanded',String(expanded));
  });
+ document.querySelectorAll('[data-toggle-physio-prescription]').forEach(b=>b.onclick=()=>{
+   const card=b.closest('[data-physio-prescription]');if(!card)return;
+   const expanded=card.classList.toggle('is-expanded');
+   b.textContent=expanded?'−':'+';
+   b.setAttribute('aria-expanded',String(expanded));
+   b.setAttribute('aria-label',expanded?'Collapse prescription':'Expand prescription');
+ });
+
  document.querySelectorAll('[data-view-photo]').forEach(b=>b.onclick=()=>{
    const viewer=document.getElementById('physioPhotoViewer'),img=document.getElementById('physioPhotoViewerImage');if(!viewer||!img)return;
    img.src=b.dataset.viewPhoto;viewer.classList.remove('hidden');

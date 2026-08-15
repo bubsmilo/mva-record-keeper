@@ -414,3 +414,103 @@ input,textarea,select{width:100%;border:1px solid #cfd9e5;border-radius:8px;padd
   background:#d94747;color:#fff;font-weight:900;font-size:11px;
 }
 .physioPdfButton small{font-size:9px;color:#718096}
+
+
+/* v2.4.3 Physio prescription provider dropdown + collapsible cards */
+.providerSelectHint{margin-top:6px;font-size:11px;color:#718096;line-height:1.35}
+.physioPrescriptionCard{padding:0;overflow:hidden}
+.physioPrescriptionHeader{
+ display:flex;align-items:center;justify-content:space-between;gap:12px;
+ padding:14px 15px;background:linear-gradient(90deg,#f3f8ff,#fff);
+ border-bottom:1px solid #e3ebf4;
+}
+.physioPrescriptionHeader h3{margin:0 0 3px}
+.physioPrescriptionSummary{
+ display:grid;grid-template-columns:2fr 1fr 1fr;gap:8px;padding:12px 14px;
+}
+.physioPrescriptionSummary>div{
+ border:1px solid #e0e8f1;border-radius:9px;background:#f8fbff;padding:8px 9px;
+}
+.physioPrescriptionSummary span{
+ display:block;font-size:10px;text-transform:uppercase;letter-spacing:.04em;
+ color:#758599;font-weight:800;
+}
+.physioPrescriptionSummary strong{
+ display:block;margin-top:2px;font-size:12px;color:#273d55;overflow-wrap:anywhere;
+}
+.physioPrescriptionExpandable{
+ display:grid;grid-template-rows:0fr;opacity:0;
+ transition:grid-template-rows .22s ease,opacity .18s ease;
+}
+.physioPrescriptionInner{min-height:0;overflow:hidden;padding:0 14px}
+.physioPrescriptionCard.is-expanded .physioPrescriptionExpandable{
+ grid-template-rows:1fr;opacity:1;
+}
+.physioPrescriptionCard.is-expanded .physioPrescriptionInner{
+ overflow:visible;padding-bottom:14px;
+}
+.physioPrescriptionActions{
+ border-top:1px solid #e4eaf1;padding-top:10px;margin-top:10px;justify-content:flex-end;
+}
+@media(max-width:650px){
+ .physioPrescriptionSummary{grid-template-columns:1fr}
+}
+
+
+/* v2.5.0 dashboard redesign */
+.dashboardQuickSection{margin-bottom:16px}
+.dashboardQuickGrid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px}
+.dashboardQuickCard{
+ appearance:none;border:1px solid #dbe5ef;background:#fff;border-radius:15px;
+ min-height:126px;padding:16px 12px;display:flex;flex-direction:column;
+ align-items:center;justify-content:center;text-align:center;gap:4px;
+ box-shadow:0 5px 18px rgba(25,57,91,.07);cursor:pointer;color:#183653;
+ transition:transform .15s ease,box-shadow .15s ease,border-color .15s ease;
+}
+.dashboardQuickCard:hover{transform:translateY(-2px);box-shadow:0 8px 22px rgba(25,57,91,.11);border-color:#bed3e8}
+.dashboardQuickCard:active{transform:translateY(0)}
+.dashboardQuickIcon{
+ width:48px;height:48px;border-radius:14px;background:#edf6ff;
+ display:grid;place-items:center;font-size:25px;margin-bottom:4px;
+}
+.dashboardQuickCard strong{font-size:15px}
+.dashboardQuickCard small{font-size:11px;color:#718196}
+
+.dashboardAppointmentsGrid{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:16px}
+.dashboardAppointmentCard{padding:17px;display:flex;flex-direction:column;min-height:210px}
+.dashboardAppointmentHead{display:flex;gap:10px;align-items:center;border-bottom:1px solid #e8eef5;padding-bottom:11px}
+.dashboardAppointmentHead>span{width:42px;height:42px;border-radius:12px;background:#edf6ff;display:grid;place-items:center;font-size:21px}
+.dashboardAppointmentHead small{font-size:9px;letter-spacing:.09em;color:#75879a;font-weight:900}
+.dashboardAppointmentHead h3{margin:1px 0 0;font-size:16px;color:#173854}
+.dashboardAppointmentDate{display:flex;align-items:baseline;gap:9px;margin-top:13px}
+.dashboardAppointmentDate strong{font-size:20px;color:#0b315f}
+.dashboardAppointmentDate span{font-size:13px;color:#5e7187;font-weight:750}
+.dashboardAppointmentDetails{display:grid;gap:2px;margin:7px 0 14px}
+.dashboardAppointmentDetails strong{font-size:14px}
+.dashboardAppointmentDetails span{font-size:12px;color:#50657d}
+.dashboardAppointmentDetails small{font-size:11px;color:#78889a}
+.dashboardAppointmentCard>.btn{margin-top:auto;align-self:flex-start}
+.dashboardAppointmentEmpty{color:#748397;font-size:13px;padding:22px 0;flex:1}
+.dashboardAppointmentCard.physio .dashboardAppointmentHead>span{background:#eef8f4}
+
+.dashboardStatusGrid{margin:4px 0 16px}
+.dashboardStatusGrid .card{padding:15px}
+.dashboardStatusValue{font-size:22px;font-weight:850;color:#153a60;margin:5px 0}
+.textButton{appearance:none;border:0;background:transparent;padding:0;color:#075bd4;font-weight:750;font-size:11px;cursor:pointer}
+.dashboardRecent{margin-top:14px}
+.dashboardRecentList{display:grid;gap:7px;margin-top:10px}
+.dashboardRecentList>div{display:flex;justify-content:space-between;gap:10px;border-top:1px solid #edf1f5;padding-top:8px}
+.dashboardRecentList span{font-size:11px;color:#6e7f92;text-align:right}
+
+@media(max-width:760px){
+ .dashboardQuickGrid{grid-template-columns:repeat(2,minmax(0,1fr))}
+ .dashboardAppointmentsGrid{grid-template-columns:1fr}
+ .dashboardQuickCard{min-height:112px}
+}
+@media(max-width:430px){
+ .dashboardQuickGrid{gap:9px}
+ .dashboardQuickCard{min-height:104px;padding:12px 8px}
+ .dashboardQuickIcon{width:43px;height:43px;font-size:22px}
+ .dashboardRecentList>div{flex-direction:column}
+ .dashboardRecentList span{text-align:left}
+}
