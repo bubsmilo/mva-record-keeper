@@ -1112,3 +1112,35 @@ input,textarea,select{width:100%;border:1px solid #cfd9e5;border-radius:8px;padd
   background:#e0efff;
   border-color:#8bb6e4;
 }
+
+
+/* v2.7.1 physio daily schedule + countdown */
+.physioWindowBar{
+ display:grid;grid-template-columns:1fr auto auto auto;gap:10px;align-items:end;
+ padding:11px 14px;border-bottom:1px solid #e1e9f2;background:#fbfdff;
+}
+.physioWindowBar>div{display:grid;gap:2px;align-self:center}
+.physioWindowBar>div span,.physioWindowBar label span{font-size:9px;text-transform:uppercase;letter-spacing:.05em;color:#748397;font-weight:850}
+.physioWindowBar>div strong{font-size:13px;color:#24435f}
+.physioWindowBar label{display:grid;gap:3px}
+.physioWindowBar input[type="time"]{border:1px solid #d3dfeb;border-radius:8px;background:#fff;padding:7px 8px;font:inherit;color:#24435f}
+.physioCountdown{
+ margin:0 14px 10px;border:1px solid #dce6ef;border-radius:10px;background:#f8fbff;
+ padding:9px 10px;display:flex;justify-content:space-between;align-items:center;gap:10px;
+}
+.physioCountdown>div{display:grid;gap:1px}
+.physioCountdown>div span{font-size:9px;text-transform:uppercase;letter-spacing:.05em;color:#738397;font-weight:850}
+.physioCountdown>div strong{font-size:15px;color:#173b60}
+.physioCountdownStatus{font-size:11px;font-weight:850;text-align:right}
+.physioCountdown.medOverdue{background:#fff3f3;border-color:#eccaca}
+.physioCountdown.medDueNow{background:#fff8e8;border-color:#ead8a9}
+.physioCountdown.medDueSoon{background:#fffbed;border-color:#eadfb8}
+.physioCountdown.medOnTime{background:#f3f8ff;border-color:#d3e2f2}
+.physioCountdown.physioComplete{background:#eef9f2;border-color:#cee7d7}
+.physioCountdown.physioComplete .physioCountdownStatus{color:#247443}
+.physioScheduleTimes{grid-column:1/-1}
+@media(max-width:760px){
+ .physioWindowBar{grid-template-columns:1fr 1fr}
+ .physioWindowBar>div{grid-column:1/-1}
+ .physioWindowBar .btn{grid-column:1/-1}
+}

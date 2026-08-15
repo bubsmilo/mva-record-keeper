@@ -3,7 +3,7 @@
 'use strict';
 
 const KEY='mva-record-keeper-v1';
-const APP_VERSION='2.7.0';
+const APP_VERSION='2.7.1';
 document.title=`MVA Record Keeper v${APP_VERSION}`;
 
 const ATTACHMENT_DB='mva-record-keeper-attachments';
@@ -213,6 +213,7 @@ const defaults={
     otherHealthcareProviders:[]
   },
   reportSettings:{includePhotos:true,includeMedicationHistory:true,autoPrint:true},
+  physioSettings:{startTime:'09:00',endTime:'18:00'},
   journal:[], injuries:[], injuryLogs:[], medications:[], doses:[], medicationEvents:[], receipts:[], appointments:[],
   physioPrescriptions:[], physioVisits:[], physioExercises:[], physioExerciseLogs:[], physioDocuments:[],
   tasks:[], questions:[], notes:[], timeline:[]
@@ -222,6 +223,7 @@ state.profile={...defaults.profile,...(state.profile||{})};
 state.quickInfo={...defaults.quickInfo,...(state.quickInfo||{})};
 state.quickInfo.otherHealthcareProviders=Array.isArray(state.quickInfo.otherHealthcareProviders)?state.quickInfo.otherHealthcareProviders:[];
 state.reportSettings={...defaults.reportSettings,...(state.reportSettings||{})};
+state.physioSettings={...defaults.physioSettings,...(state.physioSettings||{})};
 function migrateMedicationData(){
  let changed=false;
  state.medications=(state.medications||[]).map(m=>{
@@ -763,6 +765,56 @@ function exerciseDoneToday(exerciseId){
  return (state.physioExerciseLogs||[]).filter(l=>l.exerciseId===exerciseId&&l.status==='Done'&&localDateKey(l.dateTime)===key).length;
 }
 
+function physioClockDate(time,base=new Date()){
+ const [h,m]=String(time||'').split(':').map(Number);
+ if(!Number.isFinite(h)||!Number.isFinite(m))return null;
+ const d=new Date(base);d.setHours(h,m,0,0);return d;
+}
+function formatClock(date){return date?date.toLocaleTimeString('en-CA',{hour:'numeric',minute:'2-digit'}):''}
+function physioExerciseTiming(exercise,now=new Date()){
+ const target=exerciseTimesPerDay(exercise),done=exerciseDoneToday(exercise.id);
+ const start=physioClockDate(state.physioSettings.startTime,now),end=physioClockDate(state.physioSettings.endTime,now);
+ if(!target||!start||!end||end<=start)return {target,done,statusText:'Set daily window',statusClass:'medNeutral',next:null,slots:[]};
+ const slots=[];
+ if(target===1)slots.push(start);
+ else{
+   const step=(end.getTime()-start.getTime())/(target-1);
+   for(let i=0;i<target;i++)slots.push(new Date(start.getTime()+step*i));
+ }
+ if(done>=target)return {target,done,statusText:'Complete for today',statusClass:'physioComplete',next:null,slots};
+ const next=slots[Math.min(done,slots.length-1)];
+ const remaining=next.getTime()-now.getTime();
+ const abs=Math.abs(remaining),hours=Math.floor(abs/3600000),mins=Math.max(0,Math.ceil((abs%3600000)/60000));
+ const duration=hours?`${hours}h ${mins}m`:`${mins}m`;
+ let statusText,statusClass;
+ if(remaining<=-60000){statusText=`Overdue by ${duration}`;statusClass='medOverdue'}
+ else if(remaining<=60000){statusText='Due now';statusClass='medDueNow'}
+ else if(remaining<=30*60000){statusText=`Due in ${duration}`;statusClass='medDueSoon'}
+ else{statusText=`Due in ${duration}`;statusClass='medOnTime'}
+ return {target,done,statusText,statusClass,next,remaining,slots};
+}
+function physioTimingHtml(exercise){
+ const t=physioExerciseTiming(exercise);
+ return `<div class="physioCountdown ${t.statusClass}">
+   <div><span>${t.done>=t.target&&t.target?'Today complete':'Next exercise'}</span><strong>${t.next?formatClock(t.next):(t.done>=t.target&&t.target?'✓ Done':'No schedule')}</strong></div>
+   <small class="physioCountdownStatus" data-physio-countdown="${t.next?t.next.toISOString():''}" data-physio-complete="${t.done>=t.target&&t.target?'1':'0'}">${esc(t.statusText)}</small>
+ </div>`;
+}
+function refreshPhysioCountdowns(){
+ document.querySelectorAll('[data-physio-countdown]').forEach(el=>{
+   if(el.dataset.physioComplete==='1'){el.textContent='Complete for today';return}
+   const next=el.dataset.physioCountdown?new Date(el.dataset.physioCountdown):null;
+   if(!next||Number.isNaN(next.getTime()))return;
+   const remaining=next.getTime()-Date.now(),abs=Math.abs(remaining),hours=Math.floor(abs/3600000),mins=Math.max(0,Math.ceil((abs%3600000)/60000));
+   const duration=hours?`${hours}h ${mins}m`:`${mins}m`;
+   el.classList.remove('medOverdue','medDueNow','medDueSoon','medOnTime');
+   if(remaining<=-60000){el.textContent=`Overdue by ${duration}`;el.classList.add('medOverdue')}
+   else if(remaining<=60000){el.textContent='Due now';el.classList.add('medDueNow')}
+   else if(remaining<=30*60000){el.textContent=`Due in ${duration}`;el.classList.add('medDueSoon')}
+   else{el.textContent=`Due in ${duration}`;el.classList.add('medOnTime')}
+ });
+}
+
 function exerciseDailyProgressHtml(exercise){
  const target=exerciseTimesPerDay(exercise);
  const done=exerciseDoneToday(exercise.id);
@@ -808,8 +860,14 @@ function physio(){
 
  <section class="card physioSectionCard physioExerciseSection">
   <div class="physioSectionCardHead">
-    <div><h2>🏠 Home Exercise Program</h2><p class="muted small">Tap Done Now each time you complete an exercise. Your daily count updates automatically.</p></div>
+    <div><h2>🏠 Home Exercise Program</h2><p class="muted small">Tap Done Now each time you complete an exercise. The app spaces your daily sessions through your chosen time window.</p></div>
     <div class="toolbarRight"><span class="pill">${activeExercises} active</span><button class="btn secondary" data-add="physioExercise">+ Add Exercise</button></div>
+  </div>
+  <div class="physioWindowBar">
+    <div><span>Daily exercise window</span><strong>${formatClock(physioClockDate(state.physioSettings.startTime))} – ${formatClock(physioClockDate(state.physioSettings.endTime))}</strong></div>
+    <label><span>Start</span><input type="time" id="physioStartTime" value="${esc(state.physioSettings.startTime)}"></label>
+    <label><span>Finish</span><input type="time" id="physioEndTime" value="${esc(state.physioSettings.endTime)}"></label>
+    <button type="button" class="btn secondary" id="savePhysioWindow">Save Window</button>
   </div>
   <div class="physioExerciseGrid">${exercises.length?exercises.map(ex=>{
     const logs=[...(state.physioExerciseLogs||[])].filter(l=>l.exerciseId===ex.id).sort((a,b)=>new Date(b.dateTime)-new Date(a.dateTime));
@@ -824,12 +882,14 @@ function physio(){
        <div class="exerciseLastCompleted"><span>Last completed</span><strong>${lastDone?fmtDateTime(lastDone.dateTime):'Not recorded yet'}</strong></div>
        ${exerciseDailyProgressHtml(ex)}
       </div>
+      ${ex.active!==false?physioTimingHtml(ex):''}
       ${ex.active!==false?`<div class="physioExerciseButtons"><button class="btn primary" type="button" data-exercise-done="${ex.id}">✓ Done Now</button><button class="btn secondary" type="button" data-exercise-unable="${ex.id}">Unable</button></div>`:''}
       <div class="physioExpandable">
        <div class="physioExpandableInner">
         <div class="physioRecordGrid physioExerciseExpandedInfo">
           ${ex.prescribedBy?`<div><span>Prescribed by</span><strong>${esc(ex.prescribedBy)}</strong></div>`:''}
           ${exerciseTimesPerDay(ex)?`<div><span>Daily target</span><strong>${exerciseTimesPerDay(ex)} time${exerciseTimesPerDay(ex)===1?'':'s'} per day</strong></div>`:''}
+          ${physioExerciseTiming(ex).slots.length?`<div class="physioScheduleTimes"><span>Planned times</span><strong>${physioExerciseTiming(ex).slots.map(formatClock).join(' · ')}</strong></div>`:''}
         </div>
         ${ex.instructions?`<div class="physioDetailBlock"><span>Instructions</span><p>${esc(ex.instructions).replace(/\n/g,'<br>')}</p></div>`:''}
         ${physioPhotoGallery(ex.photos||[])}
@@ -1779,6 +1839,16 @@ function bind(){
  });
  const closePhysioPhoto=document.getElementById('closePhysioPhoto');
  if(closePhysioPhoto)closePhysioPhoto.onclick=()=>document.getElementById('physioPhotoViewer')?.classList.add('hidden');
+ const savePhysioWindow=document.getElementById('savePhysioWindow');
+ if(savePhysioWindow)savePhysioWindow.onclick=()=>{
+   const start=document.getElementById('physioStartTime')?.value||'';
+   const end=document.getElementById('physioEndTime')?.value||'';
+   if(!start||!end){alert('Choose both a start and finish time.');return}
+   const startDate=physioClockDate(start),endDate=physioClockDate(end);
+   if(!startDate||!endDate||endDate<=startDate){alert('The finish time must be later than the start time.');return}
+   state.physioSettings.startTime=start;state.physioSettings.endTime=end;save();render();toast('Physio schedule updated');
+ };
+
 
  document.querySelectorAll('[data-log-injury]').forEach(b=>b.onclick=()=>openForm('injuryLog','new:'+b.dataset.logInjury));
  document.querySelectorAll('[data-edit]').forEach(b=>b.onclick=()=>openForm(b.dataset.edit,b.dataset.id));
@@ -1951,6 +2021,7 @@ function bind(){
    state.profile={...defaults.profile,...(state.profile||{})};
    state.quickInfo={...defaults.quickInfo,...(state.quickInfo||{})};
    state.reportSettings={...defaults.reportSettings,...(state.reportSettings||{})};
+   state.physioSettings={...defaults.physioSettings,...(state.physioSettings||{})};
    migrateMedicationData();
    await migrateLegacyAttachments();
    save();render();toast(`Backup restored · ${allAttachmentRefsFromState().size} attachment${allAttachmentRefsFromState().size===1?'':'s'}`);
@@ -1972,5 +2043,6 @@ async function startApp(){
  }
 }
 if('serviceWorker' in navigator)window.addEventListener('load',()=>navigator.serviceWorker.register('./sw.js').catch(()=>{}));
+setInterval(()=>{if(page==='physio')refreshPhysioCountdowns()},30000);
 startApp();
 })();
