@@ -3,7 +3,7 @@
 'use strict';
 
 const KEY='mva-record-keeper-v1';
-const APP_VERSION='2.7.2';
+const APP_VERSION='2.7.3';
 document.title=`MVA Record Keeper v${APP_VERSION}`;
 
 const ATTACHMENT_DB='mva-record-keeper-attachments';
@@ -864,6 +864,49 @@ function physioExerciseLogRow(log){
  </div>`;
 }
 
+
+function exerciseScorecardHtml(ex){
+ const timing=physioExerciseTiming(ex);
+ const lastDone=[...(state.physioExerciseLogs||[])]
+   .filter(l=>l.exerciseId===ex.id&&l.status==='Done')
+   .sort((a,b)=>new Date(b.dateTime)-new Date(a.dateTime))[0];
+ const target=exerciseTimesPerDay(ex);
+ const done=exerciseDoneToday(ex.id);
+ const hero=ex.thumbnail
+   ? `<img src="${attachmentSrc(ex.thumbnail)}" alt="${esc(ex.name||'Exercise')}">`
+   : `<div class="exerciseScorecardFallback">🏃</div>`;
+ return `<div class="exerciseScorecardTop">
+   <div class="exerciseScorecardHero">${hero}</div>
+   <div class="exerciseScorecardTitle">
+     <span class="exerciseScorecardEyebrow">HOME EXERCISE</span>
+     <h2>${esc(ex.name||'Exercise')}</h2>
+     <p>${ex.prescribedBy?`Prescribed by ${esc(ex.prescribedBy)}`:'Physiotherapy exercise'}</p>
+   </div>
+   <button type="button" class="exerciseScorecardClose" data-close-exercise-card>✕</button>
+ </div>
+ <div class="exerciseScorecardStats">
+   <div><span>Sets</span><strong>${esc(ex.sets||'—')}</strong></div>
+   <div><span>Reps</span><strong>${esc(ex.reps||'—')}</strong></div>
+   <div><span>Hold</span><strong>${esc(ex.holdTime||'—')}</strong></div>
+   <div><span>Daily</span><strong>${target?`${target}×`:'—'}</strong></div>
+ </div>
+ <div class="exerciseScorecardProgress">
+   <div><span>Today's progress</span><strong>${done}${target?` / ${target}`:''}</strong></div>
+   ${target?`<div class="exerciseProgressBar large">${Array.from({length:target},(_,i)=>`<span class="exerciseProgressSegment ${i<Math.min(done,target)?'is-complete':''}"></span>`).join('')}</div>`:''}
+ </div>
+ <div class="exerciseScorecardGrid">
+   <div class="exerciseScorecardInfo"><span>Next scheduled</span><strong>${timing.next?formatClock(timing.next):(done>=target&&target?'Complete for today':'Not scheduled')}</strong><small>${esc(timing.statusText)}</small></div>
+   <div class="exerciseScorecardInfo"><span>Last completed</span><strong>${lastDone?fmtDateTime(lastDone.dateTime):'Not yet'}</strong></div>
+ </div>
+ ${timing.slots.length?`<div class="exerciseScorecardSection"><span>Planned times</span><div class="exerciseTimePills">${timing.slots.map(t=>`<b>${formatClock(t)}</b>`).join('')}</div></div>`:''}
+ ${ex.instructions?`<div class="exerciseScorecardSection instructions"><span>Instructions</span><p>${esc(ex.instructions).replace(/\n/g,'<br>')}</p></div>`:''}
+ ${(ex.photos||[]).length?`<div class="exerciseScorecardSection"><span>Exercise sheet / attachments</span>${physioPhotoGallery(ex.photos||[])}</div>`:''}
+ <div class="exerciseScorecardFooter">
+   ${ex.active!==false?`<button class="btn primary" type="button" data-scorecard-done="${ex.id}">✓ Done Now</button>`:''}
+   <button class="btn secondary" type="button" data-edit="physioExercise" data-id="${ex.id}">Edit Exercise</button>
+ </div>`;
+}
+
 function physio(){
  const prescriptions=[...(state.physioPrescriptions||[])].sort((a,b)=>(b.date||'').localeCompare(a.date||''));
  const visits=[...(state.physioVisits||[])].sort((a,b)=>`${b.date||''}${b.time||''}`.localeCompare(`${a.date||''}${a.time||''}`));
@@ -884,13 +927,14 @@ function physio(){
  </section>
 
  <section class="card physioSectionCard physioExerciseSection">
-  <div class="physioSectionCardHead">
-    <div><h2>🏠 Home Exercise Program</h2><p class="muted small">Tap Done Now each time you complete an exercise. The app spaces your daily sessions through your chosen time window.</p></div>
-    <div class="toolbarRight"><span class="pill">${activeExercises} active</span><button class="btn secondary" data-add="physioExercise">+ Add Exercise</button></div>
+  <div class="physioSectionCardHead physioExerciseProgramHead">
+    <div><h2>🏠 Home Exercise Program</h2><p class="muted small">${activeExercises} active exercise${activeExercises===1?'':'s'}</p></div>
+    <button class="compactAddExerciseBtn" data-add="physioExercise" aria-label="Add exercise">+ Add</button>
   </div>
-  <div class="physioWindowShell" data-physio-window>
-    <button type="button" class="physioWindowSummary" id="togglePhysioWindow" aria-expanded="false">
-      <div><span>Daily exercise window</span><strong>${formatClock(physioClockDate(state.physioSettings.startTime))} – ${formatClock(physioClockDate(state.physioSettings.endTime))}</strong></div>
+  <div class="physioWindowShell compactWindowShell" data-physio-window>
+    <button type="button" class="physioWindowSummary compactWindowSummary" id="togglePhysioWindow" aria-expanded="false">
+      <div><span>Schedule</span><strong>${formatClock(physioClockDate(state.physioSettings.startTime))} – ${formatClock(physioClockDate(state.physioSettings.endTime))}</strong></div>
+      <span class="physioWindowEditLabel">Edit</span>
       <span class="physioWindowToggleIcon">+</span>
     </button>
     <div class="physioWindowExpandable">
@@ -908,9 +952,11 @@ function physio(){
     const lastDone=logs.find(l=>l.status==='Done');
     return `<article class="card physioExerciseCard ${ex.active===false?'physioInactive':''}" data-physio-exercise="${ex.id}">
       <div class="physioExerciseHeader">
-       <div class="physioExerciseIcon">${ex.thumbnail?`<img src="${attachmentSrc(ex.thumbnail)}" alt="${esc(ex.name||'Exercise')} thumbnail">`:'🏃'}</div>
-       <div class="physioExerciseTitle"><h3>${esc(ex.name)}</h3><p>${[ex.sets&&`${ex.sets} sets`,ex.reps&&`${ex.reps} reps`,ex.holdTime&&`${ex.holdTime} hold`,exerciseTimesPerDay(ex)&&`${exerciseTimesPerDay(ex)}× daily`].filter(Boolean).map(esc).join(' · ')||'Exercise details not entered'}</p></div>
-       <button type="button" class="physioExpandBtn" data-toggle-physio-exercise aria-expanded="false">+</button>
+       <button type="button" class="physioExerciseHeaderMain" data-open-exercise-card="${ex.id}">
+         <div class="physioExerciseIcon">${ex.thumbnail?`<img src="${attachmentSrc(ex.thumbnail)}" alt="${esc(ex.name||'Exercise')} thumbnail">`:'🏃'}</div>
+         <div class="physioExerciseTitle"><h3>${esc(ex.name)}</h3><p>${[ex.sets&&`${ex.sets} sets`,ex.reps&&`${ex.reps} reps`,ex.holdTime&&`${ex.holdTime} hold`,exerciseTimesPerDay(ex)&&`${exerciseTimesPerDay(ex)}× daily`].filter(Boolean).map(esc).join(' · ')||'Exercise details not entered'}</p><small>Tap for exercise card</small></div>
+       </button>
+       <button type="button" class="physioExpandBtn" data-toggle-physio-exercise aria-expanded="false" aria-label="Expand exercise history">+</button>
       </div>
       <div class="physioExerciseQuick physioExerciseQuickProgress">
        <div class="exerciseLastCompleted"><span>Last completed</span><strong>${lastDone?fmtDateTime(lastDone.dateTime):'Not recorded yet'}</strong></div>
@@ -1015,6 +1061,10 @@ function physio(){
    </div>
   </article>`).join(''):`<div class="empty">No physio visits recorded yet.</div>`}</div>
  </section>
+
+ <div class="exerciseScorecardBackdrop hidden" id="exerciseScorecardBackdrop">
+   <div class="exerciseScorecard" id="exerciseScorecard" role="dialog" aria-modal="true" aria-label="Exercise details"></div>
+ </div>
 
  <div class="physioPhotoViewer hidden" id="physioPhotoViewer"><button type="button" class="physioPhotoClose" id="closePhysioPhoto">✕</button><img id="physioPhotoViewerImage" alt="Attached document"></div>
  `,'Physiotherapy','Track treatment, home exercises, prescriptions and the documents your providers give you.');
@@ -1838,6 +1888,32 @@ function bind(){
    const card=b.closest('[data-physio-exercise]');if(!card)return;
    const expanded=card.classList.toggle('is-expanded');b.textContent=expanded?'−':'+';b.setAttribute('aria-expanded',String(expanded));
  });
+ document.querySelectorAll('[data-open-exercise-card]').forEach(b=>b.onclick=()=>{
+   const ex=state.physioExercises.find(e=>e.id===b.dataset.openExerciseCard);
+   const backdrop=document.getElementById('exerciseScorecardBackdrop');
+   const card=document.getElementById('exerciseScorecard');
+   if(!ex||!backdrop||!card)return;
+   card.innerHTML=exerciseScorecardHtml(ex);
+   backdrop.classList.remove('hidden');
+   card.querySelector('[data-close-exercise-card]')?.addEventListener('click',()=>backdrop.classList.add('hidden'));
+   card.querySelector('[data-scorecard-done]')?.addEventListener('click',ev=>{
+     const exercise=state.physioExercises.find(e=>e.id===ev.currentTarget.dataset.scorecardDone);
+     if(!exercise)return;
+     state.physioExerciseLogs.push({id:uid(),exerciseId:exercise.id,dateTime:new Date().toISOString(),status:'Done',note:''});
+     save();render();toast(`${exercise.name} completed`);
+   });
+   card.querySelector('[data-edit="physioExercise"]')?.addEventListener('click',ev=>{
+     backdrop.classList.add('hidden');
+     openForm('physioExercise',ev.currentTarget.dataset.id);
+   });
+   card.querySelectorAll('[data-view-photo]').forEach(btn=>btn.onclick=()=>{
+     const viewer=document.getElementById('physioPhotoViewer'),img=document.getElementById('physioPhotoViewerImage');
+     if(!viewer||!img)return;img.src=attachmentSrc(btn.dataset.viewPhoto);viewer.classList.remove('hidden');
+   });
+ });
+ const exerciseBackdrop=document.getElementById('exerciseScorecardBackdrop');
+ if(exerciseBackdrop)exerciseBackdrop.onclick=e=>{if(e.target===exerciseBackdrop)exerciseBackdrop.classList.add('hidden')};
+
  document.querySelectorAll('[data-toggle-physio-prescription]').forEach(b=>b.onclick=()=>{
    const card=b.closest('[data-physio-prescription]');if(!card)return;
    const expanded=card.classList.toggle('is-expanded');

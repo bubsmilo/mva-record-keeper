@@ -1274,3 +1274,56 @@ input,textarea,select{width:100%;border:1px solid #cfd9e5;border-radius:8px;padd
   .physioWindowShell .physioWindowBar{grid-template-columns:1fr 1fr}
   .physioWindowShell .physioWindowBar .btn{grid-column:1/-1}
 }
+
+
+/* v2.7.3 compact exercise header + scorecard modal */
+.physioExerciseProgramHead{min-height:58px;padding:10px 14px}
+.physioExerciseProgramHead h2{font-size:17px;margin-bottom:1px}
+.physioExerciseProgramHead p{font-size:10px}
+.compactAddExerciseBtn{appearance:none;border:1px solid #bcd1e7;background:#f3f8ff;color:#075bd4;border-radius:9px;padding:7px 10px;font-size:11px;font-weight:850;cursor:pointer}
+.compactWindowSummary{padding:7px 12px}
+.compactWindowSummary>div{display:flex;align-items:center;gap:8px}
+.compactWindowSummary>div span{font-size:8px}
+.compactWindowSummary>div strong{font-size:11px}
+.physioWindowEditLabel{margin-left:auto;font-size:9px!important;color:#075bd4!important;text-transform:none!important;letter-spacing:0!important;font-weight:850!important}
+.compactWindowSummary .physioWindowToggleIcon{width:26px;height:26px;flex-basis:26px;font-size:17px!important}
+.physioExerciseHeader{padding:0 10px 0 0}
+.physioExerciseHeaderMain{flex:1;min-width:0;display:flex;align-items:center;gap:11px;appearance:none;border:0;background:transparent;text-align:left;color:inherit;padding:12px 5px 12px 14px;cursor:pointer}
+.physioExerciseTitle small{display:block;margin-top:3px;font-size:9px;color:#6d83a0;font-weight:700}
+.exerciseScorecardBackdrop{position:fixed;inset:0;z-index:280;background:rgba(7,22,40,.62);display:grid;place-items:center;padding:18px;backdrop-filter:blur(2px)}
+.exerciseScorecardBackdrop.hidden{display:none}
+.exerciseScorecard{width:min(620px,96vw);max-height:92vh;overflow:auto;background:#fff;border-radius:22px;border:1px solid #cfdaea;box-shadow:0 24px 70px rgba(12,32,58,.28)}
+.exerciseScorecardTop{display:grid;grid-template-columns:92px 1fr auto;gap:15px;align-items:center;padding:18px;background:linear-gradient(135deg,#edf6ff,#f8f4ff);border-bottom:1px solid #dce6f0}
+.exerciseScorecardHero{width:92px;height:92px;border-radius:18px;overflow:hidden;background:#eaf3ff;display:grid;place-items:center}
+.exerciseScorecardHero img{width:100%;height:100%;object-fit:cover}
+.exerciseScorecardFallback{font-size:38px}
+.exerciseScorecardTitle h2{font-size:23px;margin:3px 0;color:#163a60}
+.exerciseScorecardTitle p{margin:0;font-size:11px;color:#687c93}
+.exerciseScorecardEyebrow{font-size:9px;letter-spacing:.11em;color:#6e82a0;font-weight:900}
+.exerciseScorecardClose{align-self:start;appearance:none;border:1px solid #cfdae7;background:#fff;width:34px;height:34px;border-radius:50%;font-size:16px;color:#314c68;cursor:pointer}
+.exerciseScorecardStats{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;padding:14px 16px 7px}
+.exerciseScorecardStats>div{border:1px solid #dce6f0;background:#f8fbff;border-radius:11px;padding:10px;text-align:center}
+.exerciseScorecardStats span,.exerciseScorecardInfo span,.exerciseScorecardSection>span{display:block;font-size:9px;text-transform:uppercase;letter-spacing:.06em;color:#75869a;font-weight:900}
+.exerciseScorecardStats strong{display:block;margin-top:3px;font-size:18px;color:#193e64}
+.exerciseScorecardProgress{margin:8px 16px 0;border:1px solid #dddfea;background:#fafaff;border-radius:12px;padding:11px}
+.exerciseScorecardProgress>div:first-child{display:flex;justify-content:space-between;gap:10px;margin-bottom:8px}
+.exerciseScorecardProgress>div:first-child span{font-size:10px;color:#718399;font-weight:800}
+.exerciseScorecardProgress>div:first-child strong{color:#6a55b2}
+.exerciseProgressBar.large .exerciseProgressSegment{height:13px}
+.exerciseScorecardGrid{display:grid;grid-template-columns:1fr 1fr;gap:9px;padding:10px 16px 0}
+.exerciseScorecardInfo{border:1px solid #e0e7ef;border-radius:11px;padding:10px;background:#fff}
+.exerciseScorecardInfo strong{display:block;margin-top:3px;color:#193e64;font-size:14px}
+.exerciseScorecardInfo small{display:block;margin-top:2px;color:#6f8195;font-size:10px}
+.exerciseScorecardSection{margin:10px 16px 0;border-top:1px solid #e5eaf1;padding-top:11px}
+.exerciseScorecardSection.instructions p{font-size:14px;line-height:1.55;color:#31465d;margin:7px 0 0}
+.exerciseTimePills{display:flex;flex-wrap:wrap;gap:6px;margin-top:7px}
+.exerciseTimePills b{padding:5px 8px;border-radius:999px;background:#eef5ff;border:1px solid #d6e4f4;color:#315d88;font-size:10px}
+.exerciseScorecardFooter{display:grid;grid-template-columns:1.3fr 1fr;gap:9px;padding:16px;margin-top:4px;border-top:1px solid #e1e8f0;background:#fbfdff}
+@media(max-width:560px){
+  .exerciseScorecardTop{grid-template-columns:72px 1fr auto;padding:14px;gap:11px}
+  .exerciseScorecardHero{width:72px;height:72px;border-radius:15px}
+  .exerciseScorecardTitle h2{font-size:19px}
+  .exerciseScorecardStats{grid-template-columns:repeat(2,1fr)}
+  .exerciseScorecardGrid{grid-template-columns:1fr}
+  .exerciseScorecardFooter{grid-template-columns:1fr}
+}
