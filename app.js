@@ -3,7 +3,7 @@
 'use strict';
 
 const KEY='mva-record-keeper-v1';
-const APP_VERSION='2.6.0';
+const APP_VERSION='2.6.1';
 document.title=`MVA Record Keeper v${APP_VERSION}`;
 
 const ATTACHMENT_DB='mva-record-keeper-attachments';
@@ -1696,7 +1696,9 @@ function bind(){
      refs.forEach(ref=>{if(attachmentCache[ref])attachments[ref]=attachmentCache[ref]});
      const payload={...state,attachments,backupCreatedAt:new Date().toISOString(),dataVersion:Math.max(Number(state.dataVersion||0),4),attachmentStorageVersion:1};
      const url=URL.createObjectURL(new Blob([JSON.stringify(payload,null,2)],{type:'application/json'}));
-     const a=document.createElement('a');a.href=url;a.download=`mva-record-keeper-backup-${today()}.json`;document.body.append(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(url),1000);toast(`Backup downloaded · ${Object.keys(attachments).length} attachment${Object.keys(attachments).length===1?'':'s'}`);
+     const a=document.createElement('a');a.href=url;const stamp=new Date();
+     const timeStamp=[String(stamp.getHours()).padStart(2,'0'),String(stamp.getMinutes()).padStart(2,'0'),String(stamp.getSeconds()).padStart(2,'0')].join('-');
+     a.download=`mva-record-keeper-v${APP_VERSION}-backup-${today()}-${timeStamp}.json`;document.body.append(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(url),1000);toast(`Backup downloaded · ${Object.keys(attachments).length} attachment${Object.keys(attachments).length===1?'':'s'}`);
    }catch(err){console.error(err);alert('The backup could not be created. Please try again.')}
    finally{bb.disabled=false;bb.textContent='Download backup'}
  };
