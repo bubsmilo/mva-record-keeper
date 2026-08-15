@@ -3,7 +3,7 @@
 'use strict';
 
 const KEY='mva-record-keeper-v1';
-const APP_VERSION='2.3.1';
+const APP_VERSION='2.3.3';
 document.title=`MVA Record Keeper v${APP_VERSION}`;
 const today=()=>new Date().toISOString().slice(0,10);
 const uid=()=>Date.now().toString(36)+Math.random().toString(36).slice(2,7);
@@ -512,7 +512,10 @@ function reports(){
 
 function otherProviderEditRow(p={},ix=0){
  return `<div class="otherProviderRow" data-provider-row>
-   <div class="otherProviderRowHead"><strong>Provider ${ix+1}</strong><button type="button" class="iconBtn removeOtherProvider">Remove</button></div>
+   <div class="otherProviderRowHead">
+     <div><span class="providerEditorNumber">${ix+1}</span><strong>${esc(p.name||`Healthcare Professional ${ix+1}`)}</strong>${p.specialty?`<small>${esc(p.specialty)}</small>`:''}</div>
+     <button type="button" class="iconBtn removeOtherProvider">Remove</button>
+   </div>
    <div class="formGrid">
      ${field('Provider / specialist name','providerName',p.name||'')}
      ${field('Specialty','providerSpecialty',p.specialty||'')}
@@ -544,6 +547,13 @@ function quickInfo(){
     ${display('Adjuster',q.adjusterName)}
     ${phone('Adjuster phone',q.adjusterPhone)}
     ${display('Adjuster email',q.adjusterEmail)}
+  </section>
+
+  <section class="card quickInfoSection"><div class="quickInfoSectionHead"><span>👩‍⚕️</span><div><h2>Family Doctor</h2><small>Primary care information</small></div></div>
+    ${display('Doctor',q.familyDoctor)}
+    ${phone('Doctor phone',q.familyDoctorPhone)}
+    ${display('Clinic name',q.clinicName)}
+    ${display('Clinic address',q.clinicAddress)}
   </section>
 
   <section class="card quickInfoSection"><div class="quickInfoSectionHead"><span>🩺</span><div><h2>Physiotherapy</h2><small>Clinic and appointment information</small></div></div>
@@ -583,22 +593,30 @@ function quickInfo(){
     ${display('Contact email',q.benefitsContactEmail)}
   </section>
 
-  <section class="card quickInfoSection"><div class="quickInfoSectionHead"><span>🏥</span><div><h2>Other Healthcare</h2><small>Doctor, clinic, pharmacy and specialists</small></div></div>
-    ${display('Family doctor',q.familyDoctor)}
-    ${phone('Doctor phone',q.familyDoctorPhone)}
-    ${display('Clinic name',q.clinicName)}
-    ${display('Clinic address',q.clinicAddress)}
-    ${display('Pharmacy',q.pharmacy)}
-    ${phone('Pharmacy phone',q.pharmacyPhone)}
-    ${display('Pharmacy address',q.pharmacyAddress)}
-    ${(q.otherHealthcareProviders||[]).map((p,ix)=>`
-      <div class="quickInfoProviderBlock">
-        <div class="quickInfoProviderTitle"><strong>${esc(p.name||`Healthcare provider ${ix+1}`)}</strong>${p.specialty?`<span>${esc(p.specialty)}</span>`:''}</div>
-        ${p.clinic?`<div><span>Clinic</span><strong>${esc(p.clinic)}</strong></div>`:''}
-        ${p.phone?`<div><span>Phone</span><strong>${esc(p.phone)}</strong><button type="button" class="quickCopyBtn" data-copy-value="${esc(p.phone)}">Copy</button></div>`:''}
-        ${p.email?`<div><span>Email</span><strong>${esc(p.email)}</strong><button type="button" class="quickCopyBtn" data-copy-value="${esc(p.email)}">Copy</button></div>`:''}
-        ${p.address?`<div><span>Address</span><strong>${esc(p.address)}</strong></div>`:''}
-      </div>`).join('')}
+  <section class="card quickInfoSection"><div class="quickInfoSectionHead"><span>🏥</span><div><h2>Other Healthcare</h2><small>Healthcare contacts grouped by provider</small></div></div>
+    <div class="healthcareGroup">
+      <div class="healthcareGroupHead"><span>💊</span><div><strong>Pharmacy</strong><small>Pharmacy contact information</small></div></div>
+      ${display('Pharmacy name',q.pharmacy)}
+      ${phone('Pharmacy phone',q.pharmacyPhone)}
+      ${display('Pharmacy address',q.pharmacyAddress)}
+    </div>
+
+    <div class="healthcareGroup additionalProvidersGroup">
+      <div class="healthcareGroupHead"><span>🩻</span><div><strong>Additional Healthcare Professionals</strong><small>Specialists and other treating providers</small></div></div>
+      ${(q.otherHealthcareProviders||[]).length
+        ? (q.otherHealthcareProviders||[]).map((p,ix)=>`
+          <div class="providerMiniCard">
+            <div class="providerMiniCardHead">
+              <div><strong>${esc(p.name||`Provider ${ix+1}`)}</strong>${p.specialty?`<span>${esc(p.specialty)}</span>`:''}</div>
+              <span class="providerNumber">${ix+1}</span>
+            </div>
+            ${p.clinic?`<div class="providerDetail"><span>Clinic / hospital</span><strong>${esc(p.clinic)}</strong></div>`:''}
+            ${p.phone?`<div class="providerDetail"><span>Phone</span><div><strong>${esc(p.phone)}</strong><button type="button" class="quickCopyBtn" data-copy-value="${esc(p.phone)}">Copy</button></div></div>`:''}
+            ${p.email?`<div class="providerDetail"><span>Email</span><div><strong>${esc(p.email)}</strong><button type="button" class="quickCopyBtn" data-copy-value="${esc(p.email)}">Copy</button></div></div>`:''}
+            ${p.address?`<div class="providerDetail"><span>Address</span><strong>${esc(p.address)}</strong></div>`:''}
+          </div>`).join('')
+        : `<div class="empty compactEmpty">No additional healthcare professionals added yet.</div>`}
+    </div>
   </section>
  </div>
 
@@ -615,6 +633,13 @@ function quickInfo(){
       <div class="field linkedField"><label>Claim number <span class="linkedBadge">Linked</span></label><input name="profileClaimNumber" value="${esc(state.profile.claimNumber)}"></div>
       ${field('Adjuster name','adjusterName',q.adjusterName)}${field('Adjuster phone','adjusterPhone',q.adjusterPhone,'tel')}
       ${field('Adjuster email','adjusterEmail',q.adjusterEmail,'email')}
+    </div></div>
+
+    <div class="quickEditGroup"><h3>👩‍⚕️ Family Doctor</h3><div class="formGrid">
+      ${field('Family doctor','familyDoctor',q.familyDoctor)}
+      ${field('Doctor phone','familyDoctorPhone',q.familyDoctorPhone,'tel')}
+      ${field('Clinic name','clinicName',q.clinicName)}
+      ${field('Clinic address','clinicAddress',q.clinicAddress)}
     </div></div>
 
     <div class="quickEditGroup"><h3>🩺 Physiotherapy</h3><div class="formGrid">
@@ -647,19 +672,28 @@ function quickInfo(){
       ${field('Contact email','benefitsContactEmail',q.benefitsContactEmail,'email')}
     </div></div>
 
-    <div class="quickEditGroup"><h3>🏥 Other Healthcare</h3><div class="formGrid">
-      ${field('Family doctor','familyDoctor',q.familyDoctor)}${field('Doctor phone','familyDoctorPhone',q.familyDoctorPhone,'tel')}
-      ${field('Clinic name','clinicName',q.clinicName)}${field('Clinic address','clinicAddress',q.clinicAddress)}
-      ${field('Pharmacy','pharmacy',q.pharmacy)}${field('Pharmacy phone','pharmacyPhone',q.pharmacyPhone,'tel')}
-      ${field('Pharmacy address','pharmacyAddress',q.pharmacyAddress)}
-    </div>
-    <div class="otherProviderEditor">
-      <div class="toolbar" style="margin-top:16px"><div><h4 style="margin:0">Other healthcare providers / specialists</h4><p class="muted small">Add as many specialists or other providers as you need.</p></div><button class="btn secondary" type="button" id="addOtherProvider">+ Add Provider</button></div>
-      <div id="otherProviderRows">
-        ${(q.otherHealthcareProviders||[]).map((p,ix)=>otherProviderEditRow(p,ix)).join('')}
+    <div class="quickEditGroup"><h3>🏥 Other Healthcare</h3>
+
+      <div class="healthcareEditGroup">
+        <div class="healthcareEditGroupHead"><span>💊</span><div><strong>Pharmacy</strong><small>Keep all pharmacy information together.</small></div></div>
+        <div class="formGrid">
+          ${field('Pharmacy name','pharmacy',q.pharmacy)}
+          ${field('Pharmacy phone','pharmacyPhone',q.pharmacyPhone,'tel')}
+          ${field('Pharmacy address','pharmacyAddress',q.pharmacyAddress)}
+        </div>
       </div>
-    </div>
-    ${area('Important notes','importantNotes',q.importantNotes)}
+
+      <div class="healthcareEditGroup additionalProvidersEditor">
+        <div class="toolbar providerEditorToolbar">
+          <div class="healthcareEditGroupHead"><span>🩻</span><div><strong>Additional Healthcare Professionals</strong><small>Add specialists and other providers as separate cards.</small></div></div>
+          <button class="btn secondary" type="button" id="addOtherProvider">+ Add Provider</button>
+        </div>
+        <div id="otherProviderRows">
+          ${(q.otherHealthcareProviders||[]).map((p,ix)=>otherProviderEditRow(p,ix)).join('')}
+        </div>
+      </div>
+
+      ${area('Important notes','importantNotes',q.importantNotes)}
     </div>
 
     <button class="btn primary wide quickInfoSaveBtn">Save Quick Reference</button>
@@ -680,11 +714,12 @@ function printQuickInfoSheet(){
  </style></head><body><header><h1>MVA Quick Reference</h1><p>${esc(state.profile.name||'Claimant')} · Generated ${new Date().toLocaleDateString('en-CA')} · App v${APP_VERSION}</p></header>
  <div class="qiGrid">
  ${section('Accident & Claim',row('Accident date',fmt(state.profile.accidentDate))+row('Insurance company',q.insurer)+row('Policy number',q.policyNumber)+row('Claim number',state.profile.claimNumber)+row('Adjuster',q.adjusterName)+row('Adjuster phone',q.adjusterPhone)+row('Adjuster email',q.adjusterEmail))}
+ ${section('Family Doctor',row('Doctor',q.familyDoctor)+row('Doctor phone',q.familyDoctorPhone)+row('Clinic name',q.clinicName)+row('Clinic address',q.clinicAddress))}
  ${section('Physiotherapy',row('Clinic',q.physioClinic)+row('Physiotherapist',q.physiotherapist)+row('Phone',q.physioPhone)+row('Email',q.physioEmail)+row('Address',q.physioAddress)+row('Usual schedule',q.physioSchedule))}
  ${section('Lawyer',row('Lawyer',state.profile.lawyer)+row('Firm',q.lawyerFirm)+row('Assistant / contact',q.lawyerAssistant)+row('Phone',q.lawyerPhone)+row('Email',q.lawyerEmail)+row('File number',q.lawyerFileNumber)+row('Address',q.lawyerAddress))}
  ${section('Green Shield',row('Primary plan name',q.greenShieldPlanName)+row('Primary plan number',q.greenShieldPlanNumber)+row('Secondary plan name',q.greenShieldSecondaryPlanName)+row('Secondary plan number',q.greenShieldSecondaryPlanNumber))}
  ${section('Work & Benefits',row('Employer',q.employer)+row('Benefits provider',q.benefitsProvider)+row('Group plan number',q.benefitsGroupPlanNumber)+row('Employee ID number',q.employeeIdNumber)+row('Portfolio ID',q.portfolioId)+row('Contact person',q.benefitsContactName)+row('Contact phone',q.benefitsContactPhone)+row('Contact email',q.benefitsContactEmail))}
- ${section('Other Healthcare',row('Family doctor',q.familyDoctor)+row('Doctor phone',q.familyDoctorPhone)+row('Clinic name',q.clinicName)+row('Clinic address',q.clinicAddress)+row('Pharmacy',q.pharmacy)+row('Pharmacy phone',q.pharmacyPhone)+row('Pharmacy address',q.pharmacyAddress)+(q.otherHealthcareProviders||[]).map((p,ix)=>row(`Provider ${ix+1}`, [p.name,p.specialty,p.clinic,p.phone,p.email,p.address].filter(Boolean).join(' · '))).join(''))}
+ ${section('Other Healthcare',row('Pharmacy',q.pharmacy)+row('Pharmacy phone',q.pharmacyPhone)+row('Pharmacy address',q.pharmacyAddress)+(q.otherHealthcareProviders||[]).map((p,ix)=>row(`Provider ${ix+1}`, [p.name,p.specialty,p.clinic,p.phone,p.email,p.address].filter(Boolean).join(' · '))).join(''))}
  </div>
  ${q.importantNotes?`<section><h2>Important Notes</h2><div class="notes">${esc(q.importantNotes)}</div></section>`:''}
  <footer>Private recovery information · MVA Record Keeper</footer><script>window.onload=()=>setTimeout(()=>window.print(),250)<\/script></body></html>`;
@@ -961,7 +996,8 @@ function bind(){
    document.querySelectorAll('.removeOtherProvider').forEach(btn=>btn.onclick=()=>{
      btn.closest('[data-provider-row]')?.remove();
      [...document.querySelectorAll('[data-provider-row]')].forEach((row,ix)=>{
-       const label=row.querySelector('.otherProviderRowHead strong');if(label)label.textContent=`Provider ${ix+1}`;
+       const number=row.querySelector('.providerEditorNumber');if(number)number.textContent=String(ix+1);
+       const label=row.querySelector('.otherProviderRowHead strong');if(label&&!row.querySelector('[name="providerName"]')?.value.trim())label.textContent=`Healthcare Professional ${ix+1}`;
      });
    });
  };

@@ -274,3 +274,43 @@ input,textarea,select{width:100%;border:1px solid #cfd9e5;border-radius:8px;padd
 .quickInfoProviderBlock>div>span{font-size:11px;color:#6c7c91;font-weight:750}.quickInfoProviderBlock>div>strong{overflow-wrap:anywhere}
 .otherProviderEditor{margin-top:8px}.otherProviderRow{border:1px solid #d9e4f0;border-radius:12px;padding:13px;margin-top:10px;background:#fbfdff}.otherProviderRowHead{display:flex;justify-content:space-between;align-items:center;margin-bottom:12px}
 @media(max-width:520px){.quickInfoProviderBlock>div:not(.quickInfoProviderTitle){grid-template-columns:1fr}.quickInfoProviderTitle{flex-direction:column}}
+
+
+/* v2.3.2 grouped healthcare providers */
+.healthcareGroup{border-top:1px solid #e5edf5;background:#fff}
+.healthcareGroup:first-of-type{border-top:0}
+.healthcareGroupHead{display:flex;align-items:center;gap:10px;padding:13px 17px;background:#f8fbff;border-bottom:1px solid #edf2f7}
+.healthcareGroupHead>span{font-size:20px}
+.healthcareGroupHead>div{display:grid;gap:1px}
+.healthcareGroupHead strong{font-size:14px;color:#183653}
+.healthcareGroupHead small{font-size:11px;color:#728298}
+.additionalProvidersGroup{padding-bottom:10px}
+.providerMiniCard{margin:10px 14px 0;border:1px solid #dce6f0;border-radius:11px;overflow:hidden;background:#fff}
+.providerMiniCardHead{display:flex;justify-content:space-between;align-items:flex-start;gap:10px;padding:11px 12px;background:#f4f8fd;border-bottom:1px solid #e3ebf3}
+.providerMiniCardHead>div{display:grid;gap:2px}
+.providerMiniCardHead>div>span{font-size:11px;color:#687a90;font-weight:700}
+.providerNumber{display:grid;place-items:center;width:25px;height:25px;border-radius:50%;background:#dcecff;color:#0759bc;font-size:11px;font-weight:900}
+.providerDetail{display:grid;grid-template-columns:125px 1fr;gap:10px;padding:8px 12px;border-bottom:1px solid #eef2f6}
+.providerDetail:last-child{border-bottom:0}
+.providerDetail>span{font-size:11px;color:#6d7e92;font-weight:750}
+.providerDetail>div{display:flex;justify-content:space-between;gap:8px;align-items:center;min-width:0}
+.providerDetail strong{overflow-wrap:anywhere}
+
+.healthcareEditGroup{border:1px solid #dce6f0;border-radius:12px;padding:14px;margin:12px 0;background:#fbfdff}
+.healthcareEditGroupHead{display:flex;align-items:center;gap:10px;margin-bottom:12px}
+.healthcareEditGroupHead>span{font-size:21px}
+.healthcareEditGroupHead>div{display:grid;gap:2px}
+.healthcareEditGroupHead strong{color:#173854}
+.healthcareEditGroupHead small{color:#718196;font-size:11px}
+.providerEditorToolbar{margin-bottom:10px;align-items:flex-start}
+.providerEditorToolbar .healthcareEditGroupHead{margin-bottom:0}
+.otherProviderRow{background:#fff;border:1px solid #cfdeed;box-shadow:0 3px 10px rgba(30,64,105,.05)}
+.otherProviderRowHead>div{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.otherProviderRowHead small{color:#6e7f92}
+.providerEditorNumber{display:grid;place-items:center;width:26px;height:26px;border-radius:50%;background:#e3efff;color:#0759bc;font-size:11px;font-weight:900}
+
+@media(max-width:520px){
+ .providerDetail{grid-template-columns:1fr;gap:3px}
+ .providerEditorToolbar{align-items:stretch}
+ .providerEditorToolbar .btn{width:100%}
+}
