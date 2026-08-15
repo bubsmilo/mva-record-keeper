@@ -3,8 +3,129 @@
 'use strict';
 
 const KEY='mva-record-keeper-v1';
-const APP_VERSION='2.5.4';
+const APP_VERSION='2.6.0';
 document.title=`MVA Record Keeper v${APP_VERSION}`;
+
+const ATTACHMENT_DB='mva-record-keeper-attachments';
+const ATTACHMENT_STORE='files';
+const ATTACHMENT_PREFIX='idb:';
+let attachmentCache={};
+
+function openAttachmentDB(){
+ return new Promise((resolve,reject)=>{
+   if(!('indexedDB' in window)){reject(new Error('This browser does not support IndexedDB.'));return}
+   const req=indexedDB.open(ATTACHMENT_DB,1);
+   req.onupgradeneeded=()=>{
+     const db=req.result;
+     if(!db.objectStoreNames.contains(ATTACHMENT_STORE))db.createObjectStore(ATTACHMENT_STORE,{keyPath:'id'});
+   };
+   req.onsuccess=()=>resolve(req.result);
+   req.onerror=()=>reject(req.error||new Error('Could not open attachment storage.'));
+ });
+}
+async function putAttachmentData(data,id=''){
+ const cleanId=id||uid();
+ const ref=cleanId.startsWith(ATTACHMENT_PREFIX)?cleanId:ATTACHMENT_PREFIX+cleanId;
+ const db=await openAttachmentDB();
+ await new Promise((resolve,reject)=>{
+   const tx=db.transaction(ATTACHMENT_STORE,'readwrite');
+   tx.objectStore(ATTACHMENT_STORE).put({id:ref,data,updatedAt:new Date().toISOString()});
+   tx.oncomplete=resolve;tx.onerror=()=>reject(tx.error);tx.onabort=()=>reject(tx.error);
+ });
+ db.close();
+ attachmentCache[ref]=data;
+ return ref;
+}
+async function deleteAttachmentRef(ref){
+ if(!String(ref||'').startsWith(ATTACHMENT_PREFIX))return;
+ const db=await openAttachmentDB();
+ await new Promise((resolve,reject)=>{
+   const tx=db.transaction(ATTACHMENT_STORE,'readwrite');
+   tx.objectStore(ATTACHMENT_STORE).delete(ref);
+   tx.oncomplete=resolve;tx.onerror=()=>reject(tx.error);tx.onabort=()=>reject(tx.error);
+ });
+ db.close();delete attachmentCache[ref];
+}
+async function clearAttachmentDB(){
+ const db=await openAttachmentDB();
+ await new Promise((resolve,reject)=>{
+   const tx=db.transaction(ATTACHMENT_STORE,'readwrite');
+   tx.objectStore(ATTACHMENT_STORE).clear();
+   tx.oncomplete=resolve;tx.onerror=()=>reject(tx.error);tx.onabort=()=>reject(tx.error);
+ });
+ db.close();attachmentCache={};
+}
+async function loadAttachmentCache(){
+ const db=await openAttachmentDB();
+ const rows=await new Promise((resolve,reject)=>{
+   const tx=db.transaction(ATTACHMENT_STORE,'readonly');
+   const req=tx.objectStore(ATTACHMENT_STORE).getAll();
+   req.onsuccess=()=>resolve(req.result||[]);
+   req.onerror=()=>reject(req.error);
+ });
+ db.close();
+ attachmentCache={};
+ rows.forEach(r=>{if(r?.id&&r?.data)attachmentCache[r.id]=r.data});
+ return rows.length;
+}
+function attachmentSrc(value=''){
+ const text=String(value||'');
+ return text.startsWith(ATTACHMENT_PREFIX)?(attachmentCache[text]||''):text;
+}
+function isStoredAttachment(value=''){return String(value||'').startsWith(ATTACHMENT_PREFIX)}
+function isEmbeddedAttachment(value=''){return String(value||'').startsWith('data:image/')||String(value||'').startsWith('data:application/pdf')}
+function allAttachmentRefsFromState(){
+ const refs=new Set(),add=v=>{if(isStoredAttachment(v))refs.add(v)};
+ (state.journal||[]).forEach(x=>(x.photos||[]).forEach(add));
+ (state.injuryLogs||[]).forEach(x=>(x.photos||[]).forEach(add));
+ (state.receipts||[]).forEach(x=>add(x.photo));
+ (state.physioPrescriptions||[]).forEach(x=>(x.photos||[]).forEach(add));
+ (state.physioVisits||[]).forEach(x=>(x.photos||[]).forEach(add));
+ (state.physioExercises||[]).forEach(x=>{add(x.thumbnail);(x.photos||[]).forEach(add)});
+ (state.physioDocuments||[]).forEach(x=>(x.photos||[]).forEach(add));
+ return refs;
+}
+async function migrateOneAttachment(value){
+ if(!value||isStoredAttachment(value)||!isEmbeddedAttachment(value))return value;
+ return await putAttachmentData(value);
+}
+async function migrateAttachmentArray(arr=[]){
+ const out=[];
+ for(const value of arr||[])out.push(await migrateOneAttachment(value));
+ return out;
+}
+async function migrateLegacyAttachments(){
+ let migrated=0;
+ const beforeCount=allAttachmentRefsFromState().size;
+ for(const x of state.journal||[]){const old=(x.photos||[]);x.photos=await migrateAttachmentArray(old);migrated+=x.photos.filter((v,i)=>v!==old[i]).length}
+ for(const x of state.injuryLogs||[]){const old=(x.photos||[]);x.photos=await migrateAttachmentArray(old);migrated+=x.photos.filter((v,i)=>v!==old[i]).length}
+ for(const x of state.receipts||[]){const old=x.photo||'';x.photo=await migrateOneAttachment(old);if(x.photo!==old)migrated++}
+ for(const x of state.physioPrescriptions||[]){const old=(x.photos||[]);x.photos=await migrateAttachmentArray(old);migrated+=x.photos.filter((v,i)=>v!==old[i]).length}
+ for(const x of state.physioVisits||[]){const old=(x.photos||[]);x.photos=await migrateAttachmentArray(old);migrated+=x.photos.filter((v,i)=>v!==old[i]).length}
+ for(const x of state.physioExercises||[]){
+   const oldThumb=x.thumbnail||'';x.thumbnail=await migrateOneAttachment(oldThumb);if(x.thumbnail!==oldThumb)migrated++;
+   const old=(x.photos||[]);x.photos=await migrateAttachmentArray(old);migrated+=x.photos.filter((v,i)=>v!==old[i]).length;
+ }
+ for(const x of state.physioDocuments||[]){const old=(x.photos||[]);x.photos=await migrateAttachmentArray(old);migrated+=x.photos.filter((v,i)=>v!==old[i]).length}
+ if(migrated){
+   state.attachmentStorageVersion=1;
+   state.dataVersion=Math.max(Number(state.dataVersion||0),4);
+   if(!save())throw new Error('The migrated attachment references could not be saved to local storage.');
+ }
+ return {migrated,totalRefs:allAttachmentRefsFromState().size,beforeCount};
+}
+async function garbageCollectAttachments(){
+ const used=allAttachmentRefsFromState();
+ const db=await openAttachmentDB();
+ const rows=await new Promise((resolve,reject)=>{
+   const tx=db.transaction(ATTACHMENT_STORE,'readonly');
+   const req=tx.objectStore(ATTACHMENT_STORE).getAllKeys();
+   req.onsuccess=()=>resolve(req.result||[]);req.onerror=()=>reject(req.error);
+ });
+ db.close();
+ for(const ref of rows)if(!used.has(ref))await deleteAttachmentRef(ref);
+}
+
 const today=()=>new Date().toISOString().slice(0,10);
 const uid=()=>Date.now().toString(36)+Math.random().toString(36).slice(2,7);
 const esc=(v='')=>String(v).replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#039;'}[m]));
@@ -376,7 +497,7 @@ async function saveDailyLog(form){
    let photos=[];
    try{photos=JSON.parse(card?.dataset.photos||'[]')}catch{}
    const input=form.elements[`injury_${i.id}_photos`];
-   if(input?.files?.length) photos.push(...await filesToData(input));
+   if(input?.files?.length) photos.push(...await filesToAttachmentRefs(input));
    const hasData=pain!==''||!!change||!!injuryNotes||!!swelling||!!stiffness||!!rangeOfMotion||photos.length>0;
    if(!hasData){ if(existing) state.injuryLogs=state.injuryLogs.filter(x=>x.id!==existing.id); continue; }
    const log={id:existing?.id||uid(),injuryId:i.id,date,pain:pain===''?'':Math.max(0,Math.min(10,Number(pain))),change,swelling,stiffness,rangeOfMotion,notes:injuryNotes,photos};
@@ -397,7 +518,7 @@ function bindDailyPhotoRemoval(){
  });
  document.querySelectorAll('[data-remove-saved-photo]').forEach(b=>b.onclick=()=>{
    const [logId,indexText]=b.dataset.removeSavedPhoto.split(':'); const log=state.injuryLogs.find(x=>x.id===logId); if(!log)return;
-   log.photos=(log.photos||[]).filter((_,ix)=>ix!==Number(indexText)); save();render();toast('Photo removed');
+   const removed=(log.photos||[])[Number(indexText)];log.photos=(log.photos||[]).filter((_,ix)=>ix!==Number(indexText));save();if(isStoredAttachment(removed))deleteAttachmentRef(removed).catch(()=>{});render();toast('Attachment removed');
  });
 }
 
@@ -494,8 +615,8 @@ function physioProviderSelect(selected=''){
 }
 function physioPhotoGallery(photos=[]){
  return photos?.length?`<div class="physioPhotoGrid">${photos.map((p,ix)=>isPdfAttachment(p)
-   ? `<a class="physioPdfButton" href="${p}" target="_blank" rel="noopener" aria-label="Open attached PDF ${ix+1}"><span>PDF</span><small>Open document</small></a>`
-   : `<button type="button" class="physioPhotoButton" data-view-photo="${esc(p)}" aria-label="View attached photo ${ix+1}"><img src="${p}" alt="Attached document or photo"></button>`
+   ? `<a class="physioPdfButton" href="${attachmentSrc(p)}" target="_blank" rel="noopener" aria-label="Open attached PDF ${ix+1}"><span>PDF</span><small>Open document</small></a>`
+   : `<button type="button" class="physioPhotoButton" data-view-photo="${esc(p)}" aria-label="View attached photo ${ix+1}"><img src="${attachmentSrc(p)}" alt="Attached document or photo"></button>`
  ).join('')}</div>`:'';
 }
 
@@ -553,7 +674,7 @@ function physio(){
     const lastDone=logs.find(l=>l.status==='Done');
     return `<article class="card physioExerciseCard ${ex.active===false?'physioInactive':''}" data-physio-exercise="${ex.id}">
       <div class="physioExerciseHeader">
-       <div class="physioExerciseIcon">${ex.thumbnail?`<img src="${ex.thumbnail}" alt="${esc(ex.name||'Exercise')} thumbnail">`:'🏃'}</div>
+       <div class="physioExerciseIcon">${ex.thumbnail?`<img src="${attachmentSrc(ex.thumbnail)}" alt="${esc(ex.name||'Exercise')} thumbnail">`:'🏃'}</div>
        <div class="physioExerciseTitle"><h3>${esc(ex.name)}</h3><p>${[ex.sets&&`${ex.sets} sets`,ex.reps&&`${ex.reps} reps`,ex.holdTime&&`${ex.holdTime} hold`,exerciseTimesPerDay(ex)&&`${exerciseTimesPerDay(ex)}× daily`].filter(Boolean).map(esc).join(' · ')||'Exercise details not entered'}</p></div>
        <button type="button" class="physioExpandBtn" data-toggle-physio-exercise aria-expanded="false">+</button>
       </div>
@@ -653,7 +774,7 @@ function receipts(){
  const sorted=[...state.receipts].sort((a,b)=>b.date.localeCompare(a.date));
  return appShell(`<div class="grid grid2"><section class="card"><div class="muted small">Total expenses</div><div class="metric">${money(total)}</div></section><section class="card"><div class="muted small">Number of receipts</div><div class="metric">${state.receipts.length}</div></section></div>
  <div class="toolbar" style="margin-top:16px"><div></div><button class="btn primary" data-add="receipt">+ Add receipt</button></div>
- <div class="list">${sorted.length?sorted.map(r=>`<div class="row"><div class="rowMain" style="display:flex;gap:12px">${reportSettings.includePhotos&&r.photo?`<img class="photo" src="${r.photo}">`:''}<div><div class="rowTitle">${esc(r.description)}</div><div class="rowMeta">${fmt(r.date)} · ${esc(r.category||'Other')}</div>${r.notes?`<div class="small">${esc(r.notes)}</div>`:''}</div></div><div><strong>${money(r.amount)}</strong><div class="actions" style="margin-top:8px"><button class="iconBtn" data-edit="receipt" data-id="${r.id}">Edit</button><button class="iconBtn" data-delete="receipt" data-id="${r.id}">Delete</button></div></div></div>`).join(''):`<div class="empty">No receipts recorded.</div>`}</div>`,'Receipts','Keep expense details and receipt photos together.');
+ <div class="list">${sorted.length?sorted.map(r=>`<div class="row"><div class="rowMain" style="display:flex;gap:12px">${reportSettings.includePhotos&&r.photo?attachmentPreview(r.photo,{label:'Receipt'}):''}<div><div class="rowTitle">${esc(r.description)}</div><div class="rowMeta">${fmt(r.date)} · ${esc(r.category||'Other')}</div>${r.notes?`<div class="small">${esc(r.notes)}</div>`:''}</div></div><div><strong>${money(r.amount)}</strong><div class="actions" style="margin-top:8px"><button class="iconBtn" data-edit="receipt" data-id="${r.id}">Edit</button><button class="iconBtn" data-delete="receipt" data-id="${r.id}">Delete</button></div></div></div>`).join(''):`<div class="empty">No receipts recorded.</div>`}</div>`,'Receipts','Keep expense details and receipt photos together.');
 }
 
 function appointments(){
@@ -1002,7 +1123,7 @@ function settings(){
  ${field('Name','name',state.profile.name)}${field('Accident date','accidentDate',state.profile.accidentDate,'date')}
  ${field('Lawyer','lawyer',state.profile.lawyer)}${field('Claim number','claimNumber',state.profile.claimNumber)}
  <button class="btn primary span2">Save information</button></form></section>
- <section class="card"><div class="settingsIcon">💾</div><h2>Data</h2><p>Download a backup regularly. It contains all records and attached images/PDFs.</p><div class="grid"><button class="btn secondary" id="backupBtn">Download backup</button><label class="btn secondary" style="text-align:center">Restore backup<input id="restoreInput" type="file" accept="application/json" hidden></label></div><p class="small muted">Use Restore Backup to move your records to another device after opening the shared app link.</p></section>
+ <section class="card"><div class="settingsIcon">💾</div><h2>Data</h2><p>Records are stored on this device. Images and PDFs use expanded attachment storage (IndexedDB). Download a backup regularly; it includes both your records and attachments.</p><div class="grid"><button class="btn secondary" id="backupBtn">Download backup</button><label class="btn secondary" style="text-align:center">Restore backup<input id="restoreInput" type="file" accept="application/json" hidden></label></div><p class="small muted">Use Restore Backup to move your records to another device after opening the shared app link.</p></section>
  <section class="card"><div class="settingsIcon">📄</div><h2>Report options</h2><p>Choose what is included when you generate the lawyer report.</p><div class="settingsOptions">
  <label class="settingCheck"><input type="checkbox" id="reportIncludePhotos" ${rs.includePhotos?'checked':''}><span><strong>Include photos</strong><small>Journal and receipt photos will appear in the report.</small></span></label>
  <label class="settingCheck"><input type="checkbox" id="reportIncludeMedicationHistory" ${rs.includeMedicationHistory?'checked':''}><span><strong>Include detailed medication history</strong><small>Includes individual taken and missed dose records.</small></span></label>
@@ -1062,7 +1183,7 @@ function openForm(type,id){
  }
  if(type==='physioPrescription') body=`${field('Date prescribed','date',item.date||today(),'date')}${field('Title','title',item.title||'Physiotherapy prescription')}${physioProviderSelect(item.prescribedBy||'')}${area('Injury / condition being treated','treatmentFor',item.treatmentFor||'')}${field('Frequency ordered','frequency',item.frequency||'','text','placeholder="Example: 2 times per week"')}${field('Duration ordered','duration',item.duration||'','text','placeholder="Example: 6 weeks"')}${selectField('Status','status',['Active','Completed'],item.status||'Active')}${area('Special instructions','instructions',item.instructions||'')}${photoField('Prescription / referral image or PDF','photos',item.photos||[],true)}`;
  if(type==='physioVisit') body=`${field('Date','date',item.date||today(),'date')}${field('Time','time',item.time||'','time')}${selectField('Status','status',['Scheduled','Completed','Cancelled'],item.status||'Completed')}${field('Physiotherapist','therapist',item.therapist||state.quickInfo.physiotherapist||'')}${field('Clinic','clinic',item.clinic||state.quickInfo.physioClinic||'')}${field('What was the visit focused on?','focus',item.focus||'')}${area('Treatment / what was done','treatments',item.treatments||'')}${area('Exercises or suggestions from physio','exercisesSuggested',item.exercisesSuggested||'')}${area('Restrictions / precautions','restrictions',item.restrictions||'')}${area('Visit notes','notes',item.notes||'')}${photoField('Handouts, photos or PDFs from this visit','photos',item.photos||[],true)}`;
- if(type==='physioExercise') body=`${field('Exercise name','name',item.name||'')}${field('Prescribed by','prescribedBy',item.prescribedBy||state.quickInfo.physiotherapist||'')}${field('Start date','startDate',item.startDate||today(),'date')}${field('Sets','sets',item.sets||'')}${field('Reps','reps',item.reps||'')}${field('Hold time','holdTime',item.holdTime||'','text','placeholder="Example: 10 seconds"')}${field('Times per day','timesPerDay',item.timesPerDay||exerciseTimesPerDay(item)||'','number','min="1" max="24" step="1" placeholder="Example: 3"')}${selectField('Status','status',['Active','Completed'],item.active===false?'Completed':'Active')}<div class="field span2"><label>Exercise thumbnail image</label><input type="file" name="thumbnail" accept="image/*"><div class="attachmentHint">Choose an image from your gallery. The app will automatically make a small copy for the exercise card.</div><div class="thumbnailSaveStatus" data-thumbnail-status></div>${item.thumbnail?`<div class="exerciseThumbnailPreview"><img src="${item.thumbnail}" alt="Current exercise thumbnail"><span>Current thumbnail</span></div>`:''}</div>${area('Instructions / technique','instructions',item.instructions||'')}${photoField('Exercise sheet, photo or PDF','photos',item.photos||[],true)}`;
+ if(type==='physioExercise') body=`${field('Exercise name','name',item.name||'')}${field('Prescribed by','prescribedBy',item.prescribedBy||state.quickInfo.physiotherapist||'')}${field('Start date','startDate',item.startDate||today(),'date')}${field('Sets','sets',item.sets||'')}${field('Reps','reps',item.reps||'')}${field('Hold time','holdTime',item.holdTime||'','text','placeholder="Example: 10 seconds"')}${field('Times per day','timesPerDay',item.timesPerDay||exerciseTimesPerDay(item)||'','number','min="1" max="24" step="1" placeholder="Example: 3"')}${selectField('Status','status',['Active','Completed'],item.active===false?'Completed':'Active')}<div class="field span2"><label>Exercise thumbnail image</label><input type="file" name="thumbnail" accept="image/*"><div class="attachmentHint">Choose an image from your gallery. The app will automatically make a small copy for the exercise card.</div><div class="thumbnailSaveStatus" data-thumbnail-status></div>${item.thumbnail?`<div class="exerciseThumbnailPreview"><img src="${attachmentSrc(item.thumbnail)}" alt="Current exercise thumbnail"><span>Current thumbnail</span></div>`:''}</div>${area('Instructions / technique','instructions',item.instructions||'')}${photoField('Exercise sheet, photo or PDF','photos',item.photos||[],true)}`;
  if(type==='physioExerciseLog'){const exerciseId=item.exerciseId||newExerciseId;const exercise=state.physioExercises.find(e=>e.id===exerciseId);body=`<div class="field span2 summaryBox"><strong>${esc(exercise?.name||'Home exercise')}</strong><div class="small muted">Add or correct a completion record.</div></div>${field('Date','exerciseDate',item.dateTime?localDateKey(item.dateTime):today(),'date')}${field('Time','exerciseTime',item.dateTime?localDateTimeValue(new Date(item.dateTime)).slice(11,16):localDateTimeValue().slice(11,16),'time')}${selectField('Status','status',['Done','Unable'],item.status||'Done')}${area('Note (optional)','note',item.note||'')}<input type="hidden" name="exerciseId" value="${esc(exerciseId||'')}">`; }
  if(type==='physioDocument') body=`${field('Date','date',item.date||today(),'date')}${field('Document title','title',item.title||'')}${selectField('Type','category',['Exercise sheet','Prescription / Script','Referral','Specialist instructions','Physio handout','Other'],item.category||'Other')}${field('Given by / source','source',item.source||'')}${area('Notes','notes',item.notes||'')}${photoField('Document images or PDFs','photos',item.photos||[],true)}`;
 
@@ -1075,15 +1196,30 @@ function openForm(type,id){
 }
 function photoField(label,name,photos,multiple){return `<div class="field span2"><label>${label}</label><input type="file" name="${name}" accept="image/*,application/pdf" ${multiple?'multiple':''}><div class="attachmentHint">Choose a photo from your gallery, take a new photo, or select a PDF.</div><div class="photoGrid" style="margin-top:8px">${photos.map((p,ix)=>attachmentPreview(p,{label:`${label} ${ix+1}`})).join('')}</div></div>`}
 
-function isPdfAttachment(value=''){return String(value).startsWith('data:application/pdf')}
+function isPdfAttachment(value=''){return String(attachmentSrc(value)||'').startsWith('data:application/pdf')}
 function attachmentPreview(value,opts={}){
- const remove=opts.remove||'', label=opts.label||'Attachment';
+ const remove=opts.remove||'', label=opts.label||'Attachment',src=attachmentSrc(value);
+ if(!src)return `<div class="attachmentWrap missingAttachment"><span>Attachment unavailable</span>${remove}</div>`;
  if(isPdfAttachment(value)){
-   return `<div class="attachmentWrap pdfAttachment"><a class="pdfAttachmentLink" href="${value}" target="_blank" rel="noopener"><span class="pdfAttachmentIcon">PDF</span><span>${esc(label)}</span><small>Tap to open</small></a>${remove}</div>`;
+   return `<div class="attachmentWrap pdfAttachment"><a class="pdfAttachmentLink" href="${src}" target="_blank" rel="noopener"><span class="pdfAttachmentIcon">PDF</span><span>${esc(label)}</span><small>Tap to open</small></a>${remove}</div>`;
  }
- return `<div class="attachmentWrap imageAttachment"><img class="photo" src="${value}" alt="${esc(label)}">${remove}</div>`;
+ return `<div class="attachmentWrap imageAttachment"><img class="photo" src="${src}" alt="${esc(label)}">${remove}</div>`;
 }
 async function filesToData(input){return Promise.all([...input.files].map(f=>new Promise((res,rej)=>{const r=new FileReader();r.onload=()=>res(r.result);r.onerror=rej;r.readAsDataURL(f)})))}
+async function fileToData(file){
+ return new Promise((resolve,reject)=>{
+   const r=new FileReader();r.onload=()=>resolve(r.result);r.onerror=()=>reject(r.error||new Error('Could not read file.'));r.readAsDataURL(file);
+ });
+}
+async function filesToAttachmentRefs(input){
+ const refs=[];
+ for(const file of [...(input?.files||[])]){
+   const data=await fileToData(file);
+   refs.push(await putAttachmentData(data));
+ }
+ return refs;
+}
+
 async function imageFileToThumbnail(file,maxSize=240){
  return new Promise((resolve,reject)=>{
    if(!file||!String(file.type||'').startsWith('image/')){reject(new Error('Choose an image file for the thumbnail.'));return}
@@ -1137,15 +1273,15 @@ async function saveForm(form){
      }
    }
  }
- if(type==='journal'){const existing=state.journal.find(x=>x.id===id);obj.photos=existing?.photos||[];const inp=form.elements.photos;if(inp.files.length)obj.photos=await filesToData(inp)}
+ if(type==='journal'){const existing=state.journal.find(x=>x.id===id);obj.photos=existing?.photos||[];const inp=form.elements.photos;if(inp.files.length)obj.photos=await filesToAttachmentRefs(inp)}
  if(type==='injury'){
    obj.active=obj.active==='Active';
    obj.trackSwelling=fd.has('trackSwelling');
    obj.trackStiffness=fd.has('trackStiffness');
    obj.trackRangeOfMotion=fd.has('trackRangeOfMotion');
  }
- if(type==='injuryLog'){obj.pain=Math.max(0,Math.min(10,Number(obj.pain||0)));const existing=state.injuryLogs.find(x=>x.id===id);obj.photos=existing?.photos||[];const inp=form.elements.photos;if(inp.files.length)obj.photos=await filesToData(inp)}
- if(type==='receipt'){obj.amount=Number(obj.amount);const existing=state.receipts.find(x=>x.id===id);obj.photo=existing?.photo||'';const inp=form.elements.photo;if(inp.files.length)obj.photo=(await filesToData(inp))[0]}
+ if(type==='injuryLog'){obj.pain=Math.max(0,Math.min(10,Number(obj.pain||0)));const existing=state.injuryLogs.find(x=>x.id===id);obj.photos=existing?.photos||[];const inp=form.elements.photos;if(inp.files.length)obj.photos=await filesToAttachmentRefs(inp)}
+ if(type==='receipt'){obj.amount=Number(obj.amount);const existing=state.receipts.find(x=>x.id===id);obj.photo=existing?.photo||'';const inp=form.elements.photo;if(inp.files.length)obj.photo=(await filesToAttachmentRefs(inp))[0]}
  if(type==='medication'){
    const existing=state.medications.find(x=>x.id===id);
    obj.active=obj.status==='Active';obj.schedule=obj.frequency||'';
@@ -1166,13 +1302,13 @@ async function saveForm(form){
  if(type==='physioPrescription'){
    const existing=state.physioPrescriptions.find(x=>x.id===id);
    obj.photos=existing?.photos||[];
-   const inp=form.elements.photos;if(inp?.files?.length)obj.photos.push(...await filesToData(inp));
+   const inp=form.elements.photos;if(inp?.files?.length)obj.photos.push(...await filesToAttachmentRefs(inp));
    obj.active=obj.status==='Active';
  }
  if(type==='physioVisit'){
    const existing=state.physioVisits.find(x=>x.id===id);
    obj.photos=existing?.photos||[];
-   const inp=form.elements.photos;if(inp?.files?.length)obj.photos.push(...await filesToData(inp));
+   const inp=form.elements.photos;if(inp?.files?.length)obj.photos.push(...await filesToAttachmentRefs(inp));
    obj.appointmentId=existing?.appointmentId||uid();
    const appt={
      id:obj.appointmentId,
@@ -1193,12 +1329,12 @@ async function saveForm(form){
  if(type==='physioExercise'){
    const existing=state.physioExercises.find(x=>x.id===id);
    obj.photos=existing?.photos||[];
-   const inp=form.elements.photos;if(inp?.files?.length)obj.photos.push(...await filesToData(inp));
+   const inp=form.elements.photos;if(inp?.files?.length)obj.photos.push(...await filesToAttachmentRefs(inp));
    obj.thumbnail=existing?.thumbnail||'';
    const thumbInput=form.elements.thumbnail;
    if(thumbInput?.files?.length){
      try{
-       obj.thumbnail=await imageFileToThumbnail(thumbInput.files[0]);
+       obj.thumbnail=await putAttachmentData(await imageFileToThumbnail(thumbInput.files[0]));
      }catch(err){
        alert(err?.message||'The exercise thumbnail could not be saved.');
        return;
@@ -1216,7 +1352,7 @@ async function saveForm(form){
  if(type==='physioDocument'){
    const existing=state.physioDocuments.find(x=>x.id===id);
    obj.photos=existing?.photos||[];
-   const inp=form.elements.photos;if(inp?.files?.length)obj.photos.push(...await filesToData(inp));
+   const inp=form.elements.photos;if(inp?.files?.length)obj.photos.push(...await filesToAttachmentRefs(inp));
  }
 
  if(type==='task') obj.done=obj.done==='Completed';
@@ -1311,11 +1447,11 @@ function printReport(config=reportPreset('legal')){
  const photoItems=[];
  if(config.photos){
  journal.forEach(j=>(j.photos||[]).forEach((file,i)=>photoItems.push(isPdfAttachment(file)
-   ? `<figure class="reportPdfAttachment"><a href="${file}" target="_blank"><span>PDF</span><strong>${fmt(j.date)} — Daily log attachment ${i+1}</strong></a></figure>`
-   : `<figure><img src="${file}"><figcaption>${fmt(j.date)} — Daily log photo ${i+1}</figcaption></figure>`)));
+   ? `<figure class="reportPdfAttachment"><a href="${attachmentSrc(file)}" target="_blank"><span>PDF</span><strong>${fmt(j.date)} — Daily log attachment ${i+1}</strong></a></figure>`
+   : `<figure><img src="${attachmentSrc(file)}"><figcaption>${fmt(j.date)} — Daily log photo ${i+1}</figcaption></figure>`)));
  receipts.forEach(r=>{if(r.photo)photoItems.push(isPdfAttachment(r.photo)
-   ? `<figure class="reportPdfAttachment"><a href="${r.photo}" target="_blank"><span>PDF</span><strong>${fmt(r.date)} — ${esc(r.description||'Receipt')}</strong></a></figure>`
-   : `<figure><img src="${r.photo}"><figcaption>${fmt(r.date)} — ${esc(r.description||'Receipt')}</figcaption></figure>`)})
+   ? `<figure class="reportPdfAttachment"><a href="${attachmentSrc(r.photo)}" target="_blank"><span>PDF</span><strong>${fmt(r.date)} — ${esc(r.description||'Receipt')}</strong></a></figure>`
+   : `<figure><img src="${attachmentSrc(r.photo)}"><figcaption>${fmt(r.date)} — ${esc(r.description||'Receipt')}</figcaption></figure>`)})
 }
  const generatedDate=new Date().toLocaleString('en-CA');
  const reportPeriod=`${config.from?fmt(config.from):'Beginning'} – ${config.to?fmt(config.to):'Today'}`;
@@ -1429,7 +1565,7 @@ function bind(){
 
  document.querySelectorAll('[data-view-photo]').forEach(b=>b.onclick=()=>{
    const viewer=document.getElementById('physioPhotoViewer'),img=document.getElementById('physioPhotoViewerImage');if(!viewer||!img)return;
-   img.src=b.dataset.viewPhoto;viewer.classList.remove('hidden');
+   img.src=attachmentSrc(b.dataset.viewPhoto);viewer.classList.remove('hidden');
  });
  const closePhysioPhoto=document.getElementById('closePhysioPhoto');
  if(closePhysioPhoto)closePhysioPhoto.onclick=()=>document.getElementById('physioPhotoViewer')?.classList.add('hidden');
@@ -1553,20 +1689,50 @@ function bind(){
  const includePhotos=document.getElementById('reportIncludePhotos');if(includePhotos)includePhotos.onchange=()=>saveReportSetting('includePhotos',includePhotos.checked);
  const includeMedicationHistory=document.getElementById('reportIncludeMedicationHistory');if(includeMedicationHistory)includeMedicationHistory.onchange=()=>saveReportSetting('includeMedicationHistory',includeMedicationHistory.checked);
  const autoPrint=document.getElementById('reportAutoPrint');if(autoPrint)autoPrint.onchange=()=>saveReportSetting('autoPrint',autoPrint.checked);
- const bb=document.getElementById('backupBtn');if(bb)bb.onclick=()=>{
-   const payload={...state,backupCreatedAt:new Date().toISOString(),dataVersion:state.dataVersion||2};
-   const url=URL.createObjectURL(new Blob([JSON.stringify(payload,null,2)],{type:'application/json'}));
-   const a=document.createElement('a');a.href=url;a.download=`mva-record-keeper-backup-${today()}.json`;document.body.append(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(url),1000);toast('Backup downloaded');
+ const bb=document.getElementById('backupBtn');if(bb)bb.onclick=async()=>{
+   try{
+     bb.disabled=true;bb.textContent='Preparing backup…';
+     const refs=allAttachmentRefsFromState(),attachments={};
+     refs.forEach(ref=>{if(attachmentCache[ref])attachments[ref]=attachmentCache[ref]});
+     const payload={...state,attachments,backupCreatedAt:new Date().toISOString(),dataVersion:Math.max(Number(state.dataVersion||0),4),attachmentStorageVersion:1};
+     const url=URL.createObjectURL(new Blob([JSON.stringify(payload,null,2)],{type:'application/json'}));
+     const a=document.createElement('a');a.href=url;a.download=`mva-record-keeper-backup-${today()}.json`;document.body.append(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(url),1000);toast(`Backup downloaded · ${Object.keys(attachments).length} attachment${Object.keys(attachments).length===1?'':'s'}`);
+   }catch(err){console.error(err);alert('The backup could not be created. Please try again.')}
+   finally{bb.disabled=false;bb.textContent='Download backup'}
  };
  const ri=document.getElementById('restoreInput');if(ri)ri.onchange=async()=>{try{
    if(!ri.files?.[0])return;
    const data=JSON.parse(await ri.files[0].text());
    if(!data||typeof data!=='object'||!Array.isArray(data.medications)||!Array.isArray(data.journal))throw new Error('Invalid backup');
-   if(!confirm('Restore this backup? Your current records on this device will be replaced.'))return;
-   state={...structuredClone(defaults),...data};migrateMedicationData();save();render();toast('Backup restored');
- }catch{alert('That file is not a valid MVA Record Keeper backup.')}finally{ri.value=''}};
- const rb=document.getElementById('resetBtn');if(rb)rb.onclick=()=>{if(confirm('Erase all MVA app data on this device?')){state=structuredClone(defaults);save();render()}};
+   if(!confirm('Restore this backup? Your current records and stored attachments on this device will be replaced.'))return;
+   await clearAttachmentDB();
+   const backupAttachments=data.attachments&&typeof data.attachments==='object'?data.attachments:{};
+   for(const [ref,value] of Object.entries(backupAttachments))if(value)await putAttachmentData(value,ref);
+   const clean={...data};delete clean.attachments;delete clean.backupCreatedAt;
+   state={...structuredClone(defaults),...clean};
+   state.profile={...defaults.profile,...(state.profile||{})};
+   state.quickInfo={...defaults.quickInfo,...(state.quickInfo||{})};
+   state.reportSettings={...defaults.reportSettings,...(state.reportSettings||{})};
+   migrateMedicationData();
+   await migrateLegacyAttachments();
+   save();render();toast(`Backup restored · ${allAttachmentRefsFromState().size} attachment${allAttachmentRefsFromState().size===1?'':'s'}`);
+ }catch(err){console.error(err);alert('That file could not be restored as an MVA Record Keeper backup.')}finally{ri.value=''}};
+ const rb=document.getElementById('resetBtn');if(rb)rb.onclick=async()=>{if(confirm('Erase all MVA app data and stored attachments on this device?')){await clearAttachmentDB();state=structuredClone(defaults);save();render();toast('All app data erased')}};
+}
+async function startApp(){
+ try{
+   const existing=await loadAttachmentCache();
+   const result=await migrateLegacyAttachments();
+   await loadAttachmentCache();
+   render();
+   if(result.migrated)toast(`Storage upgraded · moved ${result.migrated} attachment${result.migrated===1?'':'s'}`);
+   else if(existing&&state.attachmentStorageVersion===1)console.log(`Loaded ${existing} stored attachment(s)`);
+ }catch(err){
+   console.error('Attachment storage startup error',err);
+   render();
+   alert('The app opened, but the expanded attachment storage could not be initialized. Your existing records have not been deleted. Please keep your backup and avoid adding new attachments until this is resolved.');
+ }
 }
 if('serviceWorker' in navigator)window.addEventListener('load',()=>navigator.serviceWorker.register('./sw.js').catch(()=>{}));
-render();
+startApp();
 })();
