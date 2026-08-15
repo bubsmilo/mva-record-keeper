@@ -1481,3 +1481,28 @@ input,textarea,select{width:100%;border:1px solid #cfd9e5;border-radius:8px;padd
 .injuryHeaderToggle{
   touch-action:manipulation;
 }
+
+
+/* v2.7.8 actual injury expansion selector + previous-entry styles */
+.injuryMockupCard.is-expanded .injuryExpandable{
+  grid-template-rows:1fr;
+  opacity:1;
+}
+.injuryMockupCard.is-expanded .injuryExpandableInner{
+  overflow:visible;
+  padding-bottom:14px;
+}
+.previousInjuryStrip{
+  border:1px solid #d9e4ef;border-radius:10px;background:#f8fbff;
+  padding:9px 10px;margin-bottom:11px;
+}
+.previousInjuryHead{display:flex;justify-content:space-between;gap:10px;align-items:baseline}
+.previousInjuryHead span{font-size:9px;text-transform:uppercase;letter-spacing:.05em;color:#748397;font-weight:850}
+.previousInjuryHead strong{font-size:11px;color:#2d4863;text-align:right}
+.previousInjuryMetrics{display:flex;flex-wrap:wrap;gap:5px;margin-top:6px}
+.previousInjuryMetrics span{border:1px solid #dfe7ef;background:#fff;border-radius:999px;padding:3px 6px;font-size:9px;color:#566c84;font-weight:700}
+.previousInjuryStrip p{margin:6px 0 0;font-size:10px;line-height:1.4;color:#51667d}
+.previousInjuryStrip.emptyPrevious{display:flex;justify-content:space-between;align-items:center}
+.previousInjuryStrip.emptyPrevious span{font-size:9px;text-transform:uppercase;letter-spacing:.05em;color:#7b8999;font-weight:850}
+.previousInjuryStrip.emptyPrevious strong{font-size:10px;color:#8995a3}
+@media(max-width:560px){.previousInjuryHead{align-items:flex-start;flex-direction:column;gap:3px}.previousInjuryHead strong{text-align:left}}

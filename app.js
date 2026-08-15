@@ -3,7 +3,7 @@
 'use strict';
 
 const KEY='mva-record-keeper-v1';
-const APP_VERSION='2.7.7';
+const APP_VERSION='2.7.8';
 document.title=`MVA Record Keeper v${APP_VERSION}`;
 
 const ATTACHMENT_DB='mva-record-keeper-attachments';
@@ -403,6 +403,29 @@ function painOptions(value=''){
 function optionButtons(name,value,options){
  return `<input type="hidden" name="${name}" value="${esc(value||'')}"><div class="symptomChoices">${options.map(v=>`<button type="button" class="symptomChoice ${value===v?'selected':''}" data-symptom-value="${esc(v)}">${esc(v)}</button>`).join('')}</div>`;
 }
+
+function previousInjuryLog(injuryId,currentDate=today()){
+ return [...(state.injuryLogs||[])]
+   .filter(l=>l.injuryId===injuryId&&l.date&&l.date<currentDate)
+   .sort((a,b)=>(b.date||'').localeCompare(a.date||''))[0]||null;
+}
+function previousInjuryStrip(injury,currentDate=today()){
+ const prev=previousInjuryLog(injury.id,currentDate);
+ if(!prev)return `<div class="previousInjuryStrip emptyPrevious"><span>Previous entry</span><strong>No earlier entry</strong></div>`;
+ const details=[
+   prev.pain!==''&&prev.pain!=null?`Pain ${esc(prev.pain)}/10`:'',
+   prev.change?esc(prev.change):'',
+   injury.trackSwelling&&prev.swelling?`Swelling: ${esc(prev.swelling)}`:'',
+   injury.trackStiffness&&prev.stiffness?`Stiffness: ${esc(prev.stiffness)}`:'',
+   injury.trackRangeOfMotion&&prev.rangeOfMotion?`ROM: ${esc(prev.rangeOfMotion)}`:''
+ ].filter(Boolean);
+ return `<div class="previousInjuryStrip">
+   <div class="previousInjuryHead"><span>Previous entry · ${fmt(prev.date)}</span><strong>${details.slice(0,2).join(' · ')||'Recorded'}</strong></div>
+   ${details.length>2?`<div class="previousInjuryMetrics">${details.slice(2).map(x=>`<span>${x}</span>`).join('')}</div>`:''}
+   ${prev.notes?`<p>${esc(prev.notes)}</p>`:''}
+ </div>`;
+}
+
 function journal(){
  const sorted=[...state.journal].sort((a,b)=>(b.date+b.id).localeCompare(a.date+a.id));
  const active=state.injuries;
