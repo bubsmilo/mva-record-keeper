@@ -514,3 +514,43 @@ input,textarea,select{width:100%;border:1px solid #cfd9e5;border-radius:8px;padd
  .dashboardRecentList>div{flex-direction:column}
  .dashboardRecentList span{text-align:left}
 }
+
+
+/* v2.5.1 light-purple swirl border for dashboard quick actions */
+.dashboardQuickSection{
+  position:relative;
+  padding:12px;
+  border-radius:22px;
+  isolation:isolate;
+}
+.dashboardQuickSection::before{
+  content:"";
+  position:absolute;
+  inset:0;
+  border-radius:22px;
+  padding:3px;
+  background:
+    radial-gradient(ellipse at 8% 20%, rgba(202,177,255,.95) 0 5%, transparent 6%),
+    radial-gradient(ellipse at 93% 78%, rgba(220,198,255,.95) 0 6%, transparent 7%),
+    conic-gradient(from 35deg at 15% 50%,
+      rgba(194,163,255,.9),
+      rgba(231,216,255,.55),
+      rgba(185,151,250,.95),
+      rgba(239,229,255,.6),
+      rgba(194,163,255,.9));
+  -webkit-mask:linear-gradient(#000 0 0) content-box,linear-gradient(#000 0 0);
+  -webkit-mask-composite:xor;
+  mask-composite:exclude;
+  pointer-events:none;
+  z-index:-1;
+}
+.dashboardQuickSection::after{
+  content:"";
+  position:absolute;
+  inset:-4px;
+  border-radius:25px;
+  border:1px solid rgba(205,179,255,.28);
+  transform:rotate(-.35deg);
+  pointer-events:none;
+  z-index:-2;
+}
