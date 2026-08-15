@@ -927,3 +927,37 @@ input,textarea,select{width:100%;border:1px solid #cfd9e5;border-radius:8px;padd
     max-width:48%;
   }
 }
+
+
+/* v2.6.7 add medication directly from a day header */
+.medicationDayHeaderRight{
+  display:flex;
+  align-items:center;
+  gap:9px;
+}
+.medicationDayAddBtn{
+  appearance:none;
+  border:1px solid #b8cce2;
+  background:#fff;
+  color:#075bd4;
+  width:32px;
+  height:32px;
+  border-radius:9px;
+  display:grid;
+  place-items:center;
+  font-size:21px;
+  line-height:1;
+  font-weight:700;
+  cursor:pointer;
+  flex:0 0 32px;
+  box-shadow:0 2px 7px rgba(33,68,108,.06);
+}
+.medicationDayAddBtn:hover{
+  background:#edf5ff;
+  border-color:#8fb6e1;
+}
+@media(max-width:520px){
+  .medicationDayHeaderRight{
+    align-items:flex-end;
+  }
+}
