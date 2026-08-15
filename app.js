@@ -3,7 +3,7 @@
 'use strict';
 
 const KEY='mva-record-keeper-v1';
-const APP_VERSION='2.5.3';
+const APP_VERSION='2.5.4';
 document.title=`MVA Record Keeper v${APP_VERSION}`;
 const today=()=>new Date().toISOString().slice(0,10);
 const uid=()=>Date.now().toString(36)+Math.random().toString(36).slice(2,7);
@@ -134,7 +134,16 @@ let modal=null;
 let tab='all';
 
 function load(){try{return {...defaults,...JSON.parse(localStorage.getItem(KEY)||'{}')}}catch{return structuredClone(defaults)}}
-function save(){localStorage.setItem(KEY,JSON.stringify(state))}
+function save(){
+ try{
+   localStorage.setItem(KEY,JSON.stringify(state));
+   return true;
+ }catch(err){
+   console.error('MVA Record Keeper save failed',err);
+   alert('The app could not save this change. Your browser storage may be full. Large photos or PDFs can use a lot of space. Try removing an unneeded large attachment or exporting a backup before trying again.');
+   return false;
+ }
+}
 function setState(mut){mut(state);save();render()}
 function toast(msg){const el=document.createElement('div');el.className='toast';el.textContent=msg;document.body.append(el);setTimeout(()=>el.remove(),2200)}
 function nav(p){page=p;modal=null;render();window.scrollTo(0,0)}
@@ -1053,7 +1062,7 @@ function openForm(type,id){
  }
  if(type==='physioPrescription') body=`${field('Date prescribed','date',item.date||today(),'date')}${field('Title','title',item.title||'Physiotherapy prescription')}${physioProviderSelect(item.prescribedBy||'')}${area('Injury / condition being treated','treatmentFor',item.treatmentFor||'')}${field('Frequency ordered','frequency',item.frequency||'','text','placeholder="Example: 2 times per week"')}${field('Duration ordered','duration',item.duration||'','text','placeholder="Example: 6 weeks"')}${selectField('Status','status',['Active','Completed'],item.status||'Active')}${area('Special instructions','instructions',item.instructions||'')}${photoField('Prescription / referral image or PDF','photos',item.photos||[],true)}`;
  if(type==='physioVisit') body=`${field('Date','date',item.date||today(),'date')}${field('Time','time',item.time||'','time')}${selectField('Status','status',['Scheduled','Completed','Cancelled'],item.status||'Completed')}${field('Physiotherapist','therapist',item.therapist||state.quickInfo.physiotherapist||'')}${field('Clinic','clinic',item.clinic||state.quickInfo.physioClinic||'')}${field('What was the visit focused on?','focus',item.focus||'')}${area('Treatment / what was done','treatments',item.treatments||'')}${area('Exercises or suggestions from physio','exercisesSuggested',item.exercisesSuggested||'')}${area('Restrictions / precautions','restrictions',item.restrictions||'')}${area('Visit notes','notes',item.notes||'')}${photoField('Handouts, photos or PDFs from this visit','photos',item.photos||[],true)}`;
- if(type==='physioExercise') body=`${field('Exercise name','name',item.name||'')}${field('Prescribed by','prescribedBy',item.prescribedBy||state.quickInfo.physiotherapist||'')}${field('Start date','startDate',item.startDate||today(),'date')}${field('Sets','sets',item.sets||'')}${field('Reps','reps',item.reps||'')}${field('Hold time','holdTime',item.holdTime||'','text','placeholder="Example: 10 seconds"')}${field('Times per day','timesPerDay',item.timesPerDay||exerciseTimesPerDay(item)||'','number','min="1" max="24" step="1" placeholder="Example: 3"')}${selectField('Status','status',['Active','Completed'],item.active===false?'Completed':'Active')}<div class="field span2"><label>Exercise thumbnail image</label><input type="file" name="thumbnail" accept="image/*"><div class="attachmentHint">Choose a simple image that helps you recognize this exercise quickly.</div>${item.thumbnail?`<div class="exerciseThumbnailPreview"><img src="${item.thumbnail}" alt="Current exercise thumbnail"></div>`:''}</div>${area('Instructions / technique','instructions',item.instructions||'')}${photoField('Exercise sheet, photo or PDF','photos',item.photos||[],true)}`;
+ if(type==='physioExercise') body=`${field('Exercise name','name',item.name||'')}${field('Prescribed by','prescribedBy',item.prescribedBy||state.quickInfo.physiotherapist||'')}${field('Start date','startDate',item.startDate||today(),'date')}${field('Sets','sets',item.sets||'')}${field('Reps','reps',item.reps||'')}${field('Hold time','holdTime',item.holdTime||'','text','placeholder="Example: 10 seconds"')}${field('Times per day','timesPerDay',item.timesPerDay||exerciseTimesPerDay(item)||'','number','min="1" max="24" step="1" placeholder="Example: 3"')}${selectField('Status','status',['Active','Completed'],item.active===false?'Completed':'Active')}<div class="field span2"><label>Exercise thumbnail image</label><input type="file" name="thumbnail" accept="image/*"><div class="attachmentHint">Choose an image from your gallery. The app will automatically make a small copy for the exercise card.</div><div class="thumbnailSaveStatus" data-thumbnail-status></div>${item.thumbnail?`<div class="exerciseThumbnailPreview"><img src="${item.thumbnail}" alt="Current exercise thumbnail"><span>Current thumbnail</span></div>`:''}</div>${area('Instructions / technique','instructions',item.instructions||'')}${photoField('Exercise sheet, photo or PDF','photos',item.photos||[],true)}`;
  if(type==='physioExerciseLog'){const exerciseId=item.exerciseId||newExerciseId;const exercise=state.physioExercises.find(e=>e.id===exerciseId);body=`<div class="field span2 summaryBox"><strong>${esc(exercise?.name||'Home exercise')}</strong><div class="small muted">Add or correct a completion record.</div></div>${field('Date','exerciseDate',item.dateTime?localDateKey(item.dateTime):today(),'date')}${field('Time','exerciseTime',item.dateTime?localDateTimeValue(new Date(item.dateTime)).slice(11,16):localDateTimeValue().slice(11,16),'time')}${selectField('Status','status',['Done','Unable'],item.status||'Done')}${area('Note (optional)','note',item.note||'')}<input type="hidden" name="exerciseId" value="${esc(exerciseId||'')}">`; }
  if(type==='physioDocument') body=`${field('Date','date',item.date||today(),'date')}${field('Document title','title',item.title||'')}${selectField('Type','category',['Exercise sheet','Prescription / Script','Referral','Specialist instructions','Physio handout','Other'],item.category||'Other')}${field('Given by / source','source',item.source||'')}${area('Notes','notes',item.notes||'')}${photoField('Document images or PDFs','photos',item.photos||[],true)}`;
 
@@ -1075,6 +1084,30 @@ function attachmentPreview(value,opts={}){
  return `<div class="attachmentWrap imageAttachment"><img class="photo" src="${value}" alt="${esc(label)}">${remove}</div>`;
 }
 async function filesToData(input){return Promise.all([...input.files].map(f=>new Promise((res,rej)=>{const r=new FileReader();r.onload=()=>res(r.result);r.onerror=rej;r.readAsDataURL(f)})))}
+async function imageFileToThumbnail(file,maxSize=240){
+ return new Promise((resolve,reject)=>{
+   if(!file||!String(file.type||'').startsWith('image/')){reject(new Error('Choose an image file for the thumbnail.'));return}
+   const reader=new FileReader();
+   reader.onerror=()=>reject(reader.error||new Error('Could not read image.'));
+   reader.onload=()=>{
+     const img=new Image();
+     img.onerror=()=>reject(new Error('Could not load image.'));
+     img.onload=()=>{
+       const scale=Math.min(1,maxSize/Math.max(img.naturalWidth||img.width,img.naturalHeight||img.height));
+       const w=Math.max(1,Math.round((img.naturalWidth||img.width)*scale));
+       const h=Math.max(1,Math.round((img.naturalHeight||img.height)*scale));
+       const canvas=document.createElement('canvas');
+       canvas.width=w;canvas.height=h;
+       const ctx=canvas.getContext('2d');
+       ctx.drawImage(img,0,0,w,h);
+       resolve(canvas.toDataURL('image/jpeg',0.78));
+     };
+     img.src=reader.result;
+   };
+   reader.readAsDataURL(file);
+ });
+}
+
 
 async function saveForm(form){
  const type=form.dataset.type,id=form.dataset.id, fd=new FormData(form);
@@ -1163,7 +1196,14 @@ async function saveForm(form){
    const inp=form.elements.photos;if(inp?.files?.length)obj.photos.push(...await filesToData(inp));
    obj.thumbnail=existing?.thumbnail||'';
    const thumbInput=form.elements.thumbnail;
-   if(thumbInput?.files?.length)obj.thumbnail=(await filesToData(thumbInput))[0];
+   if(thumbInput?.files?.length){
+     try{
+       obj.thumbnail=await imageFileToThumbnail(thumbInput.files[0]);
+     }catch(err){
+       alert(err?.message||'The exercise thumbnail could not be saved.');
+       return;
+     }
+   }
    obj.active=obj.status==='Active';
    obj.timesPerDay=Math.max(0,Math.round(Number(obj.timesPerDay||0)));
    if(obj.timesPerDay)obj.frequency=`${obj.timesPerDay} times daily`;

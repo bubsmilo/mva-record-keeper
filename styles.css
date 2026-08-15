@@ -621,3 +621,31 @@ input,textarea,select{width:100%;border:1px solid #cfd9e5;border-radius:8px;padd
   object-fit:cover;
   display:block;
 }
+
+
+/* v2.5.4 reliable compressed exercise thumbnails */
+.exerciseThumbnailPreview{
+  position:relative;
+  display:inline-flex;
+  flex-direction:column;
+  width:96px;
+  height:auto;
+  margin-top:9px;
+  overflow:visible;
+  border:0;
+  background:transparent;
+}
+.exerciseThumbnailPreview img{
+  width:86px;
+  height:86px;
+  border-radius:12px;
+  object-fit:cover;
+  border:1px solid #d8e3ed;
+  background:#f8fafc;
+}
+.exerciseThumbnailPreview span{
+  margin-top:4px;
+  font-size:9px;
+  color:#718096;
+}
+.thumbnailSaveStatus{font-size:10px;color:#18733a;margin-top:4px}
