@@ -3,7 +3,7 @@
 'use strict';
 
 const KEY='mva-record-keeper-v1';
-const APP_VERSION='2.7.3';
+const APP_VERSION='2.7.4';
 document.title=`MVA Record Keeper v${APP_VERSION}`;
 
 const ATTACHMENT_DB='mva-record-keeper-attachments';
@@ -532,6 +532,7 @@ function bindDailyPhotoRemoval(){
 
 function injuries(){
  const items=[...(state.injuries||[])];
+ const palette=['injuryRed','injuryBlue','injuryPurple','injuryTeal','injuryOrange','injuryGreen'];
  const latestFor=(injuryId)=>{
    const logs=(state.injuryLogs||[]).filter(l=>l.injuryId===injuryId).sort((a,b)=>(b.date||'').localeCompare(a.date||''));
    return logs[0]||null;
@@ -540,39 +541,59 @@ function injuries(){
 
  return appShell(`
  <div class="toolbar injuryPageTop">
-   <div><h2 style="margin:0">Injuries</h2><p class="muted small">Quickly see how each injury is doing, then expand for the full history.</p></div>
-   <button class="btn primary" data-add="injury">+ Add Injury</button>
+   <div><h2 style="margin:0">My Injuries</h2><p class="muted small">Tap an injury to update it quickly. Expand for full history and details.</p></div>
+   <button class="btn secondary" data-add="injury">+ Add Injury</button>
  </div>
 
- <div class="injuryCardList">${items.length?items.map(i=>{
+ <div class="injuryMockupList">${items.length?items.map((i,index)=>{
    const latest=latestFor(i.id);
    const history=historyFor(i.id);
-   const enabled=[
-     i.trackSwelling&&'Swelling',
-     i.trackStiffness&&'Stiffness',
-     i.trackRangeOfMotion&&'Range of motion'
-   ].filter(Boolean);
-
-   return `<article class="card injuryOverviewCard ${i.active===false?'injuryArchived':''}" data-injury-card="${i.id}">
-     <div class="injuryOverviewHeader">
-       <div class="injuryOverviewTitle">
-         <div class="injuryIcon">🦴</div>
-         <div><h3>${esc(i.name)}</h3>${i.description?`<p>${esc(i.description)}</p>`:''}</div>
+   const tone=palette[index%palette.length];
+   const pain=latest&&latest.pain!==''&&latest.pain!=null?Number(latest.pain):0;
+   return `<article class="injuryMockupCard ${tone} ${i.active===false?'injuryArchived':''}" data-injury-card="${i.id}">
+     <div class="injuryMockupHeader">
+       <div class="injuryMockupIdentity">
+         <div class="injuryMockupIcon">🦴</div>
+         <div>
+           <h3>${esc(i.name)}</h3>
+           ${i.description?`<p>${esc(i.description)}</p>`:''}
+         </div>
        </div>
-       <button type="button" class="physioExpandBtn" data-toggle-injury-card aria-expanded="false">+</button>
+       <div class="injuryMockupUpdated">
+         <span>${latest?.date?'Updated':'No update'}</span>
+         <strong>${latest?.date?fmt(latest.date):'—'}</strong>
+       </div>
+       <button type="button" class="injuryHeaderToggle" data-toggle-injury-card aria-expanded="false">+</button>
      </div>
 
-     <div class="injurySnapshot">
-       <div><span>Latest pain</span><strong>${latest&&latest.pain!==''&&latest.pain!=null?`${esc(latest.pain)}/10`:'Not recorded'}</strong></div>
-       <div><span>Last updated</span><strong>${latest?.date?fmt(latest.date):'No entries'}</strong></div>
-       <div><span>Trend</span><strong>${latest?.change?esc(latest.change):'Not recorded'}</strong></div>
-     </div>
+     <div class="injuryQuickUpdate">
+       <div class="injuryPainBlock">
+         <div class="injuryFieldLabel">Pain (0–10)</div>
+         <div class="injuryPainButtons">
+           ${Array.from({length:11},(_,n)=>`<button type="button" class="injuryPainBtn ${pain===n?'selected':''}" data-quick-injury-pain="${i.id}:${n}">${n}</button>`).join('')}
+         </div>
+       </div>
 
-     ${enabled.length?`<div class="injuryTrackingPills">${enabled.map(x=>`<span>${esc(x)}</span>`).join('')}</div>`:''}
+       <div class="injuryChangeBlock">
+         <div class="injuryFieldLabel">Compared to previous update</div>
+         <div class="injuryChangeButtons">
+           <button type="button" class="${latest?.change==='Better'?'selected':''} better" data-quick-injury-change="${i.id}:Better">↑ Better</button>
+           <button type="button" class="${latest?.change==='Same'?'selected':''} same" data-quick-injury-change="${i.id}:Same">= Same</button>
+           <button type="button" class="${latest?.change==='Worse'?'selected':''} worse" data-quick-injury-change="${i.id}:Worse">↓ Worse</button>
+         </div>
+       </div>
 
-     <div class="injuryQuickActions">
-       <button class="btn primary" data-new-injury-log="${i.id}">Update Injury</button>
-       <button class="btn secondary" data-edit="injury" data-id="${i.id}">Edit Injury</button>
+       <div class="injuryQuickNoteBlock">
+         <div class="injuryFieldLabel">Quick Note <span>(optional)</span></div>
+         <div class="injuryQuickNoteBox">
+           <textarea data-quick-injury-note="${i.id}" rows="2" placeholder="Add a quick note...">${esc(latest?.notes||'')}</textarea>
+           <button type="button" class="injuryQuickSaveBtn" data-save-quick-injury="${i.id}">Save</button>
+         </div>
+       </div>
+
+       <div class="injuryQuickFooter">
+         <button class="injuryEditDetailsBtn" data-edit="injury" data-id="${i.id}">✎ Edit Details</button>
+       </div>
      </div>
 
      <div class="injuryExpandable">
@@ -600,7 +621,7 @@ function injuries(){
      </div>
    </article>`;
  }).join(''):`<div class="empty">No injuries added yet.</div>`}</div>
- `,'Injuries','Track each injury separately without clutter.');
+ `,'Injuries','Track pain, changes, notes and recovery for each injury.');
 }
 function injuryCard(i){
  const logs=[...state.injuryLogs].filter(x=>x.injuryId===i.id).sort((a,b)=>b.date.localeCompare(a.date));
@@ -928,8 +949,10 @@ function physio(){
 
  <section class="card physioSectionCard physioExerciseSection">
   <div class="physioSectionCardHead physioExerciseProgramHead">
-    <div><h2>🏠 Home Exercise Program</h2><p class="muted small">${activeExercises} active exercise${activeExercises===1?'':'s'}</p></div>
-    <button class="compactAddExerciseBtn" data-add="physioExercise" aria-label="Add exercise">+ Add</button>
+    <div class="physioExerciseProgramTitleRow">
+      <button class="compactAddExerciseBtn" data-add="physioExercise" aria-label="Add exercise">+ Add</button>
+      <div><h2>🏠 Home Exercise Program</h2><p class="muted small">${activeExercises} active exercise${activeExercises===1?'':'s'}</p></div>
+    </div>
   </div>
   <div class="physioWindowShell compactWindowShell" data-physio-window>
     <button type="button" class="physioWindowSummary compactWindowSummary" id="togglePhysioWindow" aria-expanded="false">
@@ -1939,6 +1962,32 @@ function bind(){
    b.textContent=expanded?'−':'+';
    b.setAttribute('aria-expanded',String(expanded));
  });
+ const getOrCreateTodayInjuryLog=(injuryId)=>{
+   let log=state.injuryLogs.find(l=>l.injuryId===injuryId&&l.date===today());
+   if(!log){
+     const prev=[...(state.injuryLogs||[])].filter(l=>l.injuryId===injuryId).sort((a,b)=>(b.date||'').localeCompare(a.date||''))[0];
+     log={id:uid(),injuryId,date:today(),pain:prev?.pain??'',change:'',notes:'',photos:[],swelling:prev?.swelling||'',stiffness:prev?.stiffness||'',rangeOfMotion:prev?.rangeOfMotion||''};
+     state.injuryLogs.push(log);
+   }
+   return log;
+ };
+ document.querySelectorAll('[data-quick-injury-pain]').forEach(b=>b.onclick=()=>{
+   const [injuryId,painText]=b.dataset.quickInjuryPain.split(':');
+   const log=getOrCreateTodayInjuryLog(injuryId);
+   log.pain=Number(painText);save();render();toast('Pain updated');
+ });
+ document.querySelectorAll('[data-quick-injury-change]').forEach(b=>b.onclick=()=>{
+   const [injuryId,change]=b.dataset.quickInjuryChange.split(':');
+   const log=getOrCreateTodayInjuryLog(injuryId);
+   log.change=change;save();render();toast('Injury trend updated');
+ });
+ document.querySelectorAll('[data-save-quick-injury]').forEach(b=>b.onclick=()=>{
+   const injuryId=b.dataset.saveQuickInjury;
+   const note=document.querySelector(`[data-quick-injury-note="${injuryId}"]`)?.value||'';
+   const log=getOrCreateTodayInjuryLog(injuryId);
+   log.notes=String(note).trim();save();render();toast('Injury note saved');
+ });
+
  document.querySelectorAll('[data-new-injury-log]').forEach(b=>b.onclick=()=>openForm('injuryLog','new:'+b.dataset.newInjuryLog));
 
 

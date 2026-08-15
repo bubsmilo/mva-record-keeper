@@ -1327,3 +1327,136 @@ input,textarea,select{width:100%;border:1px solid #cfd9e5;border-radius:8px;padd
   .exerciseScorecardGrid{grid-template-columns:1fr}
   .exerciseScorecardFooter{grid-template-columns:1fr}
 }
+
+
+/* v2.7.4 physio add button left */
+.physioExerciseProgramHead{display:block}
+.physioExerciseProgramTitleRow{display:flex;align-items:center;gap:10px}
+.physioExerciseProgramTitleRow>div{min-width:0}
+
+/* v2.7.4 injury cards inspired by original mock-up */
+.injuryMockupList{display:grid;gap:15px}
+.injuryMockupCard{
+  border:1px solid #d9e3ef;border-radius:14px;overflow:hidden;background:#fff;
+  box-shadow:0 5px 18px rgba(32,60,95,.055)
+}
+.injuryMockupHeader{
+  display:grid;grid-template-columns:1fr auto auto;align-items:center;gap:10px;
+  padding:13px 14px;border-bottom:1px solid rgba(0,0,0,.05)
+}
+.injuryRed .injuryMockupHeader{background:linear-gradient(90deg,#fff1f1,#fff)}
+.injuryBlue .injuryMockupHeader{background:linear-gradient(90deg,#eef5ff,#fff)}
+.injuryPurple .injuryMockupHeader{background:linear-gradient(90deg,#f4efff,#fff)}
+.injuryTeal .injuryMockupHeader{background:linear-gradient(90deg,#eefbfb,#fff)}
+.injuryOrange .injuryMockupHeader{background:linear-gradient(90deg,#fff6eb,#fff)}
+.injuryGreen .injuryMockupHeader{background:linear-gradient(90deg,#effaf3,#fff)}
+.injuryMockupIdentity{display:flex;align-items:center;gap:11px;min-width:0}
+.injuryMockupIcon{width:43px;height:43px;border-radius:50%;display:grid;place-items:center;font-size:20px;background:#fff;border:1px solid rgba(0,0,0,.06)}
+.injuryMockupIdentity h3{margin:0;color:#173956;font-size:17px}
+.injuryMockupIdentity p{margin:2px 0 0;font-size:11px;color:#6c7d91}
+.injuryMockupUpdated{display:grid;justify-items:end;gap:1px}
+.injuryMockupUpdated span{font-size:8px;text-transform:uppercase;color:#728397;font-weight:900}
+.injuryMockupUpdated strong{font-size:10px;color:#314a64}
+.injuryHeaderToggle{width:30px;height:30px;border:1px solid #cdd9e6;border-radius:8px;background:#fff;color:#075bd4;font-size:19px}
+
+.injuryQuickUpdate{padding:12px 13px}
+.injuryFieldLabel{font-size:11px;color:#273d55;font-weight:850;margin-bottom:6px}
+.injuryFieldLabel span{font-weight:500;color:#7a899a}
+.injuryPainBlock,.injuryChangeBlock,.injuryQuickNoteBlock{margin-bottom:11px}
+.injuryPainButtons{display:grid;grid-template-columns:repeat(11,1fr);gap:3px}
+.injuryPainBtn{height:34px;border:1px solid #d4deea;background:#fff;color:#22394f;font-size:11px;font-weight:750}
+.injuryPainBtn:first-child{border-radius:7px 0 0 7px}
+.injuryPainBtn:last-child{border-radius:0 7px 7px 0}
+.injuryPainBtn.selected{background:#0b66dc;color:#fff;border-color:#0b66dc}
+.injuryRed .injuryPainBtn.selected{background:#d51f2a;border-color:#d51f2a}
+.injuryPurple .injuryPainBtn.selected{background:#7d50df;border-color:#7d50df}
+.injuryTeal .injuryPainBtn.selected{background:#27a8b1;border-color:#27a8b1}
+.injuryChangeButtons{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}
+.injuryChangeButtons button{min-height:36px;border-radius:7px;background:#fff;font-weight:800;font-size:11px}
+.injuryChangeButtons .better{border:1px solid #75c596;color:#23804a}
+.injuryChangeButtons .same{border:1px solid #ccd6e1;color:#50657b}
+.injuryChangeButtons .worse{border:1px solid #ef8d8d;color:#c62c2c}
+.injuryChangeButtons .better.selected{background:#edf9f1}
+.injuryChangeButtons .same.selected{background:#f0f3f6}
+.injuryChangeButtons .worse.selected{background:#fff0f0}
+.injuryQuickNoteBox{display:grid;grid-template-columns:1fr auto;border:1px solid #d8e2ed;border-radius:9px;overflow:hidden;background:#fbfdff}
+.injuryQuickNoteBox textarea{border:0!important;border-radius:0!important;resize:vertical;min-height:58px;padding:10px;background:transparent}
+.injuryQuickSaveBtn{border:0;border-left:1px solid #d8e2ed;background:#f0f6ff;color:#075bd4;font-size:10px;font-weight:850;padding:0 12px}
+.injuryQuickFooter{display:flex;justify-content:flex-end}
+.injuryEditDetailsBtn{appearance:none;border:0;background:transparent;color:#075bd4;font-size:11px;font-weight:850;padding:4px 0;cursor:pointer}
+
+@media(max-width:620px){
+  .injuryMockupHeader{grid-template-columns:1fr auto}
+  .injuryMockupUpdated{display:none}
+  .injuryPainButtons{gap:2px}
+  .injuryPainBtn{height:31px;font-size:10px}
+}
+
+
+/* v2.7.5 Previous Entry reference strips */
+.previousInjuryStrip{
+  border:1px solid #d9e4ef;
+  border-radius:10px;
+  background:#f8fbff;
+  padding:9px 10px;
+  margin-bottom:11px;
+}
+.previousInjuryHead{
+  display:flex;
+  justify-content:space-between;
+  gap:10px;
+  align-items:baseline;
+}
+.previousInjuryHead span{
+  font-size:9px;
+  text-transform:uppercase;
+  letter-spacing:.05em;
+  color:#748397;
+  font-weight:850;
+}
+.previousInjuryHead strong{
+  font-size:11px;
+  color:#2d4863;
+  text-align:right;
+}
+.previousInjuryMetrics{
+  display:flex;
+  flex-wrap:wrap;
+  gap:5px;
+  margin-top:6px;
+}
+.previousInjuryMetrics span{
+  border:1px solid #dfe7ef;
+  background:#fff;
+  border-radius:999px;
+  padding:3px 6px;
+  font-size:9px;
+  color:#566c84;
+  font-weight:700;
+}
+.previousInjuryStrip p{
+  margin:6px 0 0;
+  font-size:10px;
+  line-height:1.4;
+  color:#51667d;
+}
+.previousInjuryStrip.emptyPrevious{
+  display:flex;
+  justify-content:space-between;
+  align-items:center;
+}
+.previousInjuryStrip.emptyPrevious span{
+  font-size:9px;
+  text-transform:uppercase;
+  letter-spacing:.05em;
+  color:#7b8999;
+  font-weight:850;
+}
+.previousInjuryStrip.emptyPrevious strong{
+  font-size:10px;
+  color:#8995a3;
+}
+@media(max-width:560px){
+  .previousInjuryHead{align-items:flex-start;flex-direction:column;gap:3px}
+  .previousInjuryHead strong{text-align:left}
+}
