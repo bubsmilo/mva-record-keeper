@@ -991,3 +991,105 @@ input,textarea,select{width:100%;border:1px solid #cfd9e5;border-radius:8px;padd
     font-size:9px;
   }
 }
+
+
+/* v2.6.9 medication header vertical centering */
+.medicationDayHeaderRight{
+  align-items:center;
+}
+.medicationDayCounts{
+  align-items:center;
+}
+.dayTakenCount,.dayMissedCount{
+  min-height:32px;
+  display:inline-flex!important;
+  align-items:center;
+}
+
+/* v2.6.9 injury page cleanup */
+.injuryPageTop{margin-bottom:14px}
+.injuryCardList{display:grid;gap:14px}
+.injuryOverviewCard{padding:0;overflow:hidden;border:1px solid #d5e0ec}
+.injuryArchived{opacity:.7}
+.injuryOverviewHeader{
+  display:flex;justify-content:space-between;align-items:center;gap:12px;
+  padding:14px 15px;background:linear-gradient(90deg,#f4f8ff,#fff);
+  border-bottom:1px solid #e1e9f2;
+}
+.injuryOverviewTitle{display:flex;align-items:center;gap:11px;min-width:0}
+.injuryOverviewTitle h3{margin:0;color:#173a5f}
+.injuryOverviewTitle p{margin:3px 0 0;font-size:11px;color:#718196}
+.injuryIcon{width:42px;height:42px;border-radius:12px;background:#e9f3ff;display:grid;place-items:center;font-size:21px;flex:0 0 42px}
+
+.injurySnapshot{
+  display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px;
+  padding:12px 14px;
+}
+.injurySnapshot>div{
+  border:1px solid #e0e8f1;background:#f8fbff;border-radius:9px;padding:8px 9px;
+}
+.injurySnapshot span{
+  display:block;font-size:10px;text-transform:uppercase;letter-spacing:.04em;
+  color:#758599;font-weight:800;
+}
+.injurySnapshot strong{display:block;margin-top:2px;font-size:13px;color:#2c435c}
+
+.injuryTrackingPills{display:flex;gap:6px;flex-wrap:wrap;padding:0 14px 10px}
+.injuryTrackingPills span{
+  border-radius:999px;background:#eef4fb;border:1px solid #d8e3ef;
+  padding:4px 8px;font-size:10px;font-weight:750;color:#58708b;
+}
+.injuryQuickActions{display:flex;gap:8px;padding:0 14px 14px}
+.injuryQuickActions .btn{flex:1}
+
+.injuryExpandable{display:grid;grid-template-rows:0fr;opacity:0;transition:grid-template-rows .22s ease,opacity .18s ease}
+.injuryExpandableInner{min-height:0;overflow:hidden;padding:0 14px}
+.injuryOverviewCard.is-expanded .injuryExpandable{grid-template-rows:1fr;opacity:1}
+.injuryOverviewCard.is-expanded .injuryExpandableInner{overflow:visible;padding-bottom:14px}
+
+.injuryHistoryHead{
+  display:flex;justify-content:space-between;align-items:center;
+  border-top:1px solid #e5ebf2;padding:12px 0 8px;
+}
+.injuryHistoryHead span{font-size:11px;color:#718096}
+.injuryHistoryList{display:grid;gap:10px}
+
+.injuryDayEntry{
+  border:1px solid #dfe7ef;border-radius:11px;overflow:hidden;background:#fff;
+}
+.injuryDayHead{
+  display:flex;justify-content:space-between;align-items:center;gap:10px;
+  padding:10px 11px;background:#f8fbff;border-bottom:1px solid #e8eef4;
+}
+.injuryDayHead>div:first-child{display:flex;align-items:center;gap:7px;flex-wrap:wrap}
+.injuryDayPain{font-size:11px;font-weight:800;color:#3f5872}
+.injuryTrend{
+  border-radius:999px;padding:3px 7px;font-size:9px;font-weight:850;
+  background:#edf1f5;color:#53677f;
+}
+.injuryTrend.better{background:#edf8f1;color:#247443}
+.injuryTrend.worse{background:#fff0f0;color:#a43a3a}
+.injuryTrend.same{background:#f3f5f8;color:#5c6f84}
+
+.injuryMetricsGrid{
+  display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:6px;
+  padding:9px 10px 0;
+}
+.injuryMetricsGrid>div{
+  border:1px solid #e4eaf1;background:#fbfdff;border-radius:8px;
+  padding:7px;font-size:10px;color:#526880;
+}
+.injuryNotesBlock{padding:9px 10px}
+.injuryNotesBlock span{
+  display:block;font-size:10px;text-transform:uppercase;color:#758599;font-weight:800;
+}
+.injuryNotesBlock p{margin:4px 0 0;line-height:1.45;color:#34475d}
+.injuryAttachments{padding:0 10px 10px}
+.injuryEntryActions{justify-content:flex-end;padding:0 10px 10px}
+.injuryDeleteActions{justify-content:flex-end;margin-top:10px;border-top:1px solid #e8edf3;padding-top:10px}
+
+@media(max-width:650px){
+  .injurySnapshot{grid-template-columns:1fr}
+  .injuryMetricsGrid{grid-template-columns:1fr}
+  .injuryQuickActions{display:grid;grid-template-columns:1fr 1fr}
+}

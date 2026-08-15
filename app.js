@@ -3,7 +3,7 @@
 'use strict';
 
 const KEY='mva-record-keeper-v1';
-const APP_VERSION='2.6.8';
+const APP_VERSION='2.6.9';
 document.title=`MVA Record Keeper v${APP_VERSION}`;
 
 const ATTACHMENT_DB='mva-record-keeper-attachments';
@@ -523,10 +523,76 @@ function bindDailyPhotoRemoval(){
 }
 
 function injuries(){
- const active=state.injuries.filter(i=>i.active!==false), inactive=state.injuries.filter(i=>i.active===false);
- return appShell(`<div class="toolbar"><div><span class="pill">${active.length} active injuries</span></div><button class="btn primary" data-add="injury">+ Add Injury</button></div>
- <div class="list">${active.length?active.map(i=>injuryCard(i)).join(''):`<div class="empty">No injuries added yet.</div>`}</div>
- ${inactive.length?`<h2 style="margin-top:24px">Archived injuries</h2><div class="list">${inactive.map(i=>injuryCard(i)).join('')}</div>`:''}`,'My Injuries','Keep each injury separate and view its history over time.');
+ const items=[...(state.injuries||[])];
+ const latestFor=(injuryId)=>{
+   const logs=(state.injuryLogs||[]).filter(l=>l.injuryId===injuryId).sort((a,b)=>(b.date||'').localeCompare(a.date||''));
+   return logs[0]||null;
+ };
+ const historyFor=(injuryId)=>[...(state.injuryLogs||[])].filter(l=>l.injuryId===injuryId).sort((a,b)=>(b.date||'').localeCompare(a.date||''));
+
+ return appShell(`
+ <div class="toolbar injuryPageTop">
+   <div><h2 style="margin:0">Injuries</h2><p class="muted small">Quickly see how each injury is doing, then expand for the full history.</p></div>
+   <button class="btn primary" data-add="injury">+ Add Injury</button>
+ </div>
+
+ <div class="injuryCardList">${items.length?items.map(i=>{
+   const latest=latestFor(i.id);
+   const history=historyFor(i.id);
+   const enabled=[
+     i.trackSwelling&&'Swelling',
+     i.trackStiffness&&'Stiffness',
+     i.trackRangeOfMotion&&'Range of motion'
+   ].filter(Boolean);
+
+   return `<article class="card injuryOverviewCard ${i.active===false?'injuryArchived':''}" data-injury-card="${i.id}">
+     <div class="injuryOverviewHeader">
+       <div class="injuryOverviewTitle">
+         <div class="injuryIcon">🦴</div>
+         <div><h3>${esc(i.name)}</h3>${i.description?`<p>${esc(i.description)}</p>`:''}</div>
+       </div>
+       <button type="button" class="physioExpandBtn" data-toggle-injury-card aria-expanded="false">+</button>
+     </div>
+
+     <div class="injurySnapshot">
+       <div><span>Latest pain</span><strong>${latest&&latest.pain!==''&&latest.pain!=null?`${esc(latest.pain)}/10`:'Not recorded'}</strong></div>
+       <div><span>Last updated</span><strong>${latest?.date?fmt(latest.date):'No entries'}</strong></div>
+       <div><span>Trend</span><strong>${latest?.change?esc(latest.change):'Not recorded'}</strong></div>
+     </div>
+
+     ${enabled.length?`<div class="injuryTrackingPills">${enabled.map(x=>`<span>${esc(x)}</span>`).join('')}</div>`:''}
+
+     <div class="injuryQuickActions">
+       <button class="btn primary" data-new-injury-log="${i.id}">Update Injury</button>
+       <button class="btn secondary" data-edit="injury" data-id="${i.id}">Edit Injury</button>
+     </div>
+
+     <div class="injuryExpandable">
+       <div class="injuryExpandableInner">
+         <div class="injuryHistoryHead"><strong>History</strong><span>${history.length} entr${history.length===1?'y':'ies'}</span></div>
+         ${history.length?`<div class="injuryHistoryList">${history.map(l=>{
+           const extras=[
+             l.swelling&&`Swelling: ${esc(l.swelling)}`,
+             l.stiffness&&`Stiffness: ${esc(l.stiffness)}`,
+             l.rangeOfMotion&&`Range of motion: ${esc(l.rangeOfMotion)}`
+           ].filter(Boolean);
+           return `<section class="injuryDayEntry">
+             <div class="injuryDayHead">
+               <div><strong>${fmt(l.date)}</strong>${l.change?`<span class="injuryTrend ${String(l.change).toLowerCase()}">${esc(l.change)}</span>`:''}</div>
+               <div class="injuryDayPain">${l.pain!==''&&l.pain!=null?`Pain ${esc(l.pain)}/10`:'Pain not recorded'}</div>
+             </div>
+             ${extras.length?`<div class="injuryMetricsGrid">${extras.map(x=>`<div>${x}</div>`).join('')}</div>`:''}
+             ${l.notes?`<div class="injuryNotesBlock"><span>Notes</span><p>${esc(l.notes).replace(/\n/g,'<br>')}</p></div>`:''}
+             ${l.photos?.length?`<div class="photoGrid injuryAttachments">${l.photos.map((p,ix)=>attachmentPreview(p,{label:`Injury attachment ${ix+1}`,remove:`<button type="button" class="removePhotoBtn" data-remove-saved-photo="${l.id}:${ix}" aria-label="Remove attachment">×</button>`})).join('')}</div>`:''}
+             <div class="actions injuryEntryActions"><button class="iconBtn" data-edit="injuryLog" data-id="${l.id}">Edit Entry</button></div>
+           </section>`;
+         }).join('')}</div>`:`<div class="empty compactEmpty">No updates recorded for this injury yet.</div>`}
+         <div class="actions injuryDeleteActions"><button class="iconBtn" data-delete="injury" data-id="${i.id}">Delete Injury</button></div>
+       </div>
+     </div>
+   </article>`;
+ }).join(''):`<div class="empty">No injuries added yet.</div>`}</div>
+ `,'Injuries','Track each injury separately without clutter.');
 }
 function injuryCard(i){
  const logs=[...state.injuryLogs].filter(x=>x.injuryId===i.id).sort((a,b)=>b.date.localeCompare(a.date));
@@ -1676,6 +1742,14 @@ function bind(){
    b.textContent=expanded?'−':'+';
    b.setAttribute('aria-expanded',String(expanded));
  });
+ document.querySelectorAll('[data-toggle-injury-card]').forEach(b=>b.onclick=()=>{
+   const card=b.closest('[data-injury-card]');if(!card)return;
+   const expanded=card.classList.toggle('is-expanded');
+   b.textContent=expanded?'−':'+';
+   b.setAttribute('aria-expanded',String(expanded));
+ });
+ document.querySelectorAll('[data-new-injury-log]').forEach(b=>b.onclick=()=>openForm('injuryLog','new:'+b.dataset.newInjuryLog));
+
 
 
  document.querySelectorAll('[data-view-photo]').forEach(b=>b.onclick=()=>{
