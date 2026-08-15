@@ -352,3 +352,65 @@ input,textarea,select{width:100%;border:1px solid #cfd9e5;border-radius:8px;padd
 @media(max-width:900px){.physioExerciseGrid{grid-template-columns:1fr}.physioActionCard{flex-direction:column;align-items:stretch}.physioActions{justify-content:stretch}.physioActions .btn{flex:1}}
 @media(max-width:600px){.physioMetrics{grid-template-columns:1fr 1fr!important}.physioExerciseQuick,.physioRecordGrid{grid-template-columns:1fr}.physioExerciseButtons{grid-template-columns:1fr 1fr}.physioActions{display:grid;grid-template-columns:1fr 1fr}.physioActions .btn{width:100%}}
 @media(max-width:420px){.physioMetrics,.physioActions{grid-template-columns:1fr!important}}
+
+
+/* v2.4.1 simplified Physio home */
+.physioNextCard{
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:16px;
+  margin-bottom:16px;
+  background:linear-gradient(135deg,#eef8ff,#fff);
+}
+.physioNextLarge{display:grid;gap:2px;margin-top:4px}
+.physioNextLarge strong{font-size:22px;color:#0b315f}
+.physioNextLarge span{font-size:14px;font-weight:750;color:#3f5874}
+.physioNextLarge small{font-size:12px;color:#718096}
+.physioTopActions{display:flex;gap:8px;flex-wrap:wrap}
+.physioExerciseSection{margin-top:8px}
+.physioSecondaryActions{
+  display:flex;
+  justify-content:space-between;
+  align-items:center;
+  gap:14px;
+  margin-top:22px;
+}
+.physioSecondaryActions h3{margin:0 0 3px}
+.physioSecondaryActions p{margin:0}
+@media(max-width:700px){
+  .physioNextCard,.physioSecondaryActions{flex-direction:column;align-items:stretch}
+  .physioTopActions,.physioSecondaryActions .physioActions{display:grid;grid-template-columns:1fr 1fr}
+}
+@media(max-width:460px){
+  .physioTopActions,.physioSecondaryActions .physioActions{grid-template-columns:1fr}
+}
+
+
+/* v2.4.2 universal image/PDF attachments */
+.attachmentHint{margin-top:6px;font-size:11px;color:#748296}
+.attachmentWrap{position:relative;display:inline-flex}
+.imageAttachment{align-items:flex-start}
+.pdfAttachment{width:112px;min-height:82px}
+.pdfAttachmentLink{
+  width:112px;min-height:82px;border:1px solid #d8e2ec;border-radius:9px;
+  background:#f8fafc;text-decoration:none;color:#28435e;padding:8px;
+  display:grid;align-content:center;justify-items:center;gap:3px;text-align:center;
+}
+.pdfAttachmentIcon{
+  display:grid;place-items:center;width:38px;height:32px;border-radius:6px;
+  background:#d94747;color:#fff;font-size:11px;font-weight:900;
+}
+.pdfAttachmentLink>span:not(.pdfAttachmentIcon){font-size:10px;font-weight:750;line-height:1.15}
+.pdfAttachmentLink small{font-size:9px;color:#718096}
+.attachmentWrap .removePhotoBtn{position:absolute;top:-7px;right:-7px}
+
+.physioPdfButton{
+  width:90px;height:90px;border:1px solid #d9e3ed;border-radius:9px;background:#f8fafc;
+  text-decoration:none;color:#28435e;display:grid;place-items:center;align-content:center;gap:5px;
+}
+.physioPdfButton>span{
+  display:grid;place-items:center;width:42px;height:34px;border-radius:7px;
+  background:#d94747;color:#fff;font-weight:900;font-size:11px;
+}
+.physioPdfButton small{font-size:9px;color:#718096}
