@@ -851,3 +851,79 @@ input,textarea,select{width:100%;border:1px solid #cfd9e5;border-radius:8px;padd
 .medicationReportLine.medColor5{border-left:4px solid #68b9bd;padding-left:8px}
 .medicationReportLine.medColor6{border-left:4px solid #d8bd58;padding-left:8px}
 .medicationReportLine.medColor7{border-left:4px solid #8b98aa;padding-left:8px}
+
+
+/* v2.6.5 medication history grouped by day */
+.medicationDayGroups{
+  display:grid;
+  gap:14px;
+  margin-top:12px;
+}
+.medicationDayGroup{
+  border:1px solid #d8e2ed;
+  border-radius:13px;
+  overflow:hidden;
+  background:#fff;
+  box-shadow:0 3px 12px rgba(28,55,88,.045);
+}
+.medicationDayHeader{
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:12px;
+  padding:11px 13px;
+  background:linear-gradient(90deg,#f4f8fd,#fbfdff);
+  border-bottom:1px solid #dfe7ef;
+}
+.medicationDayHeader>div:first-child{
+  display:grid;
+  gap:1px;
+}
+.medicationDayHeader strong{
+  font-size:15px;
+  color:#183a5d;
+}
+.medicationDayHeader>div:first-child span{
+  font-size:10px;
+  color:#748397;
+}
+.medicationDayCounts{
+  display:flex;
+  gap:7px;
+  flex-wrap:wrap;
+  justify-content:flex-end;
+}
+.medicationDayCounts span{
+  display:inline-flex;
+  align-items:center;
+  border-radius:999px;
+  padding:4px 8px;
+  font-size:10px;
+  font-weight:850;
+}
+.dayTakenCount{
+  background:#edf8f1;
+  color:#247443;
+  border:1px solid #cfe7d8;
+}
+.dayMissedCount{
+  background:#fff0f0;
+  color:#a43a3a;
+  border:1px solid #efcece;
+}
+.medicationDayRows{
+  display:grid;
+  gap:7px;
+  padding:9px;
+}
+.medicationDayRows .doseHistoryRow{
+  margin:0;
+}
+@media(max-width:520px){
+  .medicationDayHeader{
+    align-items:flex-start;
+  }
+  .medicationDayCounts{
+    max-width:48%;
+  }
+}

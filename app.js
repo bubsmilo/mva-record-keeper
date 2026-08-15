@@ -3,7 +3,7 @@
 'use strict';
 
 const KEY='mva-record-keeper-v1';
-const APP_VERSION='2.6.4';
+const APP_VERSION='2.6.5';
 document.title=`MVA Record Keeper v${APP_VERSION}`;
 
 const ATTACHMENT_DB='mva-record-keeper-attachments';
@@ -575,6 +575,33 @@ function doseHistoryRow(d,showMedication=false){
  const name=d.medicationNameSnapshot||med?.name||'Medication';
  return `<div class="doseHistoryRow detailedDoseRow medicationHistoryColored ${medicationColorClass(d.medicationId,name)}"><div>${showMedication?`<div class="medicationHistoryName">${medicationColorDot(d.medicationId,name)}<strong>${esc(name)}</strong></div>`:`<strong class="${d.status==='Missed'?'missedDose':'takenDose'}">${esc(d.status)}</strong>`}<span>${showMedication?`${esc(d.status)} · `:''}${fmtDateTime(d.dateTime)}</span><div class="doseSnapshotLine">${d.doseSnapshot?`<span><b>Dose:</b> ${esc(d.doseSnapshot)}</span>`:''}${d.frequencySnapshot?`<span><b>Frequency:</b> ${esc(d.frequencySnapshot)}</span>`:''}</div>${d.note?`<small>${esc(d.note)}</small>`:''}${d.legacySnapshot?`<small class="muted">Older imported record — details use the best information available.</small>`:''}</div><div class="doseRowActions"><button class="iconBtn" type="button" data-edit="dose" data-id="${d.id}">Edit</button><button class="doseDeleteBtn" type="button" data-delete-dose="${d.id}" aria-label="Delete dose record">×</button></div></div>`;
 }
+
+function medicationHistoryByDayHtml(records=[]){
+ const groups=new Map();
+ records.forEach(d=>{
+   const day=localDateKey(d.dateTime)||'Unknown';
+   if(!groups.has(day))groups.set(day,[]);
+   groups.get(day).push(d);
+ });
+ return [...groups.entries()].map(([day,items])=>{
+   const taken=items.filter(d=>d.status==='Taken').length;
+   const missed=items.filter(d=>d.status==='Missed').length;
+   return `<section class="medicationDayGroup">
+     <div class="medicationDayHeader">
+       <div>
+         <strong>${day==='Unknown'?'Unknown date':fmt(day)}</strong>
+         <span>${items.length} record${items.length===1?'':'s'}</span>
+       </div>
+       <div class="medicationDayCounts">
+         <span class="dayTakenCount">✓ ${taken} taken</span>
+         ${missed?`<span class="dayMissedCount">× ${missed} missed</span>`:''}
+       </div>
+     </div>
+     <div class="doseHistory medicationDayRows">${items.map(d=>doseHistoryRow(d,true)).join('')}</div>
+   </section>`;
+ }).join('');
+}
+
 function medications(){
  const now=new Date();
  const history=[...(state.doses||[])].filter(d=>d.dateTime).sort((a,b)=>new Date(b.dateTime)-new Date(a.dateTime));
@@ -611,7 +638,7 @@ function medications(){
    </section>`;
  }).join(''):`<div class="empty">Add your medications to start tracking doses and exact times.</div>`}</div>
  ${activeMeds.length>=2?`<details class="card multiMedicationLog"><summary class="multiMedicationSummary"><span><strong>Log two medications together</strong><small>Add older doses taken at the same time</small></span><span class="multiMedicationChevron">+</span></summary><div class="multiMedicationContent"><p class="muted small">Use one date and time for medications taken together. Each record keeps its own dose and frequency.</p><div class="multiMedicationShared"><div class="field"><label>Date</label><input type="date" id="multiDoseDate" value="${today()}"></div><div class="field"><label>Time</label><input type="time" id="multiDoseTime" value="${localDateTimeValue().slice(11,16)}"></div><div class="field"><label>Status</label><select id="multiDoseStatus"><option>Taken</option><option>Missed</option></select></div></div><div class="multiMedicationRows">${[1,2].map((row,i)=>`<div class="multiMedicationRow"><div class="field"><label>Medication ${row}</label><select data-multi-med="${row}"><option value="">Choose medication</option>${activeMeds.map((m,index)=>`<option value="${m.id}" ${index===i?'selected':''}>${esc(m.name)}</option>`).join('')}</select></div><div class="field"><label>Dose at that time</label><input data-multi-dose="${row}" value="${esc(activeMeds[i]?.dose||'')}"></div><div class="field"><label>Frequency at that time</label><input data-multi-frequency="${row}" value="${esc(activeMeds[i]?.frequency||activeMeds[i]?.schedule||'')}"></div><div class="field"><label>Note (optional)</label><input data-multi-note="${row}" placeholder="Optional"></div></div>`).join('')}</div><button class="btn secondary wide" type="button" id="logTwoMedications">Add both to history</button></div></details>`:''}
- ${history.length?`<section class="card allDoseHistory"><div class="toolbar"><div><h2>All medication history</h2><p class="muted small">Every entry keeps the dose and frequency that applied at that time.</p></div></div><div class="doseHistory">${history.slice(0,60).map(d=>doseHistoryRow(d,true)).join('')}</div></section>`:''}
+ ${history.length?`<section class="card allDoseHistory"><div class="toolbar"><div><h2>All medication history</h2><p class="muted small">Grouped by day so you can quickly see how many doses were taken or missed.</p></div></div><div class="medicationDayGroups">${medicationHistoryByDayHtml(history.slice(0,120))}</div></section>`:''}
  `,'Medications','Track actual dose times while preserving changes to dose and frequency over time.');
 }
 
