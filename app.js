@@ -3,7 +3,7 @@
 'use strict';
 
 const KEY='mva-record-keeper-v1';
-const APP_VERSION='2.8.12';
+const APP_VERSION='2.8.13';
 document.title=`MVA Record Keeper v${APP_VERSION}`;
 
 const ATTACHMENT_DB='mva-record-keeper-attachments';
@@ -218,7 +218,7 @@ const defaults={
   physioSettings:{startTime:'09:00',endTime:'18:00'},
   journal:[], injuries:[], injuryLogs:[], medications:[], doses:[], medicationEvents:[], receipts:[], appointments:[], missedActivities:[],
   physioPrescriptions:[], physioVisits:[], physioExercises:[], physioExerciseLogs:[], physioDocuments:[],
-  tasks:[], questions:[], notes:[], timeline:[]
+  tasks:[], questions:[], notes:[], communications:[], timeline:[]
 };
 let state=load();
 state.profile={...defaults.profile,...(state.profile||{})};
@@ -226,6 +226,18 @@ state.quickInfo={...defaults.quickInfo,...(state.quickInfo||{})};
 state.quickInfo.otherHealthcareProviders=Array.isArray(state.quickInfo.otherHealthcareProviders)?state.quickInfo.otherHealthcareProviders:[];
 state.reportSettings={...defaults.reportSettings,...(state.reportSettings||{})};
 state.physioSettings={...defaults.physioSettings,...(state.physioSettings||{})};
+
+state.communications=Array.isArray(state.communications)?state.communications:[];
+if(!state.communicationNotesMigrated){
+  const existing=new Set(state.communications.map(x=>x.id));
+  (state.notes||[]).forEach(n=>{
+    const id=`legacy-note-${n.id||uid()}`;
+    if(!existing.has(id))state.communications.push({id,date:n.date||today(),time:'',person:'',organization:'',role:'',method:'Other',subject:n.title||'Previous note',reason:'',discussed:n.text||'',theySaid:'',iProvided:'',actions:'',followUpRequired:false,followUpDate:'',attachments:[],legacyNote:true});
+  });
+  state.communicationNotesMigrated=true;
+  save();
+}
+
 function migrateMedicationData(){
  let changed=false;
  state.medications=(state.medications||[]).map(m=>{
@@ -385,7 +397,7 @@ function dashboard(){
          <span class="dashboardQuickIcon">📇</span><strong>Quick Info</strong>
        </button>
        <button class="dashboardQuickCard compactDashboardQuickCard" data-nav="notes">
-         <span class="dashboardQuickIcon">📝</span><strong>Notes</strong>
+         <span class="dashboardQuickIcon">💬</span><strong>Communication</strong>
        </button>
        <button class="dashboardQuickCard compactDashboardQuickCard" data-nav="missedActivities">
          <span class="dashboardQuickIcon">🎟️</span><strong>Missed</strong>
@@ -1313,20 +1325,23 @@ function tasks(){
 }
 
 function notes(){
- const sortedNotes=[...(state.notes||[])].sort((a,b)=>(b.date||'').localeCompare(a.date||''));
- return appShell(`<div class="grid grid2">
- <section class="card"><div class="toolbar"><h2>Questions</h2><button class="btn secondary" data-add="question">+ Add</button></div><div class="list">${state.questions.length?state.questions.map(q=>`<div class="row"><div class="${q.answered?'strike':''}"><div class="rowTitle">${esc(q.text)}</div><div class="rowMeta">${esc(q.forWhom||'Doctor')}</div>${q.answer?`<div class="small"><strong>Answer:</strong> ${esc(q.answer)}</div>`:''}</div><div class="actions"><button class="iconBtn" data-edit="question" data-id="${q.id}">Edit</button><button class="iconBtn" data-delete="question" data-id="${q.id}">Delete</button></div></div>`).join(''):`<div class="empty">No questions saved.</div>`}</div></section>
- <section class="card generalNotesSection"><div class="toolbar"><h2>General notes</h2><button class="btn secondary" data-add="note">+ Add</button></div><div class="list">${sortedNotes.length?sortedNotes.map(n=>`<article class="noteCollapsible">
-   <div class="noteCollapseHead">
-     <div><div class="rowTitle">${esc(n.title||'Note')}</div><div class="rowMeta">${fmt(n.date)}</div></div>
-     <button type="button" class="noteToggleBtn" data-toggle-note aria-expanded="false">+</button>
-   </div>
-   <div class="noteExpandable"><div class="noteInner">
-     ${n.text?`<p class="small">${esc(n.text).replace(/\n/g,'<br>')}</p>`:''}
-     <div class="actions noteBottomActions"><button class="iconBtn" data-edit="note" data-id="${n.id}">Edit</button><button class="iconBtn" data-delete="note" data-id="${n.id}">Delete</button></div>
-   </div></div>
- </article>`).join(''):`<div class="empty">No notes saved.</div>`}</div></section>
- </div>`,'Notes & Questions','Keep questions for doctors, your lawyer, insurer and your own notes.');
+ const entries=[...(state.communications||[])].sort((a,b)=>`${a.date||''}T${a.time||'00:00'}`.localeCompare(`${b.date||''}T${b.time||'00:00'}`));
+ const followUps=entries.filter(x=>x.followUpRequired&&x.followUpDate).sort((a,b)=>a.followUpDate.localeCompare(b.followUpDate));
+ return appShell(`
+ <section class="communicationIntro"><div><h2>Communication Log</h2><p class="muted small">Calls, emails, conversations, paperwork and follow-ups related to your accident.</p></div><button class="btn primary" data-add="communication">+ Add Contact</button></section>
+ ${followUps.length?`<section class="card communicationFollowups"><div class="communicationFollowupTitle">Follow-ups</div>${followUps.map(x=>`<div class="communicationFollowupRow"><strong>${fmt(x.followUpDate)}</strong><span>${esc(x.person||x.organization||x.subject||'Follow-up')}</span></div>`).join('')}</section>`:''}
+ <section class="communicationLogList">${entries.length?entries.map(x=>{
+   const who=[x.person,x.role].filter(Boolean).join(' · ')||x.organization||'Communication';
+   const org=x.person&&x.organization?x.organization:'';
+   const icon=x.method==='Phone'?'📞':x.method==='Email'?'✉️':x.method==='In person'?'🤝':x.method==='Text message'?'💬':x.method==='Letter'?'📄':'🗂️';
+   return `<article class="card communicationCard"><div class="communicationCardHead"><div class="communicationMethodIcon">${icon}</div><div class="communicationHeadText"><div class="communicationDate">${fmt(x.date)}${x.time?` · ${esc(x.time)}`:''}</div><h3>${esc(who)}</h3>${org?`<small>${esc(org)}</small>`:''}${x.subject?`<span>${esc(x.subject)}</span>`:''}</div><button type="button" class="communicationToggle" data-toggle-communication aria-expanded="false">+</button></div>
+   <div class="communicationExpandable"><div class="communicationInner"><div class="communicationMeta"><div><span>Method</span><strong>${esc(x.method||'Other')}</strong></div>${x.organization?`<div><span>Organization</span><strong>${esc(x.organization)}</strong></div>`:''}</div>
+   ${x.reason?`<div class="communicationText"><span>Reason for contact</span><p>${esc(x.reason).replace(/\n/g,'<br>')}</p></div>`:''}${x.discussed?`<div class="communicationText"><span>What was discussed</span><p>${esc(x.discussed).replace(/\n/g,'<br>')}</p></div>`:''}${x.theySaid?`<div class="communicationText"><span>What they told me</span><p>${esc(x.theySaid).replace(/\n/g,'<br>')}</p></div>`:''}${x.iProvided?`<div class="communicationText"><span>What I provided / did</span><p>${esc(x.iProvided).replace(/\n/g,'<br>')}</p></div>`:''}${x.actions?`<div class="communicationText"><span>Action items / next steps</span><p>${esc(x.actions).replace(/\n/g,'<br>')}</p></div>`:''}
+   ${x.followUpRequired?`<div class="communicationFollowupBadge">⏰ Follow-up${x.followUpDate?` · ${fmt(x.followUpDate)}`:''}</div>`:''}${(x.attachments||[]).length?`<div class="photoGrid communicationAttachments">${x.attachments.map((p,ix)=>attachmentPreview(p,{label:`Communication attachment ${ix+1}`})).join('')}</div>`:''}
+   <div class="actions communicationActions"><button class="iconBtn" data-edit="communication" data-id="${x.id}">Edit</button><button class="iconBtn" data-delete="communication" data-id="${x.id}">Delete</button></div></div></div></article>`;
+ }).join(''):`<div class="empty">No communications recorded yet.</div>`}</section>
+ <section class="card communicationQuestions"><div class="toolbar"><div><h2>Questions to Ask</h2><p class="muted small">Keep questions here until you get an answer.</p></div><button class="btn secondary" data-add="question">+ Add</button></div><div class="list">${state.questions.length?state.questions.map(q=>`<div class="row"><div class="${q.answered?'strike':''}"><div class="rowTitle">${esc(q.text)}</div><div class="rowMeta">${esc(q.forWhom||'Doctor')}</div>${q.answer?`<div class="small"><strong>Answer:</strong> ${esc(q.answer)}</div>`:''}</div><div class="actions"><button class="iconBtn" data-edit="question" data-id="${q.id}">Edit</button><button class="iconBtn" data-delete="question" data-id="${q.id}">Delete</button></div></div>`).join(''):`<div class="empty">No questions saved.</div>`}</div></section>
+ `,'Communication Log','Your chronological record of calls, emails, conversations and follow-ups.');
 }
 function reports(){
  const totalReceipts=state.receipts.reduce((sum,r)=>sum+Number(r.amount||0),0);
@@ -1616,7 +1631,7 @@ function openForm(type,id){
  const newDoseDate=type==='dose'&&String(id||'').startsWith('newday:')?String(id).slice(7):'';
  const rebookId=(type==='appointment'||type==='physioVisit')&&String(id||'').startsWith('rebook:')?String(id).slice(7):'';
  if(newInjuryId||newExerciseId||newDoseDate||rebookId)id='';
- const map={journal:'journal',injury:'injuries',injuryLog:'injuryLogs',medication:'medications',dose:'doses',receipt:'receipts',appointment:'appointments',missedActivity:'missedActivities',physioPrescription:'physioPrescriptions',physioVisit:'physioVisits',physioExercise:'physioExercises',physioExerciseLog:'physioExerciseLogs',physioDocument:'physioDocuments',timeline:'timeline',task:'tasks',question:'questions',note:'notes'};
+ const map={journal:'journal',injury:'injuries',injuryLog:'injuryLogs',medication:'medications',dose:'doses',receipt:'receipts',appointment:'appointments',missedActivity:'missedActivities',physioPrescription:'physioPrescriptions',physioVisit:'physioVisits',physioExercise:'physioExercises',physioExerciseLog:'physioExerciseLogs',physioDocument:'physioDocuments',timeline:'timeline',task:'tasks',question:'questions',note:'notes',communication:'communications'};
  const arr=state[map[type]]||[];
  let item=id?arr.find(x=>x.id===id):{};
  if(rebookId){
@@ -1684,6 +1699,7 @@ function openForm(type,id){
  if(type==='timeline') body=`${field('Date','date',item.date||today(),'date')}${field('Event title','title',item.title||'')}${selectField('Event type','type',['Accident','Hospital / ER','Doctor','Imaging','Physiotherapy','Insurance','Lawyer','Medication','Other'],item.type||'Other')}${area('Details','notes',item.notes||'')}`;
  if(type==='task') body=`${field('Task','title',item.title||'')}${field('Due date','due',item.due||'','date')}${selectField('Priority','priority',['Low','Normal','High'],item.priority||'Normal')}${selectField('Status','done',['Open','Completed'],item.done?'Completed':'Open')}`;
  if(type==='question') body=`${area('Question','text',item.text||'')}${selectField('For','forWhom',['Doctor','Lawyer','Insurance','Physiotherapist','Other'],item.forWhom||'Doctor')}${selectField('Status','answered',['Open','Answered'],item.answered?'Answered':'Open')}${area('Answer / notes','answer',item.answer||'')}`;
+ if(type==='communication') body=`${field('Date','date',item.date||today(),'date')}${field('Time','time',item.time||'','time')}${field('Person','person',item.person||'')}${field('Organization','organization',item.organization||'')}${field('Role','role',item.role||'')}${selectField('Contact method','method',['Phone','Email','In person','Portal / app','Text message','Letter','Other'],item.method||'Phone')}${field('Subject / reason','subject',item.subject||'')}${area('Reason for contact','reason',item.reason||'')}${area('What was discussed','discussed',item.discussed||'')}${area('What they told me','theySaid',item.theySaid||'')}${area('What I provided / did','iProvided',item.iProvided||'')}${area('Action items / next steps','actions',item.actions||'')}${selectField('Follow-up required?','followUpRequired',['No','Yes'],item.followUpRequired?'Yes':'No')}${field('Follow-up date','followUpDate',item.followUpDate||'','date')}${photoField('Attachments / screenshots / PDFs','attachments',item.attachments||[],true)}`;
  if(type==='note') body=`${field('Date','date',item.date||today(),'date')}${field('Title','title',item.title||'')}${area('Note','text',item.text||'')}`;
  modal=`<div class="modalBackdrop"><form class="modal" id="editForm" data-type="${type}" data-id="${id||''}"><div class="modalHead"><h2>${title}</h2><button type="button" class="iconBtn" data-close>✕</button></div><div class="formGrid">${body}</div><div class="modalFoot"><button type="button" class="btn secondary" data-close>Cancel</button><button class="btn primary">Save</button></div></form></div>`;
  render();
@@ -1827,6 +1843,13 @@ async function saveForm(form){
    const ai=state.appointments.findIndex(a=>a.id===appt.id);
    if(ai>=0)state.appointments[ai]={...state.appointments[ai],...appt};else state.appointments.push(appt);
  }
+ if(type==='communication'){
+   const existing=state.communications.find(x=>x.id===id);
+   obj.attachments=existing?.attachments||[];
+   const inp=form.elements.attachments;
+   if(inp?.files?.length)obj.attachments.push(...await filesToAttachmentRefs(inp));
+   obj.followUpRequired=obj.followUpRequired==='Yes';
+ }
  if(type==='missedActivity'){
    const existing=state.missedActivities.find(x=>x.id===id);
    obj.photos=existing?.photos||[];
@@ -1865,7 +1888,7 @@ async function saveForm(form){
 
  if(type==='task') obj.done=obj.done==='Completed';
  if(type==='question') obj.answered=obj.answered==='Answered';
- const map={journal:'journal',injury:'injuries',injuryLog:'injuryLogs',medication:'medications',dose:'doses',receipt:'receipts',appointment:'appointments',missedActivity:'missedActivities',physioPrescription:'physioPrescriptions',physioVisit:'physioVisits',physioExercise:'physioExercises',physioExerciseLog:'physioExerciseLogs',physioDocument:'physioDocuments',timeline:'timeline',task:'tasks',question:'questions',note:'notes'};
+ const map={journal:'journal',injury:'injuries',injuryLog:'injuryLogs',medication:'medications',dose:'doses',receipt:'receipts',appointment:'appointments',missedActivity:'missedActivities',physioPrescription:'physioPrescriptions',physioVisit:'physioVisits',physioExercise:'physioExercises',physioExerciseLog:'physioExerciseLogs',physioDocument:'physioDocuments',timeline:'timeline',task:'tasks',question:'questions',note:'notes',communication:'communications'};
  const arr=state[map[type]];
  if(!arr){alert('This record type could not be saved.');return}
  const ix=arr.findIndex(x=>x.id===id); if(ix>=0)arr[ix]=obj;else arr.push(obj);
@@ -1873,7 +1896,7 @@ async function saveForm(form){
 }
 
 function del(type,id){
- const map={journal:'journal',injury:'injuries',injuryLog:'injuryLogs',medication:'medications',receipt:'receipts',appointment:'appointments',missedActivity:'missedActivities',physioPrescription:'physioPrescriptions',physioVisit:'physioVisits',physioExercise:'physioExercises',physioExerciseLog:'physioExerciseLogs',physioDocument:'physioDocuments',timeline:'timeline',task:'tasks',question:'questions',note:'notes'};
+ const map={journal:'journal',injury:'injuries',injuryLog:'injuryLogs',medication:'medications',receipt:'receipts',appointment:'appointments',missedActivity:'missedActivities',physioPrescription:'physioPrescriptions',physioVisit:'physioVisits',physioExercise:'physioExercises',physioExerciseLog:'physioExerciseLogs',physioDocument:'physioDocuments',timeline:'timeline',task:'tasks',question:'questions',note:'notes',communication:'communications'};
  if(!confirm('Delete this item?'))return;
  if(type==='journal'){const entry=state.journal.find(x=>x.id===id);if(entry)state.injuryLogs=state.injuryLogs.filter(x=>x.date!==entry.date)}
  if(type==='physioVisit'){const visit=state.physioVisits.find(v=>v.id===id);if(visit?.appointmentId)state.appointments=state.appointments.filter(a=>a.id!==visit.appointmentId)}
@@ -2351,6 +2374,16 @@ function bind(){
 // Robust navigation handling. This is delegated so bottom-nav buttons keep
 // working even after render() replaces the page HTML.
 document.addEventListener('click',function(e){
+ const communicationToggle=e.target.closest('[data-toggle-communication]');
+ if(communicationToggle){
+   e.preventDefault();
+   const card=communicationToggle.closest('.communicationCard');
+   if(!card)return;
+   const expanded=card.classList.toggle('is-expanded');
+   communicationToggle.textContent=expanded?'−':'+';
+   communicationToggle.setAttribute('aria-expanded',String(expanded));
+   return;
+ }
  const missedToggle=e.target.closest('[data-toggle-missed-activity]');
  if(missedToggle){
    e.preventDefault();
