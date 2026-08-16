@@ -2259,3 +2259,33 @@ input,textarea,select{width:100%;border:1px solid #cfd9e5;border-radius:8px;padd
   line-height:1.3;
   color:#748496;
 }
+
+/* v2.8.21 Communication grouped by category */
+.communicationGroupedList{display:grid;gap:12px}
+.communicationGroup{border:1px solid #dbe4ed;border-radius:12px;overflow:hidden;background:#fff}
+.communicationGroupHead{
+  width:100%;appearance:none;border:0;background:#f6f9fd;
+  display:flex;align-items:center;justify-content:space-between;
+  padding:10px 12px;text-align:left;cursor:pointer;
+}
+.communicationGroupHead>div{display:flex;align-items:center;gap:8px}
+.communicationGroupHead strong{font-size:13px;color:#173a5d}
+.communicationGroupHead small{font-size:9px;color:#75869a}
+.communicationGroupIcon{font-size:18px}
+.communicationGroupToggle{
+  width:28px;height:28px;border:1px solid #cdd9e6;background:#fff;
+  border-radius:8px;display:grid;place-items:center;color:#075bd4;font-size:18px;
+}
+.communicationGroupBody{
+  display:grid;grid-template-rows:1fr;opacity:1;
+  transition:grid-template-rows .18s ease,opacity .14s ease;
+}
+.communicationGroupInner{min-height:0;overflow:visible;display:grid;gap:8px;padding:8px}
+.communicationGroup.is-collapsed .communicationGroupBody{grid-template-rows:0fr;opacity:0}
+.communicationGroup.is-collapsed .communicationGroupInner{overflow:hidden;padding-top:0;padding-bottom:0}
+.communicationGroupInsurance .communicationGroupHead{background:linear-gradient(90deg,#eef5ff,#fff)}
+.communicationGroupMedical .communicationGroupHead{background:linear-gradient(90deg,#eefaf6,#fff)}
+.communicationGroupRehabilitation .communicationGroupHead{background:linear-gradient(90deg,#f3efff,#fff)}
+.communicationGroupLawyer .communicationGroupHead{background:linear-gradient(90deg,#fff6e9,#fff)}
+.communicationGroupOther .communicationGroupHead{background:linear-gradient(90deg,#f5f7f9,#fff)}
+.communicationGroup .communicationCard{margin:0}
