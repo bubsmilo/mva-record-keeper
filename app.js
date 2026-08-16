@@ -3,7 +3,7 @@
 'use strict';
 
 const KEY='mva-record-keeper-v1';
-const APP_VERSION='2.8.11';
+const APP_VERSION='2.8.12';
 document.title=`MVA Record Keeper v${APP_VERSION}`;
 
 const ATTACHMENT_DB='mva-record-keeper-attachments';
@@ -1031,7 +1031,18 @@ function exerciseScorecardHtml(ex){
 function physio(){
  const prescriptions=[...(state.physioPrescriptions||[])].sort((a,b)=>(b.date||'').localeCompare(a.date||''));
  const visits=[...(state.physioVisits||[])].sort((a,b)=>`${b.date||''}${b.time||''}`.localeCompare(`${a.date||''}${a.time||''}`));
- const exercises=[...(state.physioExercises||[])].sort((a,b)=>(a.active===false)-(b.active===false)||(a.name||'').localeCompare(b.name||''));
+ const exercises=[...(state.physioExercises||[])].sort((a,b)=>{
+   const aActive=a.active!==false,bActive=b.active!==false;
+   if(aActive!==bActive)return aActive?-1:1;
+   const ta=physioExerciseTiming(a),tb=physioExerciseTiming(b);
+   const aComplete=ta.target&&ta.done>=ta.target;
+   const bComplete=tb.target&&tb.done>=tb.target;
+   if(aComplete!==bComplete)return aComplete?1:-1;
+   const an=ta.next?ta.next.getTime():Number.MAX_SAFE_INTEGER;
+   const bn=tb.next?tb.next.getTime():Number.MAX_SAFE_INTEGER;
+   if(an!==bn)return an-bn;
+   return String(a.name||'').localeCompare(String(b.name||''));
+ });
  const documents=[...(state.physioDocuments||[])].sort((a,b)=>(b.date||'').localeCompare(a.date||''));
  const upcoming=[...(state.physioVisits||[])].filter(v=>v.status!=='Completed'&&v.status!=='Cancelled'&&v.date>=today()).sort((a,b)=>`${a.date}${a.time||''}`.localeCompare(`${b.date}${b.time||''}`))[0];
  const activeRx=prescriptions.filter(p=>p.active!==false).length;
