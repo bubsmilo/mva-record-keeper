@@ -3,7 +3,7 @@
 'use strict';
 
 const KEY='mva-record-keeper-v1';
-const APP_VERSION='2.8.21';
+const APP_VERSION='2.8.22';
 document.title=`MVA Record Keeper v${APP_VERSION}`;
 
 const ATTACHMENT_DB='mva-record-keeper-attachments';
@@ -1355,7 +1355,7 @@ function notes(){
          <div class="communicationExpandable"><div class="communicationInner"><div class="communicationMeta"><div><span>Method</span><strong>${esc(x.method||'Other')}</strong></div>${x.organization?`<div><span>Organization</span><strong>${esc(x.organization)}</strong></div>`:''}</div>
          ${x.reason?`<div class="communicationText"><span>Reason for contact</span><p>${esc(x.reason).replace(/\n/g,'<br>')}</p></div>`:''}${x.discussed?`<div class="communicationText"><span>What was discussed</span><p>${esc(x.discussed).replace(/\n/g,'<br>')}</p></div>`:''}${x.theySaid?`<div class="communicationText"><span>What they told me</span><p>${esc(x.theySaid).replace(/\n/g,'<br>')}</p></div>`:''}${x.iProvided?`<div class="communicationText"><span>What I provided / did</span><p>${esc(x.iProvided).replace(/\n/g,'<br>')}</p></div>`:''}${x.actions?`<div class="communicationText"><span>Action items / next steps</span><p>${esc(x.actions).replace(/\n/g,'<br>')}</p></div>`:''}
          ${x.followUpRequired?`<div class="communicationFollowupBadge">⏰ Follow-up${x.followUpDate?` · ${fmt(x.followUpDate)}`:''}</div>`:''}${(x.attachments||[]).length?`<div class="photoGrid communicationAttachments">${x.attachments.map((p,ix)=>attachmentPreview(p,{label:`Communication attachment ${ix+1}`})).join('')}</div>`:''}
-         <div class="actions communicationActions"><button class="iconBtn" data-edit="communication" data-id="${x.id}">Edit</button><button class="iconBtn" data-delete="communication" data-id="${x.id}">Delete</button></div></div></div></article>`;
+         <div class="actions communicationActions"><button class="iconBtn communicationContinueBtn" data-continue-communication="${x.id}">↪ Follow-up</button><button class="iconBtn" data-edit="communication" data-id="${x.id}">Edit</button><button class="iconBtn" data-delete="communication" data-id="${x.id}">Delete</button></div></div></div></article>`;
        }).join('')}
        </div>
      </div>
@@ -2224,6 +2224,53 @@ function manageCommunicationContacts(kind){
  }
 }
 
+
+function continueCommunication(id){
+ const source=(state.communications||[]).find(x=>x.id===id);
+ if(!source)return;
+
+ const draft={
+   category:source.category||'Other',
+   date:today(),
+   time:'',
+   person:source.person||'',
+   organization:source.organization||'',
+   role:source.role||'',
+   method:source.method||'Phone',
+   subject:source.subject||'',
+   reason:'',
+   discussed:'',
+   theySaid:'',
+   iProvided:'',
+   actions:'',
+   followUpRequired:false,
+   followUpDate:'',
+   attachments:[],
+   continuedFrom:id,
+
+   medicalProvider:source.medicalProvider||source.person||'',
+   medicalOrganization:source.medicalOrganization||source.organization||'',
+   medicalRole:source.medicalRole||source.role||'',
+
+   rehabType:source.rehabType||source.role||'Physiotherapist',
+   rehabProvider:source.rehabProvider||source.person||'',
+   rehabOrganization:source.rehabOrganization||source.organization||'',
+
+   lawyerPerson:source.lawyerPerson||source.person||'',
+   lawyerOrganization:source.lawyerOrganization||source.organization||'',
+   lawyerRole:source.lawyerRole||source.role||'',
+
+   insurancePerson:source.insurancePerson||source.person||'',
+   insuranceOrganization:source.insuranceOrganization||source.organization||'',
+   insuranceRole:source.insuranceRole||source.role||'',
+
+   otherPerson:source.otherPerson||source.person||'',
+   otherOrganization:source.otherOrganization||source.organization||'',
+   otherRole:source.otherRole||source.role||''
+ };
+
+ openForm('communication',draft);
+}
 function bind(){
  document.querySelectorAll('[data-nav]').forEach(b=>b.onclick=()=>nav(b.dataset.nav));
  const openQuickInfoEdit=document.getElementById('openQuickInfoEdit');
@@ -2299,6 +2346,10 @@ function bind(){
  });
 
 
+
+ document.querySelectorAll('[data-continue-communication]').forEach(btn=>btn.onclick=()=>{
+   continueCommunication(btn.dataset.continueCommunication);
+ });
  document.querySelectorAll('[data-add-communication-contact]').forEach(btn=>btn.onclick=()=>{
    addCommunicationContact(btn.dataset.addCommunicationContact);
  });
