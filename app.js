@@ -3,7 +3,7 @@
 'use strict';
 
 const KEY='mva-record-keeper-v1';
-const APP_VERSION='2.8.6';
+const APP_VERSION='2.8.7';
 document.title=`MVA Record Keeper v${APP_VERSION}`;
 
 const ATTACHMENT_DB='mva-record-keeper-attachments';
@@ -1170,17 +1170,23 @@ function missedActivities(){
   <div class="toolbar missedActivitiesTop"><div><h2 style="margin:0">Missed Activities & Events</h2><p class="muted small">Record plans, outings and events you could not attend because of your injuries.</p></div><button class="btn primary" data-add="missedActivity">+ Add</button></div>
   ${items.length?`<div class="grid grid2 missedActivitySummary"><section class="card"><div class="muted small">Recorded items</div><div class="metric">${items.length}</div></section><section class="card"><div class="muted small">Money lost</div><div class="metric">${money(total)}</div></section></div>`:''}
   <div class="missedActivityList">${items.length?items.map(x=>`<article class="card missedActivityCard">
-    <div class="missedActivityHead"><div class="missedActivityIcon">🎟️</div><div><h3>${esc(x.title||'Missed activity')}</h3><p>${fmt(x.date)}${x.location?` · ${esc(x.location)}`:''}</p></div><div class="actions"><button class="iconBtn" data-edit="missedActivity" data-id="${x.id}">Edit</button><button class="iconBtn" data-delete="missedActivity" data-id="${x.id}">Delete</button></div></div>
-    ${x.amountLost?`<div class="missedActivityLoss"><span>Money lost</span><strong>${money(x.amountLost)}</strong></div>`:''}
-    ${x.withWhom?`<div class="missedActivityText"><span>Who I planned to go with</span><p>${esc(x.withWhom)}</p></div>`:''}
-    ${x.reason?`<div class="missedActivityText"><span>Why I missed it</span><p>${esc(x.reason).replace(/\\n/g,'<br>')}</p></div>`:''}
-    ${x.impact?`<div class="missedActivityText"><span>How it affected me</span><p>${esc(x.impact).replace(/\\n/g,'<br>')}</p></div>`:''}
-    ${x.notes?`<div class="missedActivityText"><span>Notes</span><p>${esc(x.notes).replace(/\\n/g,'<br>')}</p></div>`:''}
-    ${(x.photos||[]).length?`<div class="photoGrid missedActivityAttachments">${x.photos.map((p,ix)=>attachmentPreview(p,{label:`Missed activity attachment ${ix+1}`})).join('')}</div>`:''}
+    <div class="missedActivityHead">
+      <div class="missedActivityIcon">🎟️</div>
+      <div><h3>${esc(x.title||'Missed activity')}</h3><p>${fmt(x.date)}${x.location?` · ${esc(x.location)}`:''}</p></div>
+      <button type="button" class="missedActivityToggle" data-toggle-missed-activity aria-expanded="false">+</button>
+    </div>
+    <div class="missedActivityExpandable"><div class="missedActivityInner">
+      ${x.amountLost?`<div class="missedActivityLoss"><span>Money lost</span><strong>${money(x.amountLost)}</strong></div>`:''}
+      ${x.withWhom?`<div class="missedActivityText"><span>Who I planned to go with</span><p>${esc(x.withWhom)}</p></div>`:''}
+      ${x.reason?`<div class="missedActivityText"><span>Why I missed it</span><p>${esc(x.reason).replace(/\n/g,'<br>')}</p></div>`:''}
+      ${x.impact?`<div class="missedActivityText"><span>How it affected me</span><p>${esc(x.impact).replace(/\n/g,'<br>')}</p></div>`:''}
+      ${x.notes?`<div class="missedActivityText"><span>Notes</span><p>${esc(x.notes).replace(/\n/g,'<br>')}</p></div>`:''}
+      ${(x.photos||[]).length?`<div class="photoGrid missedActivityAttachments">${x.photos.map((p,ix)=>attachmentPreview(p,{label:`Missed activity attachment ${ix+1}`})).join('')}</div>`:''}
+      <div class="actions missedActivityBottomActions"><button class="iconBtn" data-edit="missedActivity" data-id="${x.id}">Edit</button><button class="iconBtn" data-delete="missedActivity" data-id="${x.id}">Delete</button></div>
+    </div></div>
   </article>`).join(''):`<div class="empty">Nothing recorded yet. Add a concert, outing, trip, family event, activity, or other plan you missed because of your injuries.</div>`}</div>
  `,'Missed Activities','Plans and events your injuries prevented you from attending.');
 }
-
 function receipts(){
  const total=state.receipts.reduce((s,r)=>s+Number(r.amount||0),0);
  const sorted=[...state.receipts].sort((a,b)=>b.date.localeCompare(a.date));
@@ -1266,12 +1272,21 @@ function tasks(){
 }
 
 function notes(){
+ const sortedNotes=[...(state.notes||[])].sort((a,b)=>(b.date||'').localeCompare(a.date||''));
  return appShell(`<div class="grid grid2">
  <section class="card"><div class="toolbar"><h2>Questions</h2><button class="btn secondary" data-add="question">+ Add</button></div><div class="list">${state.questions.length?state.questions.map(q=>`<div class="row"><div class="${q.answered?'strike':''}"><div class="rowTitle">${esc(q.text)}</div><div class="rowMeta">${esc(q.forWhom||'Doctor')}</div>${q.answer?`<div class="small"><strong>Answer:</strong> ${esc(q.answer)}</div>`:''}</div><div class="actions"><button class="iconBtn" data-edit="question" data-id="${q.id}">Edit</button><button class="iconBtn" data-delete="question" data-id="${q.id}">Delete</button></div></div>`).join(''):`<div class="empty">No questions saved.</div>`}</div></section>
- <section class="card"><div class="toolbar"><h2>General notes</h2><button class="btn secondary" data-add="note">+ Add</button></div><div class="list">${state.notes.length?state.notes.map(n=>`<div class="row"><div><div class="rowTitle">${esc(n.title)}</div><div class="rowMeta">${fmt(n.date)}</div><p class="small">${esc(n.text)}</p></div><div class="actions"><button class="iconBtn" data-edit="note" data-id="${n.id}">Edit</button><button class="iconBtn" data-delete="note" data-id="${n.id}">Delete</button></div></div>`).join(''):`<div class="empty">No notes saved.</div>`}</div></section>
+ <section class="card generalNotesSection"><div class="toolbar"><h2>General notes</h2><button class="btn secondary" data-add="note">+ Add</button></div><div class="list">${sortedNotes.length?sortedNotes.map(n=>`<article class="noteCollapsible">
+   <div class="noteCollapseHead">
+     <div><div class="rowTitle">${esc(n.title||'Note')}</div><div class="rowMeta">${fmt(n.date)}</div></div>
+     <button type="button" class="noteToggleBtn" data-toggle-note aria-expanded="false">+</button>
+   </div>
+   <div class="noteExpandable"><div class="noteInner">
+     ${n.text?`<p class="small">${esc(n.text).replace(/\n/g,'<br>')}</p>`:''}
+     <div class="actions noteBottomActions"><button class="iconBtn" data-edit="note" data-id="${n.id}">Edit</button><button class="iconBtn" data-delete="note" data-id="${n.id}">Delete</button></div>
+   </div></div>
+ </article>`).join(''):`<div class="empty">No notes saved.</div>`}</div></section>
  </div>`,'Notes & Questions','Keep questions for doctors, your lawyer, insurer and your own notes.');
 }
-
 function reports(){
  const totalReceipts=state.receipts.reduce((sum,r)=>sum+Number(r.amount||0),0);
  const quickCard=(icon,title,description,type,includes)=>`<section class="card reportPresetCard"><div class="reportPresetIcon">${icon}</div><h2>${title}</h2><p>${description}</p><div class="reportIncludes">${includes.map(x=>`<span>✓ ${x}</span>`).join('')}</div><button class="btn primary wide" data-generate-report="${type}">Generate ${title}</button></section>`;
@@ -2295,6 +2310,28 @@ function bind(){
 // Robust navigation handling. This is delegated so bottom-nav buttons keep
 // working even after render() replaces the page HTML.
 document.addEventListener('click',function(e){
+ const missedToggle=e.target.closest('[data-toggle-missed-activity]');
+ if(missedToggle){
+   e.preventDefault();
+   const card=missedToggle.closest('.missedActivityCard');
+   if(!card)return;
+   const expanded=card.classList.toggle('is-expanded');
+   missedToggle.textContent=expanded?'−':'+';
+   missedToggle.setAttribute('aria-expanded',String(expanded));
+   return;
+ }
+
+ const noteToggle=e.target.closest('[data-toggle-note]');
+ if(noteToggle){
+   e.preventDefault();
+   const card=noteToggle.closest('.noteCollapsible');
+   if(!card)return;
+   const expanded=card.classList.toggle('is-expanded');
+   noteToggle.textContent=expanded?'−':'+';
+   noteToggle.setAttribute('aria-expanded',String(expanded));
+   return;
+ }
+
  const injuryToggle=e.target.closest('[data-toggle-injury-card]');
  if(injuryToggle){
    e.preventDefault();

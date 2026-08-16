@@ -1879,3 +1879,31 @@ input,textarea,select{width:100%;border:1px solid #cfd9e5;border-radius:8px;padd
 .missedActivityText{padding:10px 12px 0}.missedActivityText p{margin:4px 0 0;font-size:12px;line-height:1.45;color:#3c5066}
 .missedActivityAttachments{padding:10px 12px 12px}
 @media(max-width:560px){.missedActivityHead{grid-template-columns:auto 1fr}.missedActivityHead>.actions{grid-column:2}}
+
+
+/* v2.8.7 collapsible + date-sorted Missed Activities and General Notes */
+.missedActivityHead{grid-template-columns:auto 1fr auto}
+.missedActivityToggle,.noteToggleBtn{
+  appearance:none;border:1px solid #c9d8e7;background:#fff;color:#075bd4;
+  width:32px;height:32px;border-radius:9px;display:grid;place-items:center;
+  font-size:20px;line-height:1;cursor:pointer;
+}
+.missedActivityExpandable,.noteExpandable{
+  display:grid;grid-template-rows:0fr;opacity:0;
+  transition:grid-template-rows .2s ease,opacity .16s ease;
+}
+.missedActivityInner,.noteInner{min-height:0;overflow:hidden}
+.missedActivityCard.is-expanded .missedActivityExpandable,
+.noteCollapsible.is-expanded .noteExpandable{grid-template-rows:1fr;opacity:1}
+.missedActivityCard.is-expanded .missedActivityInner,
+.noteCollapsible.is-expanded .noteInner{overflow:visible;padding-bottom:11px}
+.missedActivityBottomActions,.noteBottomActions{
+  justify-content:flex-end;padding:10px 12px 0;margin-top:8px;border-top:1px solid #e8edf3;
+}
+.generalNotesSection .list{display:grid;gap:8px}
+.noteCollapsible{border:1px solid #dfe7ef;border-radius:10px;overflow:hidden;background:#fff}
+.noteCollapseHead{
+  display:flex;align-items:center;justify-content:space-between;gap:10px;
+  padding:10px 11px;background:linear-gradient(90deg,#f4f8ff,#fff);
+}
+.noteInner>p{padding:10px 12px 0;margin:0;line-height:1.5;color:#3d5167}
