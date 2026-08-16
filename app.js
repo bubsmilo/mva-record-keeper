@@ -3,7 +3,7 @@
 'use strict';
 
 const KEY='mva-record-keeper-v1';
-const APP_VERSION='2.8.10';
+const APP_VERSION='2.8.11';
 document.title=`MVA Record Keeper v${APP_VERSION}`;
 
 const ATTACHMENT_DB='mva-record-keeper-attachments';
@@ -325,11 +325,19 @@ function dashboard(){
  const recentInjuryLogs=[...(state.injuryLogs||[])].sort((a,b)=>(b.date||'').localeCompare(a.date||'')).slice(0,3);
 
  const appointmentCard=(kind,item,icon,emptyText,nav)=>{
-   if(!item)return `<section class="card dashboardAppointmentCard ${kind}">
-     <div class="dashboardAppointmentHead"><span>${icon}</span><div><small>UPCOMING</small><h3>${kind==='physio'?'Next Physio Appointment':'Next Medical Appointment'}</h3></div></div>
-     <div class="dashboardAppointmentEmpty">${emptyText}</div>
-     <button class="btn secondary dashboardAppointmentViewBtn" data-nav="${nav}">View ${kind==='physio'?'Physio':'Appointments'}</button>
+   const label=kind==='physio'?'Next Physio':'Next Medical';
+   const buttonText=kind==='physio'?'View Physio':'View Appointments';
+
+   if(!item)return `<section class="card dashboardAppointmentCard compactAppointmentCard ${kind}">
+     <div class="compactAppointmentIcon">${icon}</div>
+     <div class="compactAppointmentMain">
+       <div class="compactAppointmentLabel">UPCOMING</div>
+       <h3>${label}</h3>
+       <div class="compactAppointmentEmpty">${emptyText}</div>
+     </div>
+     <button class="btn secondary dashboardAppointmentViewBtn compactAppointmentViewBtn" data-nav="${nav}">${buttonText}</button>
    </section>`;
+
    const provider=kind==='physio'
      ? (item.therapist||state.quickInfo.physiotherapist||'Physiotherapy')
      : (item.provider||item.professionalType||item.reason||'Medical appointment');
@@ -337,11 +345,27 @@ function dashboard(){
      ? (item.clinic||state.quickInfo.physioClinic||'')
      : (item.location||'');
    const reason=kind==='physio'?(item.focus||'Physiotherapy'):(item.reason||'');
-   return `<section class="card dashboardAppointmentCard ${kind}">
-     <div class="dashboardAppointmentHead"><span>${icon}</span><div><small>UPCOMING</small><h3>${kind==='physio'?'Next Physio Appointment':'Next Medical Appointment'}</h3></div></div>
-     <div class="dashboardAppointmentDate"><strong>${fmt(item.date)}</strong>${item.time?`<span>${esc(item.time)}</span>`:''}</div>
-     <div class="dashboardAppointmentDetails"><strong>${esc(provider)}</strong>${reason?`<span>${esc(reason)}</span>`:''}${location?`<small>${esc(location)}</small>`:''}</div>
-     <button class="btn secondary dashboardAppointmentViewBtn" data-nav="${nav}">View ${kind==='physio'?'Physio':'Appointments'}</button>
+
+   return `<section class="card dashboardAppointmentCard compactAppointmentCard ${kind}">
+     <div class="compactAppointmentIcon">${icon}</div>
+
+     <div class="compactAppointmentMain">
+       <div class="compactAppointmentLabel">UPCOMING</div>
+       <h3>${label}</h3>
+
+       <div class="compactAppointmentDateRow">
+         <strong>${fmt(item.date)}</strong>
+         ${item.time?`<span>${esc(item.time)}</span>`:''}
+       </div>
+
+       <div class="compactAppointmentProvider">
+         <strong>${esc(provider)}</strong>
+         ${reason&&reason!==provider?`<span>${esc(reason)}</span>`:''}
+         ${location?`<small>${esc(location)}</small>`:''}
+       </div>
+     </div>
+
+     <button class="btn secondary dashboardAppointmentViewBtn compactAppointmentViewBtn" data-nav="${nav}">${buttonText}</button>
    </section>`;
  };
 

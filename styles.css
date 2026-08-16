@@ -1998,3 +1998,150 @@ input,textarea,select{width:100%;border:1px solid #cfd9e5;border-radius:8px;padd
     font-size:9px;
   }
 }
+
+
+/* v2.8.11 compact dashboard appointment cards */
+.compactAppointmentCard{
+  position:relative!important;
+  display:grid;
+  grid-template-columns:auto minmax(0,1fr) auto;
+  align-items:center;
+  gap:11px;
+  min-height:0!important;
+  padding:12px 12px!important;
+}
+
+.compactAppointmentIcon{
+  width:46px;
+  height:46px;
+  border-radius:13px;
+  background:#eef6ff;
+  display:grid;
+  place-items:center;
+  font-size:23px;
+  align-self:start;
+}
+
+.compactAppointmentMain{
+  min-width:0;
+}
+
+.compactAppointmentLabel{
+  font-size:8px;
+  letter-spacing:.11em;
+  font-weight:900;
+  color:#8291a1;
+  margin-bottom:2px;
+}
+
+.compactAppointmentMain h3{
+  margin:0;
+  font-size:15px;
+  line-height:1.15;
+  color:#173a5f;
+}
+
+.compactAppointmentDateRow{
+  display:flex;
+  align-items:baseline;
+  gap:7px;
+  margin-top:7px;
+}
+
+.compactAppointmentDateRow strong{
+  font-size:17px;
+  color:#123e6a;
+}
+
+.compactAppointmentDateRow span{
+  font-size:11px;
+  color:#64778b;
+  font-weight:800;
+}
+
+.compactAppointmentProvider{
+  display:flex;
+  flex-wrap:wrap;
+  gap:3px 7px;
+  align-items:baseline;
+  margin-top:4px;
+  min-width:0;
+}
+
+.compactAppointmentProvider strong{
+  font-size:11px;
+  color:#253f59;
+}
+
+.compactAppointmentProvider span,
+.compactAppointmentProvider small{
+  font-size:9px;
+  color:#708196;
+}
+
+.compactAppointmentEmpty{
+  margin-top:6px;
+  font-size:10px;
+  color:#718196;
+}
+
+.compactAppointmentViewBtn{
+  position:static!important;
+  transform:none!important;
+  width:auto!important;
+  min-width:86px;
+  max-width:100px;
+  margin:0!important;
+  padding:7px 8px!important;
+  font-size:9px!important;
+  line-height:1.15;
+  align-self:center;
+}
+
+@media(max-width:620px){
+  .dashboardAppointmentsGrid{
+    gap:9px;
+  }
+  .compactAppointmentCard{
+    grid-template-columns:40px minmax(0,1fr) 82px;
+    gap:8px;
+    padding:10px!important;
+  }
+  .compactAppointmentIcon{
+    width:40px;
+    height:40px;
+    border-radius:11px;
+    font-size:20px;
+  }
+  .compactAppointmentMain h3{
+    font-size:13px;
+  }
+  .compactAppointmentDateRow{
+    margin-top:5px;
+    gap:5px;
+  }
+  .compactAppointmentDateRow strong{
+    font-size:15px;
+  }
+  .compactAppointmentDateRow span{
+    font-size:10px;
+  }
+  .compactAppointmentProvider{
+    margin-top:3px;
+    display:grid;
+    gap:1px;
+  }
+  .compactAppointmentProvider strong{
+    font-size:10px;
+  }
+  .compactAppointmentProvider span,
+  .compactAppointmentProvider small{
+    font-size:8px;
+  }
+  .compactAppointmentViewBtn{
+    min-width:78px;
+    max-width:82px;
+    padding:6px 5px!important;
+    font-size:8px!important;
+  }
+}
