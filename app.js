@@ -3,7 +3,7 @@
 'use strict';
 
 const KEY='mva-record-keeper-v1';
-const APP_VERSION='2.8.7';
+const APP_VERSION='2.8.8';
 document.title=`MVA Record Keeper v${APP_VERSION}`;
 
 const ATTACHMENT_DB='mva-record-keeper-attachments';
@@ -1164,7 +1164,7 @@ function physio(){
 }
 
 function missedActivities(){
- const items=[...(state.missedActivities||[])].sort((a,b)=>(b.date||'').localeCompare(a.date||''));
+ const items=[...(state.missedActivities||[])].sort((a,b)=>(a.date||'').localeCompare(b.date||''));
  const total=items.reduce((s,x)=>s+(Number(x.amountLost)||0),0);
  return appShell(`
   <div class="toolbar missedActivitiesTop"><div><h2 style="margin:0">Missed Activities & Events</h2><p class="muted small">Record plans, outings and events you could not attend because of your injuries.</p></div><button class="btn primary" data-add="missedActivity">+ Add</button></div>
