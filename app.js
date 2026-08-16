@@ -3,7 +3,7 @@
 'use strict';
 
 const KEY='mva-record-keeper-v1';
-const APP_VERSION='2.8.23';
+const APP_VERSION='2.8.24';
 document.title=`MVA Record Keeper v${APP_VERSION}`;
 
 const ATTACHMENT_DB='mva-record-keeper-attachments';
@@ -133,6 +133,7 @@ const uid=()=>Date.now().toString(36)+Math.random().toString(36).slice(2,7);
 const esc=(v='')=>String(v).replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#039;'}[m]));
 const money=n=>new Intl.NumberFormat('en-CA',{style:'currency',currency:'CAD'}).format(Number(n||0));
 const fmt=d=>d?new Date(d+'T12:00:00').toLocaleDateString('en-CA',{year:'numeric',month:'short',day:'numeric'}):'';
+const fmtDay=d=>d?new Date(d+'T12:00:00').toLocaleDateString('en-CA',{weekday:'long',year:'numeric',month:'short',day:'numeric'}):'';
 const localDateTimeValue=(d=new Date())=>{
  const pad=n=>String(n).padStart(2,'0');
  return `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
@@ -474,7 +475,7 @@ function previousInjuryStrip(injury,currentDate=today()){
    injury.trackRangeOfMotion&&prev.rangeOfMotion?`ROM: ${esc(prev.rangeOfMotion)}`:''
  ].filter(Boolean);
  return `<div class="previousInjuryStrip">
-   <div class="previousInjuryHead"><span>Previous entry · ${fmt(prev.date)}</span><strong>${details.slice(0,2).join(' · ')||'Recorded'}</strong></div>
+   <div class="previousInjuryHead"><span>Previous entry · ${fmtDay(prev.date)}</span><strong>${details.slice(0,2).join(' · ')||'Recorded'}</strong></div>
    ${details.length>2?`<div class="previousInjuryMetrics">${details.slice(2).map(x=>`<span>${x}</span>`).join('')}</div>`:''}
    ${prev.notes?`<p>${esc(prev.notes)}</p>`:''}
  </div>`;
@@ -516,7 +517,7 @@ function journal(){
  </form>
  <div class="toolbar" style="margin-top:20px"><h2 style="margin:0">Previous daily logs</h2><span class="pill">${sorted.length} entries</span></div>
  <div class="list">${sorted.length?sorted.map(j=>{const logs=state.injuryLogs.filter(x=>x.date===j.date);return `<article class="card">
-  <div class="toolbar"><div><h3>${fmt(j.date)}</h3></div><div class="actions"><button class="iconBtn" data-edit-daily="${j.id}">Edit daily log</button><button class="iconBtn" data-delete="journal" data-id="${j.id}">Delete</button></div></div>
+  <div class="toolbar"><div><h3>${fmtDay(j.date)}</h3></div><div class="actions"><button class="iconBtn" data-edit-daily="${j.id}">Edit daily log</button><button class="iconBtn" data-delete="journal" data-id="${j.id}">Delete</button></div></div>
   <p>${esc(j.notes||'').replace(/\n/g,'<br>')}</p>
   ${(()=>{const dayDoses=(state.doses||[]).filter(d=>localDateKey(d.dateTime)===j.date&&d.status==='Taken').sort((a,b)=>new Date(a.dateTime)-new Date(b.dateTime));return dayDoses.length?`<div class="dailyMedicationSummary"><strong>Medication taken</strong>${dayDoses.map(d=>`<span>✓ ${esc(d.medicationNameSnapshot||state.medications.find(m=>m.id===d.medicationId)?.name||'Medication')} · ${new Date(d.dateTime).toLocaleTimeString('en-CA',{hour:'numeric',minute:'2-digit'})}${d.doseSnapshot?' · '+esc(d.doseSnapshot):''}</span>`).join('')}</div>`:''})()}
   ${logs.length?`<div class="injurySummary">${logs.map(l=>{const i=state.injuries.find(x=>x.id===l.injuryId);const extras=[l.swelling&&`Swelling: ${esc(l.swelling)}`,l.stiffness&&`Stiffness: ${esc(l.stiffness)}`,l.rangeOfMotion&&`Range of motion: ${esc(l.rangeOfMotion)}`].filter(Boolean);return `<div><strong>${esc(i?.name||'Injury')}</strong>${l.pain!==''&&l.pain!=null?` <span class="pill">${l.pain}/10</span>`:''}${l.change?` · ${esc(l.change)}`:''}${extras.length?`<div class="symptomSummary small">${extras.join(' · ')}</div>`:''}${l.notes?`<div class="small muted">${esc(l.notes)}</div>`:''}${l.photos?.length?`<div class="photoGrid" style="margin-top:8px">${l.photos.map((p,ix)=>attachmentPreview(p,{label:`Injury attachment ${ix+1}`,remove:`<button type="button" class="removePhotoBtn" data-remove-saved-photo="${l.id}:${ix}" aria-label="Remove attachment">×</button>`})).join('')}</div>`:''}</div>`}).join('')}</div>`:''}
