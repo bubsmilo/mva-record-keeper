@@ -3,7 +3,7 @@
 'use strict';
 
 const KEY='mva-record-keeper-v1';
-const APP_VERSION='2.7.9';
+const APP_VERSION='2.8.0';
 document.title=`MVA Record Keeper v${APP_VERSION}`;
 
 const ATTACHMENT_DB='mva-record-keeper-attachments';
@@ -430,13 +430,35 @@ function journal(){
  const sorted=[...state.journal].sort((a,b)=>(b.date+b.id).localeCompare(a.date+a.id));
  const active=state.injuries;
  return appShell(`
- <form class="card dailyLogForm" id="dailyLogForm" data-edit-id="">
-  <div class="toolbar"><div><h2 id="dailyLogHeading">How was your day?</h2><p class="muted">Add your overall daily note and update every injury on this one page.</p></div><button type="button" class="btn secondary" data-add="injury">+ Add Injury</button></div>
-  <div class="dailyDate"><label for="dailyDate">Date</label><input id="dailyDate" name="date" type="date" value="${today()}"></div>
-  <div class="field"><label for="dailyNotes">Overall daily note</label><textarea id="dailyNotes" name="notes" placeholder="Example: Took a shower and dressed myself for the first time. I still could not brush my hair."></textarea></div>
-  <div class="dailyInjuryHead"><div><h3>Injury updates</h3><p class="muted small">Each injury can have its own pain score, change, notes, and optional photo.</p></div></div>
-  ${active.length?`<div class="dailyInjuryList">${active.map(i=>dailyInjuryEditor(i)).join('')}</div>`:`<div class="empty">Add your injuries once, then they will all appear here in every daily log.</div>`}
-  <button class="btn primary wide saveDailyBtn">Save Daily Log</button>
+ <form class="dailyLogForm compactJournalForm" id="dailyLogForm" data-edit-id="">
+  <div class="compactJournalTop">
+    <div class="compactJournalTopTitle">
+      <h2 id="dailyLogHeading">Daily Log</h2>
+      <p>Record how your day went and update your injuries</p>
+    </div>
+    <div class="compactJournalTopControls">
+      <label class="compactJournalDate" for="dailyDate"><span>📅</span><input id="dailyDate" name="date" type="date" value="${today()}"></label>
+      <button class="btn primary compactJournalSave saveDailyBtn">Save</button>
+    </div>
+  </div>
+
+  <section class="card compactJournalNoteCard">
+    <div class="compactJournalNoteHead">
+      <label for="dailyNotes">How was your day?</label>
+      <span class="muted small">Daily overview</span>
+    </div>
+    <textarea id="dailyNotes" name="notes" rows="4" placeholder="Example: Took a shower and dressed myself for the first time. I still could not brush my hair."></textarea>
+  </section>
+
+  <div class="compactJournalInjuryHeading">
+    <div>
+      <h3>My Injuries</h3>
+      <p>Tap an injury to update it</p>
+    </div>
+    <button type="button" class="compactJournalAddInjury" data-add="injury">+ Add Injury</button>
+  </div>
+
+  ${active.length?`<div class="dailyInjuryList compactJournalInjuryList">${active.map(i=>dailyInjuryEditor(i)).join('')}</div>`:`<div class="empty">Add your injuries once, then they will all appear here in every daily log.</div>`}
  </form>
  <div class="toolbar" style="margin-top:20px"><h2 style="margin:0">Previous daily logs</h2><span class="pill">${sorted.length} entries</span></div>
  <div class="list">${sorted.length?sorted.map(j=>{const logs=state.injuryLogs.filter(x=>x.date===j.date);return `<article class="card">
