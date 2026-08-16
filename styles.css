@@ -1907,3 +1907,57 @@ input,textarea,select{width:100%;border:1px solid #cfd9e5;border-radius:8px;padd
   padding:10px 11px;background:linear-gradient(90deg,#f4f8ff,#fff);
 }
 .noteInner>p{padding:10px 12px 0;margin:0;line-height:1.5;color:#3d5167}
+
+
+/* v2.8.9 compact dashboard quick-access grid */
+.dashboardQuickSectionCompact{
+  padding:8px;
+}
+.compactDashboardQuickGrid{
+  display:grid;
+  grid-template-columns:repeat(6,minmax(0,1fr));
+  gap:7px;
+}
+.compactDashboardQuickCard{
+  min-height:64px;
+  padding:7px 5px;
+  border-radius:11px;
+  gap:4px;
+}
+.compactDashboardQuickCard .dashboardQuickIcon{
+  font-size:19px;
+  line-height:1;
+}
+.compactDashboardQuickCard strong{
+  font-size:10px;
+  line-height:1.15;
+  text-align:center;
+}
+.compactDashboardQuickCard small{
+  display:none;
+}
+@media(max-width:850px){
+  .compactDashboardQuickGrid{
+    grid-template-columns:repeat(3,minmax(0,1fr));
+  }
+}
+@media(max-width:520px){
+  .dashboardQuickSectionCompact{
+    padding:6px;
+  }
+  .compactDashboardQuickGrid{
+    grid-template-columns:repeat(3,minmax(0,1fr));
+    gap:5px;
+  }
+  .compactDashboardQuickCard{
+    min-height:55px;
+    padding:6px 3px;
+    border-radius:9px;
+  }
+  .compactDashboardQuickCard .dashboardQuickIcon{
+    font-size:17px;
+  }
+  .compactDashboardQuickCard strong{
+    font-size:9px;
+  }
+}

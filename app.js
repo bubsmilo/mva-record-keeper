@@ -3,7 +3,7 @@
 'use strict';
 
 const KEY='mva-record-keeper-v1';
-const APP_VERSION='2.8.8';
+const APP_VERSION='2.8.9';
 document.title=`MVA Record Keeper v${APP_VERSION}`;
 
 const ATTACHMENT_DB='mva-record-keeper-attachments';
@@ -346,19 +346,25 @@ function dashboard(){
  };
 
  return appShell(`
-   <section class="dashboardQuickSection">
-     <div class="dashboardQuickGrid">
-       <button class="dashboardQuickCard" data-add="journal">
-         <span class="dashboardQuickIcon">📖</span><strong>Daily Log</strong><small>Record today</small>
+   <section class="dashboardQuickSection dashboardQuickSectionCompact">
+     <div class="dashboardQuickGrid compactDashboardQuickGrid">
+       <button class="dashboardQuickCard compactDashboardQuickCard" data-add="journal">
+         <span class="dashboardQuickIcon">📖</span><strong>Daily Log</strong>
        </button>
-       <button class="dashboardQuickCard" data-nav="medications">
-         <span class="dashboardQuickIcon">💊</span><strong>Medication</strong><small>Take or log dose</small>
+       <button class="dashboardQuickCard compactDashboardQuickCard" data-nav="medications">
+         <span class="dashboardQuickIcon">💊</span><strong>Medication</strong>
        </button>
-       <button class="dashboardQuickCard" data-nav="physio">
-         <span class="dashboardQuickIcon">🧘</span><strong>Physio</strong><small>Exercises & treatment</small>
+       <button class="dashboardQuickCard compactDashboardQuickCard" data-nav="physio">
+         <span class="dashboardQuickIcon">🧘</span><strong>Physio</strong>
        </button>
-       <button class="dashboardQuickCard" data-nav="quickinfo">
-         <span class="dashboardQuickIcon">📇</span><strong>Quick Info</strong><small>Claim & contacts</small>
+       <button class="dashboardQuickCard compactDashboardQuickCard" data-nav="quickinfo">
+         <span class="dashboardQuickIcon">📇</span><strong>Quick Info</strong>
+       </button>
+       <button class="dashboardQuickCard compactDashboardQuickCard" data-nav="notes">
+         <span class="dashboardQuickIcon">📝</span><strong>Notes</strong>
+       </button>
+       <button class="dashboardQuickCard compactDashboardQuickCard" data-nav="missedActivities">
+         <span class="dashboardQuickIcon">🎟️</span><strong>Missed</strong>
        </button>
      </div>
    </section>
