@@ -3,7 +3,7 @@
 'use strict';
 
 const KEY='mva-record-keeper-v1';
-const APP_VERSION='2.8.9';
+const APP_VERSION='2.8.10';
 document.title=`MVA Record Keeper v${APP_VERSION}`;
 
 const ATTACHMENT_DB='mva-record-keeper-attachments';
@@ -328,7 +328,7 @@ function dashboard(){
    if(!item)return `<section class="card dashboardAppointmentCard ${kind}">
      <div class="dashboardAppointmentHead"><span>${icon}</span><div><small>UPCOMING</small><h3>${kind==='physio'?'Next Physio Appointment':'Next Medical Appointment'}</h3></div></div>
      <div class="dashboardAppointmentEmpty">${emptyText}</div>
-     <button class="btn secondary" data-nav="${nav}">View ${kind==='physio'?'Physio':'Appointments'}</button>
+     <button class="btn secondary dashboardAppointmentViewBtn" data-nav="${nav}">View ${kind==='physio'?'Physio':'Appointments'}</button>
    </section>`;
    const provider=kind==='physio'
      ? (item.therapist||state.quickInfo.physiotherapist||'Physiotherapy')
@@ -341,7 +341,7 @@ function dashboard(){
      <div class="dashboardAppointmentHead"><span>${icon}</span><div><small>UPCOMING</small><h3>${kind==='physio'?'Next Physio Appointment':'Next Medical Appointment'}</h3></div></div>
      <div class="dashboardAppointmentDate"><strong>${fmt(item.date)}</strong>${item.time?`<span>${esc(item.time)}</span>`:''}</div>
      <div class="dashboardAppointmentDetails"><strong>${esc(provider)}</strong>${reason?`<span>${esc(reason)}</span>`:''}${location?`<small>${esc(location)}</small>`:''}</div>
-     <button class="btn secondary" data-nav="${nav}">View ${kind==='physio'?'Physio':'Appointments'}</button>
+     <button class="btn secondary dashboardAppointmentViewBtn" data-nav="${nav}">View ${kind==='physio'?'Physio':'Appointments'}</button>
    </section>`;
  };
 

@@ -1961,3 +1961,40 @@ input,textarea,select{width:100%;border:1px solid #cfd9e5;border-radius:8px;padd
     font-size:9px;
   }
 }
+
+
+/* v2.8.10 move dashboard appointment action into right-side open space */
+.dashboardAppointmentCard{
+  position:relative;
+  padding-right:132px;
+  min-height:118px;
+}
+.dashboardAppointmentViewBtn{
+  position:absolute;
+  right:12px;
+  top:50%;
+  transform:translateY(-50%);
+  width:108px;
+  margin:0;
+  padding:8px 7px;
+  white-space:normal;
+  line-height:1.15;
+  text-align:center;
+}
+.dashboardAppointmentCard .dashboardAppointmentEmpty{
+  padding-right:4px;
+}
+
+/* keep both cards compact enough to remain visible together */
+@media(max-width:620px){
+  .dashboardAppointmentCard{
+    padding-right:105px;
+    min-height:104px;
+  }
+  .dashboardAppointmentViewBtn{
+    right:9px;
+    width:88px;
+    padding:7px 5px;
+    font-size:9px;
+  }
+}
