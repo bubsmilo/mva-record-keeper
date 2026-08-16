@@ -3,7 +3,7 @@
 'use strict';
 
 const KEY='mva-record-keeper-v1';
-const APP_VERSION='2.8.1';
+const APP_VERSION='2.8.2';
 document.title=`MVA Record Keeper v${APP_VERSION}`;
 
 const ATTACHMENT_DB='mva-record-keeper-attachments';
@@ -283,7 +283,7 @@ function appShell(content,title,subtitle=''){
       <nav class="nav">${items.map(i=>`<button data-nav="${i[0]}" class="${page===i[0]?'active':''}"><span>${i[1]}</span>${i[2]}</button>`).join('')}</nav>
       <div class="sidebarFoot">Private data stored on this device.</div>
     </aside>
-    <main class="main">
+    <main class="main globalBlueShell">
       <header class="topbar globalMvaTopbar">
         <div class="globalMvaBrand">
           <img src="./mva-logo-32.png" width="36" height="36" alt="MVA Record Keeper">
@@ -291,7 +291,7 @@ function appShell(content,title,subtitle=''){
         </div>
         <div class="globalMvaPageTitle"><h1>${esc(title)}</h1>${subtitle?`<p>${esc(subtitle)}</p>`:''}</div>
       </header>
-      ${content}
+      <div class="globalWhiteContent">${content}</div>
     </main>
     <nav class="bottomNav">${[items[0],items[1],items[2],items[3],['more','•••','More']].map(i=>{
       const morePages=['quickinfo','physio','receipts','appointments','timeline','tasks','notes','reports','settings'];

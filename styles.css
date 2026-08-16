@@ -1761,3 +1761,69 @@ input,textarea,select{width:100%;border:1px solid #cfd9e5;border-radius:8px;padd
   .globalMvaPageTitle h1{font-size:14px}
   .globalMvaPageTitle p{display:none}
 }
+
+
+/* v2.8.2 blue outer app shell + rounded white page panel */
+.main.globalBlueShell{
+  background:linear-gradient(180deg,#062f5b 0%,#08477e 48%,#0a4f8c 100%);
+  padding:0 12px 14px;
+}
+.globalBlueShell .globalMvaTopbar{
+  margin:0 -12px;
+  padding:10px 16px 12px;
+  background:transparent;
+  border-bottom:0;
+  box-shadow:none;
+}
+.globalWhiteContent{
+  background:#f8fafc;
+  border-radius:22px 22px 0 0;
+  padding:18px;
+  min-height:calc(100vh - 96px);
+  box-shadow:0 5px 24px rgba(3,25,48,.16);
+  overflow:hidden;
+}
+.globalWhiteContent>.toolbar:first-child,
+.globalWhiteContent>.journalCompactHeader:first-child,
+.globalWhiteContent>.dashboardQuickSection:first-child{
+  margin-top:0;
+}
+.globalWhiteContent .card,
+.globalWhiteContent .injuryMockupCard,
+.globalWhiteContent .journalMockInjuryCard,
+.globalWhiteContent .physioSectionCard,
+.globalWhiteContent .medicationDayGroup{
+  background:#fff;
+}
+
+/* mobile: blue remains visible around the rounded white content */
+@media(max-width:720px){
+  .main.globalBlueShell{
+    padding:0 7px 8px;
+  }
+  .globalBlueShell .globalMvaTopbar{
+    margin:0 -7px;
+    min-height:58px;
+    padding:8px 11px 10px;
+  }
+  .globalWhiteContent{
+    border-radius:18px 18px 0 0;
+    padding:12px 10px 14px;
+    min-height:calc(100vh - 106px);
+  }
+}
+
+/* desktop/tablet gets a fully rounded floating white page */
+@media(min-width:721px){
+  .main.globalBlueShell{
+    padding-left:16px;
+    padding-right:16px;
+  }
+  .globalBlueShell .globalMvaTopbar{
+    margin:0 -16px;
+  }
+  .globalWhiteContent{
+    border-radius:22px;
+    margin-bottom:12px;
+  }
+}
