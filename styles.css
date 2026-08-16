@@ -2210,3 +2210,12 @@ input,textarea,select{width:100%;border:1px solid #cfd9e5;border-radius:8px;padd
     font-size:10px;
   }
 }
+
+/* v2.8.17 Communication subject is the card title */
+.communicationHeadText .communicationPerson{
+  display:block;
+  margin-top:2px;
+  font-size:10px;
+  font-weight:750;
+  color:#4e657c;
+}

@@ -3,7 +3,7 @@
 'use strict';
 
 const KEY='mva-record-keeper-v1';
-const APP_VERSION='2.8.16';
+const APP_VERSION='2.8.17';
 document.title=`MVA Record Keeper v${APP_VERSION}`;
 
 const ATTACHMENT_DB='mva-record-keeper-attachments';
@@ -1331,10 +1331,11 @@ function notes(){
  <section class="communicationIntro"><div><h2>Communication Log</h2><p class="muted small">Calls, emails, conversations, paperwork and follow-ups related to your accident.</p></div><button class="btn primary" data-add="communication">+ Add Contact</button></section>
  ${followUps.length?`<section class="card communicationFollowups"><div class="communicationFollowupTitle">Follow-ups</div>${followUps.map(x=>`<div class="communicationFollowupRow"><strong>${fmt(x.followUpDate)}</strong><span>${esc(x.person||x.organization||x.subject||'Follow-up')}</span></div>`).join('')}</section>`:''}
  <section class="communicationLogList">${entries.length?entries.map(x=>{
-   const who=[x.person,x.role].filter(Boolean).join(' · ')||x.organization||'Communication';
+   const who=[x.person,x.role].filter(Boolean).join(' · ')||x.organization||'';
    const org=x.person&&x.organization?x.organization:'';
+   const title=x.subject||who||x.category||'Communication';
    const icon=x.method==='Phone'?'📞':x.method==='Email'?'✉️':x.method==='In person'?'🤝':x.method==='Text message'?'💬':x.method==='Letter'?'📄':'🗂️';
-   return `<article class="card communicationCard"><div class="communicationCardHead"><div class="communicationMethodIcon">${icon}</div><div class="communicationHeadText"><div class="communicationDate">${fmt(x.date)}${x.time?` · ${esc(x.time)}`:''}</div><h3>${esc(who)}</h3>${x.category?`<small>${x.category==='Medical'?'🩺 ':x.category==='Lawyer'?'⚖️ ':'💬 '}${esc(x.category)}${org?` · ${esc(org)}`:''}</small>`:(org?`<small>${esc(org)}</small>`:'')}${x.subject?`<span>${esc(x.subject)}</span>`:''}</div><button type="button" class="communicationToggle" data-toggle-communication aria-expanded="false">+</button></div>
+   return `<article class="card communicationCard"><div class="communicationCardHead"><div class="communicationMethodIcon">${icon}</div><div class="communicationHeadText"><div class="communicationDate">${fmt(x.date)}${x.time?` · ${esc(x.time)}`:''}</div><h3>${esc(title)}</h3>${who&&who!==title?`<span class="communicationPerson">${esc(who)}</span>`:''}${x.category?`<small>${x.category==='Medical'?'🩺 ':x.category==='Lawyer'?'⚖️ ':'💬 '}${esc(x.category)}${org?` · ${esc(org)}`:''}</small>`:(org?`<small>${esc(org)}</small>`:'')}</div><button type="button" class="communicationToggle" data-toggle-communication aria-expanded="false">+</button></div>
    <div class="communicationExpandable"><div class="communicationInner"><div class="communicationMeta"><div><span>Method</span><strong>${esc(x.method||'Other')}</strong></div>${x.organization?`<div><span>Organization</span><strong>${esc(x.organization)}</strong></div>`:''}</div>
    ${x.reason?`<div class="communicationText"><span>Reason for contact</span><p>${esc(x.reason).replace(/\n/g,'<br>')}</p></div>`:''}${x.discussed?`<div class="communicationText"><span>What was discussed</span><p>${esc(x.discussed).replace(/\n/g,'<br>')}</p></div>`:''}${x.theySaid?`<div class="communicationText"><span>What they told me</span><p>${esc(x.theySaid).replace(/\n/g,'<br>')}</p></div>`:''}${x.iProvided?`<div class="communicationText"><span>What I provided / did</span><p>${esc(x.iProvided).replace(/\n/g,'<br>')}</p></div>`:''}${x.actions?`<div class="communicationText"><span>Action items / next steps</span><p>${esc(x.actions).replace(/\n/g,'<br>')}</p></div>`:''}
    ${x.followUpRequired?`<div class="communicationFollowupBadge">⏰ Follow-up${x.followUpDate?` · ${fmt(x.followUpDate)}`:''}</div>`:''}${(x.attachments||[]).length?`<div class="photoGrid communicationAttachments">${x.attachments.map((p,ix)=>attachmentPreview(p,{label:`Communication attachment ${ix+1}`})).join('')}</div>`:''}
