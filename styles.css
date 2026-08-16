@@ -1827,3 +1827,12 @@ input,textarea,select{width:100%;border:1px solid #cfd9e5;border-radius:8px;padd
     margin-bottom:12px;
   }
 }
+
+
+/* v2.8.3 carried-forward Journal injury selections */
+.updatedToday{
+  white-space:nowrap;
+}
+.journalMockInjuryCard:not(.is-expanded) .updatedToday{
+  color:#58708b;
+}

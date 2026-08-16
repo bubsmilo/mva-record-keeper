@@ -3,7 +3,7 @@
 'use strict';
 
 const KEY='mva-record-keeper-v1';
-const APP_VERSION='2.8.2';
+const APP_VERSION='2.8.3';
 document.title=`MVA Record Keeper v${APP_VERSION}`;
 
 const ATTACHMENT_DB='mva-record-keeper-attachments';
@@ -476,15 +476,26 @@ function journal(){
 }
 
 function dailyInjuryEditor(i,log={}){
- const photos=log.photos||[], pain=log.pain??'', change=log.change||'';
  const currentDate=document.getElementById('dailyDate')?.value||today();
  const prev=previousInjuryLog(i.id,currentDate);
+ const hasCurrentLog=!!(log&&Object.keys(log).length);
+ const displayLog=hasCurrentLog?log:{
+   pain:prev?.pain??'',
+   change:prev?'Same':'',
+   swelling:prev?.swelling||'',
+   stiffness:prev?.stiffness||'',
+   rangeOfMotion:prev?.rangeOfMotion||'',
+   lockingCatching:prev?.lockingCatching||prev?.locking||'',
+   notes:'',
+   photos:[]
+ };
+ const photos=displayLog.photos||[], pain=displayLog.pain??'', change=displayLog.change||'';
  const symptomFields=[
-   i.trackSwelling?`<div class="field symptomField"><label>Swelling</label>${optionButtons(`injury_${i.id}_swelling`,log.swelling||'', ['None','Slight','Moderate','Severe'])}</div>`:'',
-   i.trackStiffness?`<div class="field symptomField"><label>Stiffness</label>${optionButtons(`injury_${i.id}_stiffness`,log.stiffness||'', ['None','Slight','Moderate','Severe'])}</div>`:'',
-   i.trackRangeOfMotion?`<div class="field symptomField rangeField"><label>Range of motion</label>${optionButtons(`injury_${i.id}_rangeOfMotion`,log.rangeOfMotion||'', ['Full','Slightly limited','Moderately limited','Very limited','Unable'])}</div>`:''
+   i.trackSwelling?`<div class="field symptomField"><label>Swelling</label>${optionButtons(`injury_${i.id}_swelling`,displayLog.swelling||'', ['None','Slight','Moderate','Severe'])}</div>`:'',
+   i.trackStiffness?`<div class="field symptomField"><label>Stiffness</label>${optionButtons(`injury_${i.id}_stiffness`,displayLog.stiffness||'', ['None','Slight','Moderate','Severe'])}</div>`:'',
+   i.trackRangeOfMotion?`<div class="field symptomField rangeField"><label>Range of motion</label>${optionButtons(`injury_${i.id}_rangeOfMotion`,displayLog.rangeOfMotion||'', ['Full','Slightly limited','Moderately limited','Very limited','Unable'])}</div>`:''
  ].join('');
- const hasSavedData=log && Object.keys(log).length>0;
+ const hasSavedData=hasCurrentLog;
  return `<section class="dailyInjuryCard journalMockInjuryCard ${hasSavedData?'is-expanded':''}" data-injury-id="${i.id}">
    <div class="dailyInjuryName journalMockInjuryHead">
      <div class="injuryIcon">🦴</div>
@@ -492,7 +503,7 @@ function dailyInjuryEditor(i,log={}){
        <strong>${esc(i.name)}</strong>
        <span class="journalCollapsedSnapshot">${prev?`${prev.pain!==''&&prev.pain!=null?`Previous ${esc(prev.pain)}/10`:'Previous entry'}${prev.change?` · ${esc(prev.change)}`:''}`:(i.description?esc(i.description):'No previous entry')}</span>
      </div>
-     <span class="updatedToday">${hasSavedData?'Today saved':'Update'}</span>
+     <span class="updatedToday">${hasSavedData?'Today saved':(prev?'Carried forward':'Update')}</span>
      <button type="button" class="injuryExpandBtn" data-toggle-injury aria-expanded="${hasSavedData?'true':'false'}" aria-label="${hasSavedData?'Collapse':'Expand'} ${esc(i.name)}">${hasSavedData?'−':'+'}</button>
    </div>
    <div class="dailyInjuryBody">
@@ -501,7 +512,7 @@ function dailyInjuryEditor(i,log={}){
      <div class="field painField"><label>Pain (0–10)</label><input type="hidden" name="injury_${i.id}_pain" value="${esc(pain)}"><div class="painScale">${Array.from({length:11},(_,n)=>`<button type="button" class="painChoice ${String(pain)===String(n)?'selected':''}" data-pain="${n}">${n}</button>`).join('')}</div></div>
      <div class="field changeField"><label>Compared with previous entry</label><input type="hidden" name="injury_${i.id}_change" value="${esc(change)}"><div class="changeChoices">${[['Better','↑'],['Same','='],['Worse','↓']].map(([v,icon])=>`<button type="button" class="changeChoice ${v.toLowerCase()} ${change===v?'selected':''}" data-change="${v}"><span>${icon}</span>${v}${v==='Same'&&prev?.pain!==''&&prev?.pain!=null?` · ${esc(prev.pain)}/10`:''}</button>`).join('')}</div></div>
      ${symptomFields?`<div class="symptomFields">${symptomFields}</div>`:''}
-     <div class="field injuryNoteField"><label>Quick note <span>(optional)</span></label><div class="noteWithPhoto"><textarea name="injury_${i.id}_notes" placeholder="What changed or affected this injury today?">${esc(log.notes||'')}</textarea><label class="cameraBtn" title="Add photo">📷<input type="file" name="injury_${i.id}_photos" accept="image/*,application/pdf"></label></div><div class="photoGrid savedPhotoGrid" data-saved-photos="${i.id}">${photos.map((p,ix)=>attachmentPreview(p,{label:`Injury attachment ${ix+1}`,remove:`<button type="button" class="removePhotoBtn" data-remove-edit-photo="${i.id}:${ix}" aria-label="Remove attachment">×</button>`})).join('')}</div></div>
+     <div class="field injuryNoteField"><label>Quick note <span>(optional)</span></label><div class="noteWithPhoto"><textarea name="injury_${i.id}_notes" placeholder="What changed or affected this injury today?">${esc(displayLog.notes||'')}</textarea><label class="cameraBtn" title="Add photo">📷<input type="file" name="injury_${i.id}_photos" accept="image/*,application/pdf"></label></div><div class="photoGrid savedPhotoGrid" data-saved-photos="${i.id}">${photos.map((p,ix)=>attachmentPreview(p,{label:`Injury attachment ${ix+1}`,remove:`<button type="button" class="removePhotoBtn" data-remove-edit-photo="${i.id}:${ix}" aria-label="Remove attachment">×</button>`})).join('')}</div></div>
     </div>
    </div>
  </section>`;
