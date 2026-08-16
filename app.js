@@ -3,7 +3,7 @@
 'use strict';
 
 const KEY='mva-record-keeper-v1';
-const APP_VERSION='2.8.18';
+const APP_VERSION='2.8.19';
 document.title=`MVA Record Keeper v${APP_VERSION}`;
 
 const ATTACHMENT_DB='mva-record-keeper-attachments';
@@ -218,7 +218,7 @@ const defaults={
   physioSettings:{startTime:'09:00',endTime:'18:00'},
   journal:[], injuries:[], injuryLogs:[], medications:[], doses:[], medicationEvents:[], receipts:[], appointments:[], missedActivities:[],
   physioPrescriptions:[], physioVisits:[], physioExercises:[], physioExerciseLogs:[], physioDocuments:[],
-  tasks:[], questions:[], notes:[], communications:[], timeline:[]
+  tasks:[], questions:[], notes:[], communications:[], communicationContacts:{rehabilitation:[],insurance:[]}, timeline:[]
 };
 let state=load();
 state.profile={...defaults.profile,...(state.profile||{})};
@@ -228,6 +228,10 @@ state.reportSettings={...defaults.reportSettings,...(state.reportSettings||{})};
 state.physioSettings={...defaults.physioSettings,...(state.physioSettings||{})};
 
 state.communications=Array.isArray(state.communications)?state.communications:[];
+state.communicationContacts=state.communicationContacts||{rehabilitation:[],insurance:[]};
+state.communicationContacts.rehabilitation=Array.isArray(state.communicationContacts.rehabilitation)?state.communicationContacts.rehabilitation:[];
+state.communicationContacts.insurance=Array.isArray(state.communicationContacts.insurance)?state.communicationContacts.insurance:[];
+
 if(!state.communicationNotesMigrated){
   const existing=new Set(state.communications.map(x=>x.id));
   (state.notes||[]).forEach(n=>{
@@ -1715,15 +1719,20 @@ function openForm(type,id){
        .map(p=>p.name)
    ].filter(Boolean);
 
-   const rehabProviders=[
+   const rehabProviders=[...new Set([
      state.quickInfo.physiotherapist,
      ...(state.quickInfo.otherHealthcareProviders||[])
        .filter(p=>/physio|occupational|therap/i.test(`${p.specialty||''} ${p.name||''}`))
-       .map(p=>p.name)
-   ].filter(Boolean);
+       .map(p=>p.name),
+     ...(state.communicationContacts?.rehabilitation||[]).map(p=>p.name)
+   ].filter(Boolean))];
 
    const lawyerOptions=[state.profile.lawyer,state.quickInfo.lawyerAssistant].filter(Boolean);
-   const insuranceOptions=[state.quickInfo.adjusterName,state.quickInfo.benefitsContactName].filter(Boolean);
+   const insuranceOptions=[...new Set([
+     state.quickInfo.adjusterName,
+     state.quickInfo.benefitsContactName,
+     ...(state.communicationContacts?.insurance||[]).map(p=>p.name)
+   ].filter(Boolean))];
    const rehabType=item.rehabType||(/occupational/i.test(`${item.role||''}`)?'Occupational Therapist':'Physiotherapist');
 
    body=`<div class="field span2 communicationCategoryField">
@@ -1754,7 +1763,7 @@ function openForm(type,id){
    <div class="communicationConditional span2" data-communication-conditional="Rehabilitation" ${category==='Rehabilitation'?'':'hidden'}>
      <div class="formGrid">
        ${selectField('Rehabilitation provider type','rehabType',['Physiotherapist','Occupational Therapist'],rehabType)}
-       ${rehabProviders.length?`<div class="field"><label>Provider</label><select name="rehabProvider"><option value="">Choose provider</option>${rehabProviders.map(v=>`<option value="${esc(v)}" ${(item.rehabProvider||item.person)===v?'selected':''}>${esc(v)}</option>`).join('')}</select></div>`:field('Provider','rehabProvider',item.rehabProvider||item.person||'')}
+       <div class="field"><label>Provider</label><div class="communicationContactRow"><select name="rehabProvider"><option value="">Choose provider</option>${rehabProviders.map(v=>`<option value="${esc(v)}" ${(item.rehabProvider||item.person)===v?'selected':''}>${esc(v)}</option>`).join('')}</select><button type="button" class="miniContactBtn" data-add-communication-contact="rehabilitation">+ Add</button></div><button type="button" class="manageContactLink" data-manage-communication-contacts="rehabilitation">Manage rehabilitation providers</button></div>
        ${field('Clinic / organization','rehabOrganization',item.rehabOrganization||item.organization||state.quickInfo.physioClinic||'')}
      </div>
    </div>
@@ -1769,7 +1778,7 @@ function openForm(type,id){
 
    <div class="communicationConditional span2" data-communication-conditional="Insurance" ${category==='Insurance'?'':'hidden'}>
      <div class="formGrid">
-       ${insuranceOptions.length?`<div class="field"><label>Insurance contact</label><select name="insurancePerson"><option value="">Choose contact</option>${insuranceOptions.map(v=>`<option value="${esc(v)}" ${(item.insurancePerson||item.person)===v?'selected':''}>${esc(v)}</option>`).join('')}</select></div>`:field('Insurance contact','insurancePerson',item.insurancePerson||item.person||'')}
+       <div class="field"><label>Insurance contact</label><div class="communicationContactRow"><select name="insurancePerson"><option value="">Choose contact</option>${insuranceOptions.map(v=>`<option value="${esc(v)}" ${(item.insurancePerson||item.person)===v?'selected':''}>${esc(v)}</option>`).join('')}</select><button type="button" class="miniContactBtn" data-add-communication-contact="insurance">+ Add</button></div><button type="button" class="manageContactLink" data-manage-communication-contacts="insurance">Manage insurance contacts</button></div>
        ${field('Insurance company / benefits provider','insuranceOrganization',item.insuranceOrganization||item.organization||state.quickInfo.insurer||state.quickInfo.benefitsProvider||'')}
        ${field('Role','insuranceRole',item.insuranceRole||item.role||'Adjuster')}
      </div>
@@ -2151,6 +2160,53 @@ function render(){
  document.getElementById('app').innerHTML=views[page]();
  bind();
 }
+
+function addCommunicationContact(kind){
+ const label=kind==='rehabilitation'?'rehabilitation provider':'insurance contact';
+ const name=prompt(`Name of ${label}:`);
+ if(!name||!name.trim())return;
+ const role=kind==='rehabilitation'?prompt('Role (for example: Physiotherapist or Occupational Therapist):','')||'':prompt('Role (for example: Adjuster, Case Manager, Benefits Representative):','')||'';
+ const organization=prompt(kind==='rehabilitation'?'Clinic / organization:':'Insurance company / organization:','')||'';
+ state.communicationContacts=state.communicationContacts||{rehabilitation:[],insurance:[]};
+ state.communicationContacts[kind]=state.communicationContacts[kind]||[];
+ if(!state.communicationContacts[kind].some(x=>x.name.toLowerCase()===name.trim().toLowerCase())){
+   state.communicationContacts[kind].push({id:uid(),name:name.trim(),role:role.trim(),organization:organization.trim()});
+   save();
+ }
+ render();
+ setTimeout(()=>openForm('communication'),0);
+}
+
+function manageCommunicationContacts(kind){
+ const list=state.communicationContacts?.[kind]||[];
+ if(!list.length){
+   alert(`No custom ${kind==='rehabilitation'?'rehabilitation providers':'insurance contacts'} have been added yet.`);
+   return;
+ }
+ const lines=list.map((x,i)=>`${i+1}. ${x.name}${x.role?` — ${x.role}`:''}${x.organization?` (${x.organization})`:''}`).join('\n');
+ const choice=prompt(`Custom ${kind==='rehabilitation'?'rehabilitation providers':'insurance contacts'}:\n\n${lines}\n\nEnter the number to edit or delete, or Cancel to close.`);
+ if(!choice)return;
+ const index=Number(choice)-1;
+ if(index<0||index>=list.length)return;
+ const item=list[index];
+ const action=prompt(`"${item.name}"\n\nType E to edit or D to delete:`,'E');
+ if(!action)return;
+ if(action.toUpperCase()==='D'){
+   if(confirm(`Delete ${item.name} from this contact list? Existing communication records will not be changed.`)){
+     list.splice(index,1); save(); render();
+   }
+   return;
+ }
+ if(action.toUpperCase()==='E'){
+   const name=prompt('Name:',item.name);
+   if(!name||!name.trim())return;
+   item.name=name.trim();
+   item.role=(prompt('Role:',item.role||'')||'').trim();
+   item.organization=(prompt('Organization:',item.organization||'')||'').trim();
+   save(); render();
+ }
+}
+
 function bind(){
  document.querySelectorAll('[data-nav]').forEach(b=>b.onclick=()=>nav(b.dataset.nav));
  const openQuickInfoEdit=document.getElementById('openQuickInfoEdit');
@@ -2225,6 +2281,13 @@ function bind(){
    const expanded=card.classList.toggle('is-expanded');b.textContent=expanded?'−':'+';b.setAttribute('aria-expanded',String(expanded));
  });
 
+
+ document.querySelectorAll('[data-add-communication-contact]').forEach(btn=>btn.onclick=()=>{
+   addCommunicationContact(btn.dataset.addCommunicationContact);
+ });
+ document.querySelectorAll('[data-manage-communication-contacts]').forEach(btn=>btn.onclick=()=>{
+   manageCommunicationContacts(btn.dataset.manageCommunicationContacts);
+ });
  document.querySelectorAll('[data-communication-category]').forEach(btn=>btn.onclick=()=>{
    const form=btn.closest('form');
    if(!form)return;

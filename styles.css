@@ -2233,3 +2233,9 @@ input,textarea,select{width:100%;border:1px solid #cfd9e5;border-radius:8px;padd
     grid-column:1/-1;
   }
 }
+
+/* v2.8.19 editable Communication contact lists */
+.communicationContactRow{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:6px;align-items:center}
+.miniContactBtn{border:1px solid #aac8e5;background:#eef7ff;color:#075bd4;border-radius:8px;padding:8px 9px;font-size:10px;font-weight:850;white-space:nowrap}
+.manageContactLink{appearance:none;border:0;background:transparent;color:#3974ad;padding:5px 0 0;font-size:9px;font-weight:750;text-align:left;cursor:pointer}
+.manageContactLink:hover{text-decoration:underline}
