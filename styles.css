@@ -1683,3 +1683,81 @@ input,textarea,select{width:100%;border:1px solid #cfd9e5;border-radius:8px;padd
     min-height:80px;
   }
 }
+
+
+/* v2.8.1 polished MVA blue header shared by every page */
+.globalMvaTopbar{
+  margin:-20px -20px 16px;
+  padding:9px 16px;
+  min-height:62px;
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:16px;
+  background:linear-gradient(135deg,#062b56,#0a4c8b);
+  border-bottom:1px solid rgba(255,255,255,.14);
+  box-shadow:0 5px 16px rgba(6,39,75,.16);
+}
+.globalMvaBrand{
+  display:flex;
+  align-items:center;
+  gap:9px;
+  flex:0 0 auto;
+}
+.globalMvaBrand img{
+  width:38px;
+  height:38px;
+  object-fit:contain;
+  filter:drop-shadow(0 2px 3px rgba(0,0,0,.12));
+}
+.globalMvaBrandWords{
+  display:grid;
+  line-height:1;
+}
+.globalMvaBrandWords strong{
+  color:#fff;
+  font-size:20px;
+  letter-spacing:.015em;
+}
+.globalMvaBrandWords span{
+  margin-top:3px;
+  color:rgba(255,255,255,.86);
+  font-size:8px;
+  font-weight:900;
+  letter-spacing:.09em;
+}
+.globalMvaPageTitle{
+  min-width:0;
+  text-align:right;
+}
+.globalMvaPageTitle h1{
+  margin:0;
+  color:#fff;
+  font-size:18px;
+  line-height:1.1;
+  white-space:nowrap;
+  overflow:hidden;
+  text-overflow:ellipsis;
+}
+.globalMvaPageTitle p{
+  margin:3px 0 0;
+  color:rgba(255,255,255,.72);
+  font-size:9px;
+  white-space:nowrap;
+  overflow:hidden;
+  text-overflow:ellipsis;
+  max-width:520px;
+}
+@media(max-width:720px){
+  .globalMvaTopbar{
+    margin:-14px -12px 12px;
+    padding:7px 11px;
+    min-height:55px;
+    gap:9px;
+  }
+  .globalMvaBrand img{width:34px;height:34px}
+  .globalMvaBrandWords strong{font-size:17px}
+  .globalMvaBrandWords span{font-size:7px}
+  .globalMvaPageTitle h1{font-size:14px}
+  .globalMvaPageTitle p{display:none}
+}
