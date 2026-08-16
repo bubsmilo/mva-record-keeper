@@ -1836,3 +1836,30 @@ input,textarea,select{width:100%;border:1px solid #cfd9e5;border-radius:8px;padd
 .journalMockInjuryCard:not(.is-expanded) .updatedToday{
   color:#58708b;
 }
+
+
+/* v2.8.4 exercise URL / video link */
+.exerciseLinkSection{
+  display:grid;
+  gap:7px;
+}
+.exerciseLinkButton{
+  display:inline-flex;
+  align-items:center;
+  justify-content:center;
+  gap:6px;
+  width:fit-content;
+  max-width:100%;
+  padding:8px 11px;
+  border-radius:9px;
+  border:1px solid #b9d0e8;
+  background:#eef6ff;
+  color:#075bd4;
+  text-decoration:none;
+  font-size:11px;
+  font-weight:850;
+}
+.exerciseLinkButton:hover{
+  background:#e1efff;
+  border-color:#91b8e0;
+}
