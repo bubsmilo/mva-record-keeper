@@ -3,7 +3,7 @@
 'use strict';
 
 const KEY='mva-record-keeper-v1';
-const APP_VERSION='2.8.24';
+const APP_VERSION='2.8.25';
 document.title=`MVA Record Keeper v${APP_VERSION}`;
 
 const ATTACHMENT_DB='mva-record-keeper-attachments';
@@ -566,6 +566,77 @@ function dailyInjuryEditor(i,log={}){
    </div>
  </section>`;
 }
+
+function updateJournalPreviousContext(selectedDate,{carryForward=false}={}){
+ const form=document.getElementById('dailyLogForm');
+ if(!form||!selectedDate)return;
+ state.injuries.forEach(i=>{
+   const card=form.querySelector(`[data-injury-id="${i.id}"]`);
+   if(!card)return;
+   const prev=previousInjuryLog(i.id,selectedDate);
+
+   const strip=card.querySelector('.previousInjuryStrip');
+   if(strip){
+     const holder=document.createElement('div');
+     holder.innerHTML=previousInjuryStrip(i,selectedDate);
+     strip.replaceWith(holder.firstElementChild);
+   }
+
+   const snapshot=card.querySelector('.journalCollapsedSnapshot');
+   if(snapshot){
+     snapshot.textContent=prev
+       ? `${prev.pain!==''&&prev.pain!=null?`Previous ${prev.pain}/10`:'Previous entry'}${prev.change?` · ${prev.change}`:''}`
+       : (i.description||'No previous entry');
+   }
+
+   const sameBtn=card.querySelector('.changeChoice.same');
+   if(sameBtn) sameBtn.innerHTML=`<span>=</span>Same${prev?.pain!==''&&prev?.pain!=null?` · ${esc(prev.pain)}/10`:''}`;
+
+   if(carryForward){
+     const pain=prev?.pain??'';
+     const change=prev?'Same':'';
+     const painInput=card.querySelector(`[name="injury_${i.id}_pain"]`);
+     if(painInput)painInput.value=pain;
+     card.querySelectorAll('.painChoice').forEach(b=>b.classList.toggle('selected',String(b.dataset.pain)===String(pain)));
+     const changeInput=card.querySelector(`[name="injury_${i.id}_change"]`);
+     if(changeInput)changeInput.value=change;
+     card.querySelectorAll('.changeChoice').forEach(b=>b.classList.toggle('selected',b.dataset.change===change));
+
+     ['swelling','stiffness','rangeOfMotion'].forEach(key=>{
+       const input=card.querySelector(`[name="injury_${i.id}_${key}"]`);
+       if(!input)return;
+       input.value=prev?.[key]||'';
+       input.closest('.symptomField')?.querySelectorAll('.symptomChoice').forEach(b=>b.classList.toggle('selected',b.dataset.symptomValue===(prev?.[key]||'')));
+     });
+
+     const note=card.querySelector(`[name="injury_${i.id}_notes"]`);
+     if(note)note.value='';
+     card.dataset.logId='';
+     card.dataset.photos='[]';
+     const grid=card.querySelector('[data-saved-photos]');
+     if(grid)grid.innerHTML='';
+     const status=card.querySelector('.updatedToday');
+     if(status)status.textContent=prev?'Carried forward':'Update';
+   }
+ });
+}
+
+function loadJournalDateContext(selectedDate){
+ const form=document.getElementById('dailyLogForm');
+ if(!form||!selectedDate)return;
+ const existing=state.journal.find(x=>x.date===selectedDate);
+ if(existing){
+   editDailyLog(existing.id);
+   return;
+ }
+ form.dataset.editId='';
+ form.elements.date.value=selectedDate;
+ form.elements.notes.value='';
+ const heading=document.getElementById('dailyLogHeading');
+ if(heading)heading.textContent='Daily Log';
+ updateJournalPreviousContext(selectedDate,{carryForward:true});
+}
+
 function editDailyLog(id){
  const entry=state.journal.find(x=>x.id===id); if(!entry)return;
  const form=document.getElementById('dailyLogForm'); if(!form)return;
@@ -573,6 +644,7 @@ function editDailyLog(id){
  form.elements.date.value=entry.date;
  form.elements.notes.value=entry.notes||'';
  document.getElementById('dailyLogHeading').textContent='Edit daily log';
+ updateJournalPreviousContext(entry.date,{carryForward:false});
  state.injuries.forEach(i=>{
    const log=state.injuryLogs.find(x=>x.injuryId===i.id&&x.date===entry.date)||{};
    const card=form.querySelector(`[data-injury-id="${i.id}"]`); if(!card)return;
@@ -2593,7 +2665,13 @@ function bind(){
    b.setAttribute('aria-expanded',String(expanded));
    b.setAttribute('aria-label',`${expanded?'Collapse':'Expand'} ${card.querySelector('.injuryTitleBlock strong')?.textContent||'injury'}`);
  });
- const df=document.getElementById('dailyLogForm');if(df){df.onsubmit=async e=>{e.preventDefault();await saveDailyLog(df)};df.querySelectorAll('[data-injury-id]').forEach(card=>{card.dataset.photos='[]';card.dataset.logId=''});bindDailyPhotoRemoval();}
+ const df=document.getElementById('dailyLogForm');if(df){
+   df.onsubmit=async e=>{e.preventDefault();await saveDailyLog(df)};
+   df.querySelectorAll('[data-injury-id]').forEach(card=>{card.dataset.photos='[]';card.dataset.logId=''});
+   const dailyDate=df.elements.date;
+   if(dailyDate)dailyDate.onchange=()=>loadJournalDateContext(dailyDate.value);
+   bindDailyPhotoRemoval();
+ }
  const f=document.getElementById('editForm');if(f){
    f.onsubmit=async e=>{e.preventDefault();await saveForm(f)};
    const kind=f.querySelector('[name="appointmentKind"]');
