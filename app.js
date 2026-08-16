@@ -3,7 +3,7 @@
 'use strict';
 
 const KEY='mva-record-keeper-v1';
-const APP_VERSION='2.8.19';
+const APP_VERSION='2.8.20';
 document.title=`MVA Record Keeper v${APP_VERSION}`;
 
 const ATTACHMENT_DB='mva-record-keeper-attachments';
@@ -1333,7 +1333,7 @@ function notes(){
  const followUps=entries.filter(x=>x.followUpRequired&&x.followUpDate).sort((a,b)=>a.followUpDate.localeCompare(b.followUpDate));
  return appShell(`
  <section class="communicationIntro"><div><h2>Communication Log</h2><p class="muted small">Calls, emails, conversations, paperwork and follow-ups related to your accident.</p></div><button class="btn primary" data-add="communication">+ Add Contact</button></section>
- ${followUps.length?`<section class="card communicationFollowups"><div class="communicationFollowupTitle">Follow-ups</div>${followUps.map(x=>`<div class="communicationFollowupRow"><strong>${fmt(x.followUpDate)}</strong><span>${esc(x.person||x.organization||x.subject||'Follow-up')}</span></div>`).join('')}</section>`:''}
+ ${followUps.length?`<section class="card communicationFollowups"><div class="communicationFollowupTitle">Follow-ups</div>${followUps.map(x=>`<div class="communicationFollowupRow"><strong>${fmt(x.followUpDate)}</strong><div class="communicationFollowupDetails"><span class="communicationFollowupContact">${esc(x.person||x.organization||'Contact')}</span>${x.subject?`<small>${esc(x.subject)}</small>`:''}</div></div>`).join('')}</section>`:''}
  <section class="communicationLogList">${entries.length?entries.map(x=>{
    const who=[x.person,x.role].filter(Boolean).join(' · ')||x.organization||'';
    const org=x.person&&x.organization?x.organization:'';
