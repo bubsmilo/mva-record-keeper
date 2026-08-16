@@ -3,7 +3,7 @@
 'use strict';
 
 const KEY='mva-record-keeper-v1';
-const APP_VERSION='2.8.13';
+const APP_VERSION='2.8.16';
 document.title=`MVA Record Keeper v${APP_VERSION}`;
 
 const ATTACHMENT_DB='mva-record-keeper-attachments';
@@ -1325,7 +1325,7 @@ function tasks(){
 }
 
 function notes(){
- const entries=[...(state.communications||[])].sort((a,b)=>`${a.date||''}T${a.time||'00:00'}`.localeCompare(`${b.date||''}T${b.time||'00:00'}`));
+ const entries=[...(state.communications||[])].sort((a,b)=>`${b.date||''}T${b.time||'00:00'}`.localeCompare(`${a.date||''}T${a.time||'00:00'}`));
  const followUps=entries.filter(x=>x.followUpRequired&&x.followUpDate).sort((a,b)=>a.followUpDate.localeCompare(b.followUpDate));
  return appShell(`
  <section class="communicationIntro"><div><h2>Communication Log</h2><p class="muted small">Calls, emails, conversations, paperwork and follow-ups related to your accident.</p></div><button class="btn primary" data-add="communication">+ Add Contact</button></section>
@@ -1334,7 +1334,7 @@ function notes(){
    const who=[x.person,x.role].filter(Boolean).join(' · ')||x.organization||'Communication';
    const org=x.person&&x.organization?x.organization:'';
    const icon=x.method==='Phone'?'📞':x.method==='Email'?'✉️':x.method==='In person'?'🤝':x.method==='Text message'?'💬':x.method==='Letter'?'📄':'🗂️';
-   return `<article class="card communicationCard"><div class="communicationCardHead"><div class="communicationMethodIcon">${icon}</div><div class="communicationHeadText"><div class="communicationDate">${fmt(x.date)}${x.time?` · ${esc(x.time)}`:''}</div><h3>${esc(who)}</h3>${org?`<small>${esc(org)}</small>`:''}${x.subject?`<span>${esc(x.subject)}</span>`:''}</div><button type="button" class="communicationToggle" data-toggle-communication aria-expanded="false">+</button></div>
+   return `<article class="card communicationCard"><div class="communicationCardHead"><div class="communicationMethodIcon">${icon}</div><div class="communicationHeadText"><div class="communicationDate">${fmt(x.date)}${x.time?` · ${esc(x.time)}`:''}</div><h3>${esc(who)}</h3>${x.category?`<small>${x.category==='Medical'?'🩺 ':x.category==='Lawyer'?'⚖️ ':'💬 '}${esc(x.category)}${org?` · ${esc(org)}`:''}</small>`:(org?`<small>${esc(org)}</small>`:'')}${x.subject?`<span>${esc(x.subject)}</span>`:''}</div><button type="button" class="communicationToggle" data-toggle-communication aria-expanded="false">+</button></div>
    <div class="communicationExpandable"><div class="communicationInner"><div class="communicationMeta"><div><span>Method</span><strong>${esc(x.method||'Other')}</strong></div>${x.organization?`<div><span>Organization</span><strong>${esc(x.organization)}</strong></div>`:''}</div>
    ${x.reason?`<div class="communicationText"><span>Reason for contact</span><p>${esc(x.reason).replace(/\n/g,'<br>')}</p></div>`:''}${x.discussed?`<div class="communicationText"><span>What was discussed</span><p>${esc(x.discussed).replace(/\n/g,'<br>')}</p></div>`:''}${x.theySaid?`<div class="communicationText"><span>What they told me</span><p>${esc(x.theySaid).replace(/\n/g,'<br>')}</p></div>`:''}${x.iProvided?`<div class="communicationText"><span>What I provided / did</span><p>${esc(x.iProvided).replace(/\n/g,'<br>')}</p></div>`:''}${x.actions?`<div class="communicationText"><span>Action items / next steps</span><p>${esc(x.actions).replace(/\n/g,'<br>')}</p></div>`:''}
    ${x.followUpRequired?`<div class="communicationFollowupBadge">⏰ Follow-up${x.followUpDate?` · ${fmt(x.followUpDate)}`:''}</div>`:''}${(x.attachments||[]).length?`<div class="photoGrid communicationAttachments">${x.attachments.map((p,ix)=>attachmentPreview(p,{label:`Communication attachment ${ix+1}`})).join('')}</div>`:''}
@@ -1350,13 +1350,13 @@ function reports(){
  <div class="reportIntro card"><div><span class="pill">Reports 2.0</span><h2>Create a professional recovery report</h2><p>Choose a ready-made report or build your own. Reports open in a print-ready window where you can select <strong>Save as PDF</strong>.</p></div><div class="reportIntroStats"><strong>${state.journal.length}</strong><span>Daily logs</span><strong>${state.appointments.length}</strong><span>Appointments</span><strong>${money(totalReceipts)}</strong><span>Expenses</span></div></div>
  <div class="grid grid3 reportPresetGrid">
  ${quickCard('🩺','Medical Report','A focused clinical history for doctors, specialists and therapists.','medical',['Daily logs','Injuries','Medication timeline','Appointments'])}
- ${quickCard('⚖️','Full Claim Report','A complete chronological package for your lawyer or claim file.','legal',['All recovery records','Receipts and photos','Medication changes','Notes and timeline'])}
- ${quickCard('💰','Insurance Report','A concise report focused on appointments, expenses and claim activity.','insurance',['Appointments','Receipts','Recovery timeline','Claim notes'])}
+ ${quickCard('⚖️','Full Claim Report','A complete chronological package for your lawyer or claim file.','legal',['All recovery records','Physio & exercises','Communication log','Missed activities & expenses'])}
+ ${quickCard('💰','Insurance Report','A concise report focused on appointments, expenses and claim activity.','insurance',['Appointments','Receipts','Communication log','Missed activities'])}
  </div>
  <section class="card customReportCard"><div class="toolbar"><div><span class="pill">Custom</span><h2>Build a custom report</h2><p class="muted">Choose the date range and sections to include.</p></div></div>
  <div class="reportDateRange"><div class="field"><label>From</label><input id="reportFrom" type="date"></div><div class="field"><label>To</label><input id="reportTo" type="date" value="${today()}"></div></div>
  <div class="reportOptionGrid">
- ${[['journal','Daily logs'],['injuries','Injury tracking'],['medications','Medication timeline'],['doseHistory','Detailed dose history'],['appointments','Appointments'],['receipts','Receipts and expenses'],['timeline','Recovery timeline'],['notes','Notes and questions'],['photos','Photo appendix']].map(([key,label])=>`<label class="settingCheck"><input type="checkbox" data-report-option="${key}" ${key==='photos'?'':'checked'}><span><strong>${label}</strong></span></label>`).join('')}
+ ${[['journal','Daily logs'],['injuries','Injury tracking'],['medications','Medication timeline'],['doseHistory','Detailed dose history'],['physio','Physiotherapy & home exercises'],['appointments','Appointments'],['receipts','Receipts and expenses'],['missedActivities','Missed activities & events'],['communications','Communication log'],['questions','Questions to ask'],['timeline','Recovery timeline'],['photos','Photo & document appendix']].map(([key,label])=>`<label class="settingCheck"><input type="checkbox" data-report-option="${key}" ${key==='photos'?'':'checked'}><span><strong>${label}</strong></span></label>`).join('')}
  </div>
  <div class="reportActions"><button class="btn secondary" id="previewCustomReport">Preview report</button><button class="btn primary" id="generateCustomReport">Generate PDF report</button></div>
  <div id="reportPreview" class="reportPreview hidden"></div>
@@ -1699,7 +1699,63 @@ function openForm(type,id){
  if(type==='timeline') body=`${field('Date','date',item.date||today(),'date')}${field('Event title','title',item.title||'')}${selectField('Event type','type',['Accident','Hospital / ER','Doctor','Imaging','Physiotherapy','Insurance','Lawyer','Medication','Other'],item.type||'Other')}${area('Details','notes',item.notes||'')}`;
  if(type==='task') body=`${field('Task','title',item.title||'')}${field('Due date','due',item.due||'','date')}${selectField('Priority','priority',['Low','Normal','High'],item.priority||'Normal')}${selectField('Status','done',['Open','Completed'],item.done?'Completed':'Open')}`;
  if(type==='question') body=`${area('Question','text',item.text||'')}${selectField('For','forWhom',['Doctor','Lawyer','Insurance','Physiotherapist','Other'],item.forWhom||'Doctor')}${selectField('Status','answered',['Open','Answered'],item.answered?'Answered':'Open')}${area('Answer / notes','answer',item.answer||'')}`;
- if(type==='communication') body=`${field('Date','date',item.date||today(),'date')}${field('Time','time',item.time||'','time')}${field('Person','person',item.person||'')}${field('Organization','organization',item.organization||'')}${field('Role','role',item.role||'')}${selectField('Contact method','method',['Phone','Email','In person','Portal / app','Text message','Letter','Other'],item.method||'Phone')}${field('Subject / reason','subject',item.subject||'')}${area('Reason for contact','reason',item.reason||'')}${area('What was discussed','discussed',item.discussed||'')}${area('What they told me','theySaid',item.theySaid||'')}${area('What I provided / did','iProvided',item.iProvided||'')}${area('Action items / next steps','actions',item.actions||'')}${selectField('Follow-up required?','followUpRequired',['No','Yes'],item.followUpRequired?'Yes':'No')}${field('Follow-up date','followUpDate',item.followUpDate||'','date')}${photoField('Attachments / screenshots / PDFs','attachments',item.attachments||[],true)}`;
+ if(type==='communication'){
+   const category=item.category||(
+     /lawyer|legal|firm/i.test(`${item.role||''} ${item.organization||''}`)?'Lawyer':
+     /doctor|clinic|hospital|physio|medical|specialist|therapy/i.test(`${item.role||''} ${item.organization||''}`)?'Medical':'Other'
+   );
+   const providerOptions=[
+     state.quickInfo.familyDoctor,
+     state.quickInfo.physiotherapist,
+     ...(state.quickInfo.otherHealthcareProviders||[]).map(p=>p.name)
+   ].filter(Boolean);
+   const lawyerOptions=[state.profile.lawyer,state.quickInfo.lawyerAssistant].filter(Boolean);
+
+   body=`<div class="field span2 communicationCategoryField">
+     <label>Who is this communication with?</label>
+     <div class="communicationCategoryChoices">
+       ${['Medical','Lawyer','Other'].map(v=>`<button type="button" class="communicationCategoryChoice ${category===v?'selected':''}" data-communication-category="${v}">${v==='Medical'?'🩺':v==='Lawyer'?'⚖️':'💬'} ${v}</button>`).join('')}
+     </div>
+     <input type="hidden" name="category" value="${esc(category)}">
+   </div>
+
+   ${field('Date','date',item.date||today(),'date')}
+   ${field('Time','time',item.time||'','time')}
+
+   <div class="communicationConditional span2" data-communication-conditional="Medical" ${category==='Medical'?'':'hidden'}>
+     <div class="formGrid">
+       ${providerOptions.length?`<div class="field"><label>Medical provider</label><select name="medicalProvider"><option value="">Choose provider</option>${providerOptions.map(v=>`<option value="${esc(v)}" ${(item.medicalProvider||item.person)===v?'selected':''}>${esc(v)}</option>`).join('')}</select></div>`:field('Medical provider','medicalProvider',item.medicalProvider||item.person||'')}
+       ${field('Clinic / hospital','medicalOrganization',item.medicalOrganization||item.organization||'')}
+       ${field('Role / specialty','medicalRole',item.medicalRole||item.role||'')}
+     </div>
+   </div>
+
+   <div class="communicationConditional span2" data-communication-conditional="Lawyer" ${category==='Lawyer'?'':'hidden'}>
+     <div class="formGrid">
+       ${lawyerOptions.length?`<div class="field"><label>Legal contact</label><select name="lawyerPerson"><option value="">Choose contact</option>${lawyerOptions.map(v=>`<option value="${esc(v)}" ${(item.lawyerPerson||item.person)===v?'selected':''}>${esc(v)}</option>`).join('')}</select></div>`:field('Legal contact','lawyerPerson',item.lawyerPerson||item.person||'')}
+       ${field('Firm','lawyerOrganization',item.lawyerOrganization||item.organization||state.quickInfo.lawyerFirm||'')}
+       ${field('Role','lawyerRole',item.lawyerRole||item.role||'')}
+     </div>
+   </div>
+
+   <div class="communicationConditional span2" data-communication-conditional="Other" ${category==='Other'?'':'hidden'}>
+     <div class="formGrid">
+       ${field('Person','otherPerson',item.otherPerson||item.person||'')}
+       ${field('Organization','otherOrganization',item.otherOrganization||item.organization||'')}
+       ${field('Role','otherRole',item.otherRole||item.role||'')}
+     </div>
+   </div>
+
+   ${selectField('Contact method','method',['Phone','Email','In person','Portal / app','Text message','Letter','Other'],item.method||'Phone')}
+   ${field('Subject / reason','subject',item.subject||'')}
+   ${area('What was discussed','discussed',item.discussed||item.reason||'')}
+   ${area('What they told me','theySaid',item.theySaid||'')}
+   ${area('What I provided / did','iProvided',item.iProvided||'')}
+   ${area('Action items / next steps','actions',item.actions||'')}
+   ${selectField('Follow-up required?','followUpRequired',['No','Yes'],item.followUpRequired?'Yes':'No')}
+   ${field('Follow-up date','followUpDate',item.followUpDate||'','date')}
+   ${photoField('Attachments / screenshots / PDFs','attachments',item.attachments||[],true)}`;
+ }
  if(type==='note') body=`${field('Date','date',item.date||today(),'date')}${field('Title','title',item.title||'')}${area('Note','text',item.text||'')}`;
  modal=`<div class="modalBackdrop"><form class="modal" id="editForm" data-type="${type}" data-id="${id||''}"><div class="modalHead"><h2>${title}</h2><button type="button" class="iconBtn" data-close>✕</button></div><div class="formGrid">${body}</div><div class="modalFoot"><button type="button" class="btn secondary" data-close>Cancel</button><button class="btn primary">Save</button></div></form></div>`;
  render();
@@ -1849,6 +1905,21 @@ async function saveForm(form){
    const inp=form.elements.attachments;
    if(inp?.files?.length)obj.attachments.push(...await filesToAttachmentRefs(inp));
    obj.followUpRequired=obj.followUpRequired==='Yes';
+
+   if(obj.category==='Medical'){
+     obj.person=obj.medicalProvider||'';
+     obj.organization=obj.medicalOrganization||'';
+     obj.role=obj.medicalRole||'';
+   }else if(obj.category==='Lawyer'){
+     obj.person=obj.lawyerPerson||'';
+     obj.organization=obj.lawyerOrganization||'';
+     obj.role=obj.lawyerRole||'';
+   }else{
+     obj.person=obj.otherPerson||'';
+     obj.organization=obj.otherOrganization||'';
+     obj.role=obj.otherRole||'';
+   }
+   obj.reason=obj.subject||'';
  }
  if(type==='missedActivity'){
    const existing=state.missedActivities.find(x=>x.id===id);
@@ -1930,9 +2001,9 @@ function medicationFrequencyHistoryHtml(medication){
 }
 
 function reportPreset(type){
- const all={journal:true,injuries:true,medications:true,doseHistory:true,appointments:true,receipts:true,timeline:true,notes:true,photos:true};
- if(type==='medical')return {type,title:'Medical Recovery Report',journal:true,injuries:true,medications:true,doseHistory:true,appointments:true,receipts:false,timeline:true,notes:false,photos:false};
- if(type==='insurance')return {type,title:'Insurance Recovery Report',journal:false,injuries:false,medications:false,doseHistory:false,appointments:true,receipts:true,timeline:true,notes:true,photos:true};
+ const all={journal:true,injuries:true,medications:true,doseHistory:true,physio:true,appointments:true,receipts:true,missedActivities:true,communications:true,questions:true,timeline:true,photos:true};
+ if(type==='medical')return {type,title:'Medical Recovery Report',journal:true,injuries:true,medications:true,doseHistory:true,physio:true,appointments:true,receipts:false,missedActivities:false,communications:false,questions:true,timeline:true,photos:false};
+ if(type==='insurance')return {type,title:'Insurance Recovery Report',journal:false,injuries:false,medications:false,doseHistory:false,physio:true,appointments:true,receipts:true,missedActivities:true,communications:true,questions:false,timeline:true,photos:true};
  return {type:'legal',title:'Full MVA Claim Report',...all};
 }
 function customReportConfig(){
@@ -1948,11 +2019,14 @@ function reportInRange(date,config){
 function reportPreviewHtml(config){
  const journal=state.journal.filter(x=>reportInRange(x.date,config)).length;
  const appointments=state.appointments.filter(x=>reportInRange(x.date,config)).length;
+ const physioVisits=(state.physioVisits||[]).filter(x=>reportInRange(x.date,config)).length;
+ const communications=(state.communications||[]).filter(x=>reportInRange(x.date,config)).length;
+ const missed=(state.missedActivities||[]).filter(x=>reportInRange(x.date,config)).length;
  const doses=state.doses.filter(x=>reportInRange(localDateKey(x.dateTime),config)).length;
  const receipts=state.receipts.filter(x=>reportInRange(x.date,config));
- const photos=(config.photos?state.journal.filter(x=>reportInRange(x.date,config)).reduce((n,x)=>n+(x.photos||[]).length,0)+receipts.filter(x=>x.photo).length:0);
- const sections=[['journal','Daily logs'],['injuries','Injury tracking'],['medications','Medication timeline'],['doseHistory','Dose history'],['appointments','Appointments'],['receipts','Receipts'],['timeline','Recovery timeline'],['notes','Notes and questions'],['photos','Photo appendix']].filter(([key])=>config[key]).map(([,label])=>label);
- return `<div class="reportPreviewHead"><div><span class="pill">Preview</span><h3>${esc(config.title)}</h3><p>${config.from||'Beginning'} – ${config.to||'Today'}</p></div><div class="reportPreviewCount">${sections.length}<small>sections</small></div></div><div class="reportPreviewStats"><div><strong>${journal}</strong><span>Daily logs</span></div><div><strong>${appointments}</strong><span>Appointments</span></div><div><strong>${doses}</strong><span>Dose records</span></div><div><strong>${money(receipts.reduce((n,r)=>n+Number(r.amount||0),0))}</strong><span>Expenses</span></div><div><strong>${photos}</strong><span>Photos</span></div></div><div class="reportSectionList">${sections.map(x=>`<span>✓ ${x}</span>`).join('')}</div>`;
+ const photos=(config.photos?state.journal.filter(x=>reportInRange(x.date,config)).reduce((n,x)=>n+(x.photos||[]).length,0)+receipts.filter(x=>x.photo).length+(state.communications||[]).filter(x=>reportInRange(x.date,config)).reduce((n,x)=>n+(x.attachments||[]).length,0)+(state.missedActivities||[]).filter(x=>reportInRange(x.date,config)).reduce((n,x)=>n+(x.photos||[]).length,0):0);
+ const sections=[['journal','Daily logs'],['injuries','Injury tracking'],['medications','Medication timeline'],['doseHistory','Dose history'],['physio','Physiotherapy & home exercises'],['appointments','Appointments'],['receipts','Receipts'],['missedActivities','Missed activities & events'],['communications','Communication log'],['questions','Questions to ask'],['timeline','Recovery timeline'],['photos','Photo & document appendix']].filter(([key])=>config[key]).map(([,label])=>label);
+ return `<div class="reportPreviewHead"><div><span class="pill">Preview</span><h3>${esc(config.title)}</h3><p>${config.from||'Beginning'} – ${config.to||'Today'}</p></div><div class="reportPreviewCount">${sections.length}<small>sections</small></div></div><div class="reportPreviewStats"><div><strong>${journal}</strong><span>Daily logs</span></div><div><strong>${appointments+physioVisits}</strong><span>Appointments / physio</span></div><div><strong>${communications}</strong><span>Communications</span></div><div><strong>${missed}</strong><span>Missed activities</span></div><div><strong>${money(receipts.reduce((n,r)=>n+Number(r.amount||0),0))}</strong><span>Expenses</span></div><div><strong>${photos}</strong><span>Attachments</span></div></div><div class="reportSectionList">${sections.map(x=>`<span>✓ ${x}</span>`).join('')}</div>`;
 }
 function medicationTimelineForReport(med,config){
  const events=(state.medicationEvents||[]).filter(e=>e.medicationId===med.id&&reportInRange(localDateKey(e.dateTime),config)).map(e=>({dateTime:e.dateTime,label:e.eventType==='Changed'?`${e.field} changed: ${e.from||'Not entered'} → ${e.to||'Not entered'}`:e.eventType+(e.reason?`: ${e.reason}`:'')}));
@@ -1968,14 +2042,17 @@ function printReport(config=reportPreset('legal')){
  const journal=state.journal.filter(x=>inRange(x.date)).sort((a,b)=>a.date.localeCompare(b.date));
  const injuryLogs=state.injuryLogs.filter(x=>inRange(x.date)).sort((a,b)=>a.date.localeCompare(b.date));
  const appointments=state.appointments.filter(x=>inRange(x.date)).sort((a,b)=>a.date.localeCompare(b.date));
+ const physioVisits=(state.physioVisits||[]).filter(x=>inRange(x.date)).sort((a,b)=>(a.date||'').localeCompare(b.date||''));
+ const physioLogs=(state.physioExerciseLogs||[]).filter(x=>inRange(localDateKey(x.dateTime||x.completedAt||x.date))).sort((a,b)=>String(a.dateTime||a.completedAt||a.date||'').localeCompare(String(b.dateTime||b.completedAt||b.date||'')));
+ const communications=(state.communications||[]).filter(x=>inRange(x.date)).sort((a,b)=>`${b.date||''}T${b.time||''}`.localeCompare(`${a.date||''}T${a.time||''}`));
+ const missedActivities=(state.missedActivities||[]).filter(x=>inRange(x.date)).sort((a,b)=>(a.date||'').localeCompare(b.date||''));
  const receipts=state.receipts.filter(x=>inRange(x.date)).sort((a,b)=>a.date.localeCompare(b.date));
  const timeline=state.timeline.filter(x=>inRange(x.date)).sort((a,b)=>a.date.localeCompare(b.date));
- const notes=state.notes.filter(x=>inRange(x.date)).sort((a,b)=>a.date.localeCompare(b.date));
  const doses=state.doses.filter(x=>inRange(localDateKey(x.dateTime))).sort((a,b)=>a.dateTime.localeCompare(b.dateTime));
  const accidentDays=state.profile.accidentDate?daysBetween(new Date(state.profile.accidentDate+'T12:00:00'),new Date()):0;
  const total=receipts.reduce((n,r)=>n+Number(r.amount||0),0);
  const section=(id,title,body)=>`<section id="${id}" class="reportSection"><h2>${title}</h2>${body||'<p class="emptyText">None recorded in this date range.</p>'}</section>`;
- const included=[['summary','Recovery Summary',true],['timeline','Recovery Timeline',config.timeline],['journal','Daily Logs',config.journal],['injuries','Injury Progress',config.injuries],['medications','Medication Timeline',config.medications],['doses','Dose History',config.doseHistory],['appointments','Appointments',config.appointments],['receipts','Receipts and Expenses',config.receipts],['notes','Notes and Questions',config.notes],['photos','Photo Appendix',config.photos]].filter(x=>x[2]);
+ const included=[['summary','Recovery Summary',true],['timeline','Recovery Timeline',config.timeline],['journal','Daily Logs',config.journal],['injuries','Injury Progress',config.injuries],['medications','Medication Timeline',config.medications],['doses','Dose History',config.doseHistory],['physio','Physiotherapy & Home Exercises',config.physio],['appointments','Appointments',config.appointments],['receipts','Receipts and Expenses',config.receipts],['missed','Missed Activities & Events',config.missedActivities],['communications','Communication Log',config.communications],['questions','Questions to Ask',config.questions],['photos','Photo & Document Appendix',config.photos]].filter(x=>x[2]);
  const toc=included.map(([,label],i)=>`<div><span>${i+1}. ${label}</span><b>Section ${i+1}</b></div>`).join('');
  const photoItems=[];
  if(config.photos){
@@ -1985,6 +2062,13 @@ function printReport(config=reportPreset('legal')){
  receipts.forEach(r=>{if(r.photo)photoItems.push(isPdfAttachment(r.photo)
    ? `<figure class="reportPdfAttachment"><a href="${attachmentSrc(r.photo)}" target="_blank"><span>PDF</span><strong>${fmt(r.date)} — ${esc(r.description||'Receipt')}</strong></a></figure>`
    : `<figure><img src="${attachmentSrc(r.photo)}"><figcaption>${fmt(r.date)} — ${esc(r.description||'Receipt')}</figcaption></figure>`)})
+ communications.forEach(c=>(c.attachments||[]).forEach((file,i)=>photoItems.push(isPdfAttachment(file)
+   ? `<figure class="reportPdfAttachment"><a href="${attachmentSrc(file)}" target="_blank"><span>PDF</span><strong>${fmt(c.date)} — Communication attachment ${i+1}</strong></a></figure>`
+   : `<figure><img src="${attachmentSrc(file)}"><figcaption>${fmt(c.date)} — ${esc(c.person||c.organization||c.subject||'Communication')} attachment ${i+1}</figcaption></figure>`)));
+ missedActivities.forEach(m=>(m.photos||[]).forEach((file,i)=>photoItems.push(isPdfAttachment(file)
+   ? `<figure class="reportPdfAttachment"><a href="${attachmentSrc(file)}" target="_blank"><span>PDF</span><strong>${fmt(m.date)} — ${esc(m.title||'Missed activity')} attachment ${i+1}</strong></a></figure>`
+   : `<figure><img src="${attachmentSrc(file)}"><figcaption>${fmt(m.date)} — ${esc(m.title||'Missed activity')} attachment ${i+1}</figcaption></figure>`)));
+
 }
  const generatedDate=new Date().toLocaleString('en-CA');
  const reportPeriod=`${config.from?fmt(config.from):'Beginning'} – ${config.to?fmt(config.to):'Today'}`;
@@ -1995,7 +2079,7 @@ function printReport(config=reportPreset('legal')){
  <div class="printHeader">MVA Record Keeper • ${esc(config.title)}</div><div class="printFooter"><span>${esc(state.profile.name||'MVA Record')}</span><span>Generated ${esc(generatedDate)}</span><span class="pageNumber"></span></div>
  <section class="firstPage"><span class="reportLabel">MVA RECORD KEEPER</span><h1>${esc(config.title)}</h1><div class="sub">A clear, chronological record of recovery following a motor vehicle accident</div>
  <div class="identityGrid"><div><span>Patient / claimant</span><strong>${esc(state.profile.name||'Not entered')}</strong></div><div><span>Claim number</span><strong>${esc(state.profile.claimNumber||'Not entered')}</strong></div><div><span>Accident date</span><strong>${fmt(state.profile.accidentDate)||'Not entered'}</strong></div><div><span>Reporting period</span><strong>${reportPeriod}</strong></div><div><span>Lawyer</span><strong>${esc(state.profile.lawyer||'Not entered')}</strong></div><div><span>Generated</span><strong>${esc(generatedDate)}</strong></div></div>
- <div class="snapshotCard"><h2>Recovery Snapshot</h2><div class="snapshotGrid"><div class="snapshotItem"><strong>${journal.length}</strong><span>Daily logs</span></div><div class="snapshotItem"><strong>${doses.length}</strong><span>Medication events</span></div><div class="snapshotItem"><strong>${appointments.length}</strong><span>Appointments</span></div><div class="snapshotItem"><strong>${photoCount}</strong><span>Photos</span></div><div class="snapshotItem"><strong>${receipts.length}</strong><span>Receipts</span></div><div class="snapshotItem"><strong>${state.injuries.length}</strong><span>Injuries tracked</span></div></div></div>
+ <div class="snapshotCard"><h2>Recovery Snapshot</h2><div class="snapshotGrid"><div class="snapshotItem"><strong>${journal.length}</strong><span>Daily logs</span></div><div class="snapshotItem"><strong>${doses.length}</strong><span>Medication events</span></div><div class="snapshotItem"><strong>${appointments.length+physioVisits.length}</strong><span>Appointments / physio</span></div><div class="snapshotItem"><strong>${communications.length}</strong><span>Communications</span></div><div class="snapshotItem"><strong>${receipts.length}</strong><span>Receipts</span></div><div class="snapshotItem"><strong>${state.injuries.length}</strong><span>Injuries tracked</span></div></div></div>
  <section class="toc"><h2>Table of Contents</h2><div class="tocGrid">${toc}</div></section></section>
  ${section('summary','Recovery Summary',`<div class="summaryGrid"><div class="stat"><strong>${accidentDays}</strong><span>Days since accident</span></div><div class="stat"><strong>${journal.length}</strong><span>Daily logs</span></div><div class="stat"><strong>${state.injuries.length}</strong><span>Injuries tracked</span></div><div class="stat"><strong>${appointments.length}</strong><span>Appointments</span></div><div class="stat"><strong>${doses.length}</strong><span>Dose records</span></div><div class="stat"><strong>${money(total)}</strong><span>Expenses</span></div></div>`)}
  ${config.timeline?section('timeline','Recovery Timeline',timeline.map(x=>`<div class="item"><strong>${fmt(x.date)} — ${esc(x.title)}</strong><div class="meta">${esc(x.type||'Event')}</div>${x.notes?`<p>${esc(x.notes)}</p>`:''}</div>`).join('')):''}
@@ -2003,10 +2087,17 @@ function printReport(config=reportPreset('legal')){
  ${config.injuries?section('injuries','Injury Progress',state.injuries.map(i=>{const logs=injuryLogs.filter(l=>l.injuryId===i.id);return `<div class="item"><strong>${esc(i.name)}</strong>${i.description?`<p class="meta">${esc(i.description)}</p>`:''}${logs.map(l=>`<p><b>${fmt(l.date)} — Pain ${l.pain}/10${l.change?' — '+esc(l.change):''}</b><br>${esc(l.notes||'')}</p>`).join('')||'<p class="muted">No entries in range.</p>'}</div>`}).join('')):''}
  ${config.medications?section('medications','Medication Timeline',state.medications.map(m=>`<div class="item"><div class="medHeader"><strong>${esc(m.name)} — ${esc(m.dose||'Dose not entered')}</strong><span class="badge">${m.active===false?'Completed':'Active'}</span></div><p class="meta">Current frequency: ${esc(m.frequency||m.schedule||'Not entered')}</p>${medicationTimelineForReport(m,config)}</div>`).join('')):''}
  ${config.doseHistory?section('doses','Detailed Dose History',doses.map(d=>{const m=state.medications.find(x=>x.id===d.medicationId);return `<div class="timelineLine medicationReportLine ${medicationColorClass(d.medicationId,d.medicationNameSnapshot||m?.name||'Medication')}"><time>${fmtDateTime(d.dateTime)}</time><span><strong>${esc(d.medicationNameSnapshot||m?.name||'Medication')} — ${esc(d.status)}</strong><br>${esc(d.doseSnapshot||'')}${d.frequencySnapshot?' · '+esc(d.frequencySnapshot):''}${d.note?'<br>'+esc(d.note):''}</span></div>`}).join('')):''}
+ ${config.physio?section('physio','Physiotherapy & Home Exercises',
+   physioVisits.map(v=>`<div class="item"><strong>${fmt(v.date)} ${esc(v.time||'')} — Physiotherapy</strong><div class="meta">${esc(v.therapist||state.quickInfo.physiotherapist||'')} ${esc(v.clinic||state.quickInfo.physioClinic||'')}</div>${v.focus?`<p>${esc(v.focus)}</p>`:''}${v.notes?`<p>${esc(v.notes)}</p>`:''}</div>`).join('')+
+   (state.physioExercises||[]).map(e=>`<div class="item"><strong>Home Exercise — ${esc(e.name||'Exercise')}</strong><div class="meta">${esc(e.frequency||'')} ${e.reps?`· ${esc(e.reps)} reps`:''} ${e.sets?`· ${esc(e.sets)} sets`:''}</div>${e.instructions?`<p>${esc(e.instructions)}</p>`:''}</div>`).join('')+
+   physioLogs.map(l=>{const e=(state.physioExercises||[]).find(x=>x.id===l.exerciseId);return `<div class="timelineLine"><time>${fmtDateTime(l.dateTime||l.completedAt||l.date)}</time><span>Completed ${esc(e?.name||'exercise')}</span></div>`}).join('')
+ ):''}
  ${config.appointments?section('appointments','Appointments',appointments.map(a=>`<div class="item"><strong>${fmt(a.date)} ${esc(a.time||'')} — ${esc(a.appointmentKind||a.type||'Appointment')}</strong><div class="meta">${esc(a.provider||a.insuranceCompany||'')} ${esc(a.location||a.contactName||'')}</div><p>${esc(a.notes||a.visitSummary||a.discussionNotes||'')}</p></div>`).join('')):''}
  ${config.receipts?section('receipts','Receipts and Expenses',`<p class="receiptTotal"><strong>Total: ${money(total)}</strong></p>`+receipts.map(r=>`<div class="item"><strong>${fmt(r.date)} — ${esc(r.description)} — ${money(r.amount)}</strong><div class="meta">${esc(r.category||'Other')}</div>${r.notes?`<p>${esc(r.notes)}</p>`:''}</div>`).join('')):''}
- ${config.notes?section('notes','Notes and Questions',notes.map(n=>`<div class="item"><strong>${fmt(n.date)} — ${esc(n.title)}</strong><p>${esc(n.text)}</p></div>`).join('')+state.questions.map(q=>`<div class="item"><strong>Question for ${esc(q.forWhom||'')}</strong><p>${esc(q.text)}</p>${q.answer?`<p><b>Answer:</b> ${esc(q.answer)}</p>`:''}</div>`).join('')):''}
- ${config.photos?section('photos','Photo Appendix',`<div class="photoGrid">${photoItems.join('')}</div>`):''}
+ ${config.missedActivities?section('missed','Missed Activities & Events',missedActivities.map(m=>`<div class="item"><strong>${fmt(m.date)} — ${esc(m.title||'Missed activity')}</strong><div class="meta">${esc(m.location||'')}${m.amountLost?` · Money lost: ${money(m.amountLost)}`:''}</div>${m.reason?`<p><b>Why missed:</b> ${esc(m.reason)}</p>`:''}${m.impact?`<p><b>Impact:</b> ${esc(m.impact)}</p>`:''}${m.notes?`<p>${esc(m.notes)}</p>`:''}</div>`).join('')):''}
+ ${config.communications?section('communications','Communication Log',communications.map(c=>`<div class="item"><strong>${fmt(c.date)} ${esc(c.time||'')} — ${esc(c.person||c.organization||c.subject||'Communication')}</strong><div class="meta">${esc(c.role||'')} ${c.method?`· ${esc(c.method)}`:''} ${c.organization?`· ${esc(c.organization)}`:''}</div>${c.subject?`<p><b>Subject:</b> ${esc(c.subject)}</p>`:''}${c.reason?`<p><b>Reason:</b> ${esc(c.reason)}</p>`:''}${c.discussed?`<p><b>Discussed:</b> ${esc(c.discussed)}</p>`:''}${c.theySaid?`<p><b>They told me:</b> ${esc(c.theySaid)}</p>`:''}${c.iProvided?`<p><b>I provided / did:</b> ${esc(c.iProvided)}</p>`:''}${c.actions?`<p><b>Next steps:</b> ${esc(c.actions)}</p>`:''}${c.followUpRequired?`<p><b>Follow-up:</b> ${c.followUpDate?fmt(c.followUpDate):'Required'}</p>`:''}</div>`).join('')):''}
+ ${config.questions?section('questions','Questions to Ask',state.questions.map(q=>`<div class="item"><strong>Question for ${esc(q.forWhom||'')}</strong><p>${esc(q.text)}</p>${q.answer?`<p><b>Answer:</b> ${esc(q.answer)}</p>`:''}</div>`).join('')):''}
+ ${config.photos?section('photos','Photo & Document Appendix',`<div class="photoGrid">${photoItems.join('')}</div>`):''}
  <div class="printBar"><button onclick="window.print()">Print / Save as PDF</button></div></body></html>`;
  win.document.write(html);win.document.close();setTimeout(()=>win.focus(),250);
 }
@@ -2087,6 +2178,18 @@ function bind(){
  document.querySelectorAll('[data-toggle-physio-exercise]').forEach(b=>b.onclick=()=>{
    const card=b.closest('[data-physio-exercise]');if(!card)return;
    const expanded=card.classList.toggle('is-expanded');b.textContent=expanded?'−':'+';b.setAttribute('aria-expanded',String(expanded));
+ });
+
+ document.querySelectorAll('[data-communication-category]').forEach(btn=>btn.onclick=()=>{
+   const form=btn.closest('form');
+   if(!form)return;
+   const value=btn.dataset.communicationCategory;
+   const hidden=form.elements.category;
+   if(hidden)hidden.value=value;
+   form.querySelectorAll('[data-communication-category]').forEach(x=>x.classList.toggle('selected',x===btn));
+   form.querySelectorAll('[data-communication-conditional]').forEach(section=>{
+     section.hidden=section.dataset.communicationConditional!==value;
+   });
  });
  document.querySelectorAll('[data-open-exercise-card]').forEach(b=>b.onclick=()=>{
    const ex=state.physioExercises.find(e=>e.id===b.dataset.openExerciseCard);

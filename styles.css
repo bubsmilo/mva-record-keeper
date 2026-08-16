@@ -2163,3 +2163,50 @@ input,textarea,select{width:100%;border:1px solid #cfd9e5;border-radius:8px;padd
 .communicationToggle{appearance:none;border:1px solid #c9d8e7;background:#fff;color:#075bd4;width:31px;height:31px;border-radius:9px;font-size:19px;display:grid;place-items:center}.communicationExpandable{display:grid;grid-template-rows:0fr;opacity:0;transition:.18s}.communicationInner{min-height:0;overflow:hidden}.communicationCard.is-expanded .communicationExpandable{grid-template-rows:1fr;opacity:1}.communicationCard.is-expanded .communicationInner{overflow:visible;padding-bottom:10px}
 .communicationMeta{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:7px;padding:10px 12px 0}.communicationMeta>div{border:1px solid #e0e8f0;border-radius:8px;padding:7px;background:#fbfdff}.communicationMeta span,.communicationText>span{display:block;font-size:8px;text-transform:uppercase;letter-spacing:.06em;font-weight:850;color:#77889a}.communicationMeta strong{font-size:10px;color:#304b66}.communicationText{padding:9px 12px 0}.communicationText p{margin:3px 0 0;font-size:11px;line-height:1.45;color:#3e5268}
 .communicationFollowups{margin-bottom:12px;padding:10px 12px}.communicationFollowupTitle{font-size:11px;font-weight:900;color:#173a5d}.communicationFollowupRow{display:flex;gap:8px;padding:5px 0;border-top:1px solid #edf1f5;font-size:10px}.communicationFollowupRow strong{color:#a45c00}.communicationFollowupBadge{margin:10px 12px 0;padding:7px 9px;border-radius:8px;background:#fff7e8;border:1px solid #f0d6a8;color:#8a5700;font-size:10px;font-weight:800}.communicationAttachments{padding:10px 12px 0}.communicationActions{justify-content:flex-end;padding:10px 12px 0;margin-top:8px;border-top:1px solid #e8edf3}.communicationQuestions{margin-top:14px}
+
+
+/* v2.8.15 category-first Communication Log form */
+.communicationCategoryField{
+  border:1px solid #dce6ef;
+  border-radius:12px;
+  padding:10px;
+  background:#f8fbff;
+}
+.communicationCategoryChoices{
+  display:grid;
+  grid-template-columns:repeat(3,1fr);
+  gap:7px;
+  margin-top:6px;
+}
+.communicationCategoryChoice{
+  appearance:none;
+  border:1px solid #cdd9e6;
+  background:#fff;
+  color:#3c536c;
+  border-radius:9px;
+  padding:9px 6px;
+  font-size:11px;
+  font-weight:850;
+  cursor:pointer;
+}
+.communicationCategoryChoice.selected{
+  border-color:#6ea6df;
+  background:#eaf4ff;
+  color:#075bd4;
+  box-shadow:inset 0 0 0 1px #a8c8e8;
+}
+.communicationConditional[hidden]{
+  display:none!important;
+}
+.communicationConditional{
+  border:1px solid #e1e8f0;
+  border-radius:10px;
+  padding:9px;
+  background:#fff;
+}
+@media(max-width:520px){
+  .communicationCategoryChoice{
+    padding:8px 4px;
+    font-size:10px;
+  }
+}
