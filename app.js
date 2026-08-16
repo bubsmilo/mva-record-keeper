@@ -3,7 +3,7 @@
 'use strict';
 
 const KEY='mva-record-keeper-v1';
-const APP_VERSION='2.8.17';
+const APP_VERSION='2.8.18';
 document.title=`MVA Record Keeper v${APP_VERSION}`;
 
 const ATTACHMENT_DB='mva-record-keeper-attachments';
@@ -1335,7 +1335,7 @@ function notes(){
    const org=x.person&&x.organization?x.organization:'';
    const title=x.subject||who||x.category||'Communication';
    const icon=x.method==='Phone'?'📞':x.method==='Email'?'✉️':x.method==='In person'?'🤝':x.method==='Text message'?'💬':x.method==='Letter'?'📄':'🗂️';
-   return `<article class="card communicationCard"><div class="communicationCardHead"><div class="communicationMethodIcon">${icon}</div><div class="communicationHeadText"><div class="communicationDate">${fmt(x.date)}${x.time?` · ${esc(x.time)}`:''}</div><h3>${esc(title)}</h3>${who&&who!==title?`<span class="communicationPerson">${esc(who)}</span>`:''}${x.category?`<small>${x.category==='Medical'?'🩺 ':x.category==='Lawyer'?'⚖️ ':'💬 '}${esc(x.category)}${org?` · ${esc(org)}`:''}</small>`:(org?`<small>${esc(org)}</small>`:'')}</div><button type="button" class="communicationToggle" data-toggle-communication aria-expanded="false">+</button></div>
+   return `<article class="card communicationCard"><div class="communicationCardHead"><div class="communicationMethodIcon">${icon}</div><div class="communicationHeadText"><div class="communicationDate">${fmt(x.date)}${x.time?` · ${esc(x.time)}`:''}</div><h3>${esc(title)}</h3>${who&&who!==title?`<span class="communicationPerson">${esc(who)}</span>`:''}${x.category?`<small>${x.category==='Medical'?'🩺 ':x.category==='Rehabilitation'?'🧘 ':x.category==='Lawyer'?'⚖️ ':x.category==='Insurance'?'🛡️ ':'💬 '}${esc(x.category)}${org?` · ${esc(org)}`:''}</small>`:(org?`<small>${esc(org)}</small>`:'')}</div><button type="button" class="communicationToggle" data-toggle-communication aria-expanded="false">+</button></div>
    <div class="communicationExpandable"><div class="communicationInner"><div class="communicationMeta"><div><span>Method</span><strong>${esc(x.method||'Other')}</strong></div>${x.organization?`<div><span>Organization</span><strong>${esc(x.organization)}</strong></div>`:''}</div>
    ${x.reason?`<div class="communicationText"><span>Reason for contact</span><p>${esc(x.reason).replace(/\n/g,'<br>')}</p></div>`:''}${x.discussed?`<div class="communicationText"><span>What was discussed</span><p>${esc(x.discussed).replace(/\n/g,'<br>')}</p></div>`:''}${x.theySaid?`<div class="communicationText"><span>What they told me</span><p>${esc(x.theySaid).replace(/\n/g,'<br>')}</p></div>`:''}${x.iProvided?`<div class="communicationText"><span>What I provided / did</span><p>${esc(x.iProvided).replace(/\n/g,'<br>')}</p></div>`:''}${x.actions?`<div class="communicationText"><span>Action items / next steps</span><p>${esc(x.actions).replace(/\n/g,'<br>')}</p></div>`:''}
    ${x.followUpRequired?`<div class="communicationFollowupBadge">⏰ Follow-up${x.followUpDate?` · ${fmt(x.followUpDate)}`:''}</div>`:''}${(x.attachments||[]).length?`<div class="photoGrid communicationAttachments">${x.attachments.map((p,ix)=>attachmentPreview(p,{label:`Communication attachment ${ix+1}`})).join('')}</div>`:''}
@@ -1703,19 +1703,39 @@ function openForm(type,id){
  if(type==='communication'){
    const category=item.category||(
      /lawyer|legal|firm/i.test(`${item.role||''} ${item.organization||''}`)?'Lawyer':
-     /doctor|clinic|hospital|physio|medical|specialist|therapy/i.test(`${item.role||''} ${item.organization||''}`)?'Medical':'Other'
+     /adjuster|insurance|insurer|claims/i.test(`${item.role||''} ${item.organization||''}`)?'Insurance':
+     /physio|occupational|therap/i.test(`${item.role||''} ${item.organization||''}`)?'Rehabilitation':
+     /doctor|clinic|hospital|medical|specialist|fracture/i.test(`${item.role||''} ${item.organization||''}`)?'Medical':'Other'
    );
-   const providerOptions=[
+
+   const medicalProviders=[
      state.quickInfo.familyDoctor,
-     state.quickInfo.physiotherapist,
-     ...(state.quickInfo.otherHealthcareProviders||[]).map(p=>p.name)
+     ...(state.quickInfo.otherHealthcareProviders||[])
+       .filter(p=>!/physio|occupational|therap/i.test(`${p.specialty||''} ${p.name||''}`))
+       .map(p=>p.name)
    ].filter(Boolean);
+
+   const rehabProviders=[
+     state.quickInfo.physiotherapist,
+     ...(state.quickInfo.otherHealthcareProviders||[])
+       .filter(p=>/physio|occupational|therap/i.test(`${p.specialty||''} ${p.name||''}`))
+       .map(p=>p.name)
+   ].filter(Boolean);
+
    const lawyerOptions=[state.profile.lawyer,state.quickInfo.lawyerAssistant].filter(Boolean);
+   const insuranceOptions=[state.quickInfo.adjusterName,state.quickInfo.benefitsContactName].filter(Boolean);
+   const rehabType=item.rehabType||(/occupational/i.test(`${item.role||''}`)?'Occupational Therapist':'Physiotherapist');
 
    body=`<div class="field span2 communicationCategoryField">
      <label>Who is this communication with?</label>
-     <div class="communicationCategoryChoices">
-       ${['Medical','Lawyer','Other'].map(v=>`<button type="button" class="communicationCategoryChoice ${category===v?'selected':''}" data-communication-category="${v}">${v==='Medical'?'🩺':v==='Lawyer'?'⚖️':'💬'} ${v}</button>`).join('')}
+     <div class="communicationCategoryChoices communicationCategoryChoicesFive">
+       ${[
+         ['Medical','🩺'],
+         ['Rehabilitation','🧘'],
+         ['Lawyer','⚖️'],
+         ['Insurance','🛡️'],
+         ['Other','💬']
+       ].map(([v,icon])=>`<button type="button" class="communicationCategoryChoice ${category===v?'selected':''}" data-communication-category="${v}">${icon} ${v}</button>`).join('')}
      </div>
      <input type="hidden" name="category" value="${esc(category)}">
    </div>
@@ -1725,9 +1745,17 @@ function openForm(type,id){
 
    <div class="communicationConditional span2" data-communication-conditional="Medical" ${category==='Medical'?'':'hidden'}>
      <div class="formGrid">
-       ${providerOptions.length?`<div class="field"><label>Medical provider</label><select name="medicalProvider"><option value="">Choose provider</option>${providerOptions.map(v=>`<option value="${esc(v)}" ${(item.medicalProvider||item.person)===v?'selected':''}>${esc(v)}</option>`).join('')}</select></div>`:field('Medical provider','medicalProvider',item.medicalProvider||item.person||'')}
+       ${medicalProviders.length?`<div class="field"><label>Medical provider</label><select name="medicalProvider"><option value="">Choose provider</option>${medicalProviders.map(v=>`<option value="${esc(v)}" ${(item.medicalProvider||item.person)===v?'selected':''}>${esc(v)}</option>`).join('')}</select></div>`:field('Medical provider','medicalProvider',item.medicalProvider||item.person||'')}
        ${field('Clinic / hospital','medicalOrganization',item.medicalOrganization||item.organization||'')}
        ${field('Role / specialty','medicalRole',item.medicalRole||item.role||'')}
+     </div>
+   </div>
+
+   <div class="communicationConditional span2" data-communication-conditional="Rehabilitation" ${category==='Rehabilitation'?'':'hidden'}>
+     <div class="formGrid">
+       ${selectField('Rehabilitation provider type','rehabType',['Physiotherapist','Occupational Therapist'],rehabType)}
+       ${rehabProviders.length?`<div class="field"><label>Provider</label><select name="rehabProvider"><option value="">Choose provider</option>${rehabProviders.map(v=>`<option value="${esc(v)}" ${(item.rehabProvider||item.person)===v?'selected':''}>${esc(v)}</option>`).join('')}</select></div>`:field('Provider','rehabProvider',item.rehabProvider||item.person||'')}
+       ${field('Clinic / organization','rehabOrganization',item.rehabOrganization||item.organization||state.quickInfo.physioClinic||'')}
      </div>
    </div>
 
@@ -1736,6 +1764,14 @@ function openForm(type,id){
        ${lawyerOptions.length?`<div class="field"><label>Legal contact</label><select name="lawyerPerson"><option value="">Choose contact</option>${lawyerOptions.map(v=>`<option value="${esc(v)}" ${(item.lawyerPerson||item.person)===v?'selected':''}>${esc(v)}</option>`).join('')}</select></div>`:field('Legal contact','lawyerPerson',item.lawyerPerson||item.person||'')}
        ${field('Firm','lawyerOrganization',item.lawyerOrganization||item.organization||state.quickInfo.lawyerFirm||'')}
        ${field('Role','lawyerRole',item.lawyerRole||item.role||'')}
+     </div>
+   </div>
+
+   <div class="communicationConditional span2" data-communication-conditional="Insurance" ${category==='Insurance'?'':'hidden'}>
+     <div class="formGrid">
+       ${insuranceOptions.length?`<div class="field"><label>Insurance contact</label><select name="insurancePerson"><option value="">Choose contact</option>${insuranceOptions.map(v=>`<option value="${esc(v)}" ${(item.insurancePerson||item.person)===v?'selected':''}>${esc(v)}</option>`).join('')}</select></div>`:field('Insurance contact','insurancePerson',item.insurancePerson||item.person||'')}
+       ${field('Insurance company / benefits provider','insuranceOrganization',item.insuranceOrganization||item.organization||state.quickInfo.insurer||state.quickInfo.benefitsProvider||'')}
+       ${field('Role','insuranceRole',item.insuranceRole||item.role||'Adjuster')}
      </div>
    </div>
 
@@ -1911,10 +1947,18 @@ async function saveForm(form){
      obj.person=obj.medicalProvider||'';
      obj.organization=obj.medicalOrganization||'';
      obj.role=obj.medicalRole||'';
+   }else if(obj.category==='Rehabilitation'){
+     obj.person=obj.rehabProvider||'';
+     obj.organization=obj.rehabOrganization||'';
+     obj.role=obj.rehabType||'Rehabilitation Provider';
    }else if(obj.category==='Lawyer'){
      obj.person=obj.lawyerPerson||'';
      obj.organization=obj.lawyerOrganization||'';
      obj.role=obj.lawyerRole||'';
+   }else if(obj.category==='Insurance'){
+     obj.person=obj.insurancePerson||'';
+     obj.organization=obj.insuranceOrganization||'';
+     obj.role=obj.insuranceRole||'';
    }else{
      obj.person=obj.otherPerson||'';
      obj.organization=obj.otherOrganization||'';
