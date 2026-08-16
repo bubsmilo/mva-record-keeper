@@ -3,7 +3,7 @@
 'use strict';
 
 const KEY='mva-record-keeper-v1';
-const APP_VERSION='2.8.22';
+const APP_VERSION='2.8.23';
 document.title=`MVA Record Keeper v${APP_VERSION}`;
 
 const ATTACHMENT_DB='mva-record-keeper-attachments';
@@ -1648,6 +1648,8 @@ function area(label,name,value='',span=true){return `<div class="field ${span?'s
 function selectField(label,name,options,value){return `<div class="field"><label>${label}</label><select name="${name}">${options.map(o=>`<option ${o===value?'selected':''}>${esc(o)}</option>`).join('')}</select></div>`}
 
 function openForm(type,id){
+ const draftItem=id&&typeof id==='object'&&!Array.isArray(id)?id:null;
+ if(draftItem)id='';
  const newInjuryId=type==='injuryLog'&&String(id||'').startsWith('new:')?String(id).slice(4):'';
  const newExerciseId=type==='physioExerciseLog'&&String(id||'').startsWith('new:')?String(id).slice(4):'';
  const newDoseDate=type==='dose'&&String(id||'').startsWith('newday:')?String(id).slice(7):'';
@@ -1655,7 +1657,8 @@ function openForm(type,id){
  if(newInjuryId||newExerciseId||newDoseDate||rebookId)id='';
  const map={journal:'journal',injury:'injuries',injuryLog:'injuryLogs',medication:'medications',dose:'doses',receipt:'receipts',appointment:'appointments',missedActivity:'missedActivities',physioPrescription:'physioPrescriptions',physioVisit:'physioVisits',physioExercise:'physioExercises',physioExerciseLog:'physioExerciseLogs',physioDocument:'physioDocuments',timeline:'timeline',task:'tasks',question:'questions',note:'notes',communication:'communications'};
  const arr=state[map[type]]||[];
- let item=id?arr.find(x=>x.id===id):{};
+ let item=draftItem?{...draftItem}:(id?arr.find(x=>x.id===id):{});
+ if(!item)item={};
  if(rebookId){
    const source=arr.find(x=>x.id===rebookId)||{};
    item={...source,id:'',date:'',time:'',status:'Scheduled'};
@@ -1670,7 +1673,7 @@ function openForm(type,id){
    }
  }
  const titles={physioPrescription:'Physio Prescription / Referral',physioVisit:'Physio Visit',physioExercise:'Home Exercise',physioExerciseLog:'Exercise Completion',physioDocument:'Physio Document / Photo'};
- let body='', title=rebookId?`Rebook ${type==='physioVisit'?'Physio Visit':'Appointment'}`:(type==='injuryLog'?'Update Injury':(type==='dose'&&!id?'Add Medication Record':(titles[type]?`${id?'Edit':'Add'} ${titles[type]}`:(id?'Edit ':'Add ')+type[0].toUpperCase()+type.slice(1))));
+ let body='', title=draftItem&&type==='communication'?'Add Communication Follow-up':(rebookId?`Rebook ${type==='physioVisit'?'Physio Visit':'Appointment'}`:(type==='injuryLog'?'Update Injury':(type==='dose'&&!id?'Add Medication Record':(titles[type]?`${id?'Edit':'Add'} ${titles[type]}`:(id?'Edit ':'Add ')+type[0].toUpperCase()+type.slice(1)))));
  if(type==='journal') body=`${field('Date','date',item.date||today(),'date')}${area('How was your day?','notes',item.notes||'')}${photoField('Photo or PDF (optional)','photos',item.photos||[],true)}`;
  if(type==='injury') body=`${field('Injury name','name',item.name||'')}${field('Short description (optional)','description',item.description||'')}${selectField('Status','active',['Active','Archived'],item.active===false?'Archived':'Active')}<div class="field span2"><label>Daily tracking fields</label><p class="small muted trackingHelp">Enable only the details that make sense for this injury. Enabled fields will appear in every Daily Log.</p><div class="trackingToggles"><label class="trackingToggle"><input type="checkbox" name="trackSwelling" ${item.trackSwelling?'checked':''}><span>Swelling</span></label><label class="trackingToggle"><input type="checkbox" name="trackStiffness" ${item.trackStiffness?'checked':''}><span>Stiffness</span></label><label class="trackingToggle"><input type="checkbox" name="trackRangeOfMotion" ${item.trackRangeOfMotion?'checked':''}><span>Range of motion</span></label></div></div>`;
  if(type==='injuryLog'){const injuryId=item.injuryId||newInjuryId; const injury=state.injuries.find(x=>x.id===injuryId); body=`<div class="field span2 summaryBox"><strong>${esc(injury?.name||'Injury')}</strong><div class="small muted">Update only what you want to record today.</div></div>${field('Date','date',item.date||today(),'date')}${field('Pain level (0-10)','pain',item.pain??0,'number','min="0" max="10"')}${selectField('Compared with last update','change',['Better','Same','Worse','Not sure'],item.change||'Same')}${area('Notes (optional)','notes',item.notes||'')}${photoField('Photo or PDF (optional)','photos',item.photos||[],true)}<input type="hidden" name="injuryId" value="${esc(injuryId)}">`; }
