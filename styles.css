@@ -1863,3 +1863,19 @@ input,textarea,select{width:100%;border:1px solid #cfd9e5;border-radius:8px;padd
   background:#e1efff;
   border-color:#91b8e0;
 }
+
+
+/* v2.8.5 missed activities & events */
+.missedActivitiesTop{margin-bottom:12px}
+.missedActivitySummary{margin-bottom:12px}
+.missedActivityList{display:grid;gap:12px}
+.missedActivityCard{padding:0;overflow:hidden}
+.missedActivityHead{display:grid;grid-template-columns:auto 1fr auto;align-items:center;gap:10px;padding:12px 13px;background:linear-gradient(90deg,#fff7ed,#fff);border-bottom:1px solid #e6edf4}
+.missedActivityIcon{width:42px;height:42px;border-radius:12px;background:#fff0d8;display:grid;place-items:center;font-size:21px}
+.missedActivityHead h3{margin:0;color:#173a5d;font-size:15px}.missedActivityHead p{margin:2px 0 0;color:#718096;font-size:10px}
+.missedActivityLoss{margin:11px 12px 0;border:1px solid #eadfce;background:#fffaf3;border-radius:9px;padding:8px 10px;display:flex;justify-content:space-between;gap:10px}
+.missedActivityLoss span,.missedActivityText>span{font-size:9px;text-transform:uppercase;letter-spacing:.05em;color:#758599;font-weight:850}
+.missedActivityLoss strong{color:#735022}
+.missedActivityText{padding:10px 12px 0}.missedActivityText p{margin:4px 0 0;font-size:12px;line-height:1.45;color:#3c5066}
+.missedActivityAttachments{padding:10px 12px 12px}
+@media(max-width:560px){.missedActivityHead{grid-template-columns:auto 1fr}.missedActivityHead>.actions{grid-column:2}}

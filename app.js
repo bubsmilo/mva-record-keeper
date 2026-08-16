@@ -3,7 +3,7 @@
 'use strict';
 
 const KEY='mva-record-keeper-v1';
-const APP_VERSION='2.8.4';
+const APP_VERSION='2.8.5';
 document.title=`MVA Record Keeper v${APP_VERSION}`;
 
 const ATTACHMENT_DB='mva-record-keeper-attachments';
@@ -79,6 +79,7 @@ function allAttachmentRefsFromState(){
  (state.journal||[]).forEach(x=>(x.photos||[]).forEach(add));
  (state.injuryLogs||[]).forEach(x=>(x.photos||[]).forEach(add));
  (state.receipts||[]).forEach(x=>add(x.photo));
+ (state.missedActivities||[]).forEach(x=>(x.photos||[]).forEach(add));
  (state.physioPrescriptions||[]).forEach(x=>(x.photos||[]).forEach(add));
  (state.physioVisits||[]).forEach(x=>(x.photos||[]).forEach(add));
  (state.physioExercises||[]).forEach(x=>{add(x.thumbnail);(x.photos||[]).forEach(add)});
@@ -100,6 +101,7 @@ async function migrateLegacyAttachments(){
  for(const x of state.journal||[]){const old=(x.photos||[]);x.photos=await migrateAttachmentArray(old);migrated+=x.photos.filter((v,i)=>v!==old[i]).length}
  for(const x of state.injuryLogs||[]){const old=(x.photos||[]);x.photos=await migrateAttachmentArray(old);migrated+=x.photos.filter((v,i)=>v!==old[i]).length}
  for(const x of state.receipts||[]){const old=x.photo||'';x.photo=await migrateOneAttachment(old);if(x.photo!==old)migrated++}
+ for(const x of state.missedActivities||[]){const old=(x.photos||[]);x.photos=await migrateAttachmentArray(old);migrated+=x.photos.filter((v,i)=>v!==old[i]).length}
  for(const x of state.physioPrescriptions||[]){const old=(x.photos||[]);x.photos=await migrateAttachmentArray(old);migrated+=x.photos.filter((v,i)=>v!==old[i]).length}
  for(const x of state.physioVisits||[]){const old=(x.photos||[]);x.photos=await migrateAttachmentArray(old);migrated+=x.photos.filter((v,i)=>v!==old[i]).length}
  for(const x of state.physioExercises||[]){
@@ -214,7 +216,7 @@ const defaults={
   },
   reportSettings:{includePhotos:true,includeMedicationHistory:true,autoPrint:true},
   physioSettings:{startTime:'09:00',endTime:'18:00'},
-  journal:[], injuries:[], injuryLogs:[], medications:[], doses:[], medicationEvents:[], receipts:[], appointments:[],
+  journal:[], injuries:[], injuryLogs:[], medications:[], doses:[], medicationEvents:[], receipts:[], appointments:[], missedActivities:[],
   physioPrescriptions:[], physioVisits:[], physioExercises:[], physioExerciseLogs:[], physioDocuments:[],
   tasks:[], questions:[], notes:[], timeline:[]
 };
@@ -274,7 +276,7 @@ function nav(p){page=p;modal=null;render();window.scrollTo(0,0)}
 function appShell(content,title,subtitle=''){
   const items=[
     ['dashboard','🏠','Dashboard'],['journal','📖','Journal'],['injuries','🦴','Injuries'],['medications','💊','Medications'],
-    ['physio','🧘','Physiotherapy'],['receipts','🧾','Receipts'],['appointments','🩺','Appointments'],['timeline','🕒','Timeline'],
+    ['physio','🧘','Physiotherapy'],['receipts','🧾','Receipts'],['missedActivities','🎟️','Missed Activities'],['appointments','🩺','Appointments'],['timeline','🕒','Timeline'],
     ['tasks','✅','Tasks'],['notes','📝','Notes & Questions'],['reports','📄','Reports'],['settings','⚙️','Settings']
   ];
   return `<div class="app">
@@ -294,7 +296,7 @@ function appShell(content,title,subtitle=''){
       <div class="globalWhiteContent">${content}</div>
     </main>
     <nav class="bottomNav">${[items[0],items[1],items[2],items[3],['more','•••','More']].map(i=>{
-      const morePages=['quickinfo','physio','receipts','appointments','timeline','tasks','notes','reports','settings'];
+      const morePages=['quickinfo','physio','receipts','missedActivities','appointments','timeline','tasks','notes','reports','settings'];
       const active=i[0]==='more'?morePages.includes(page):page===i[0];
       return `<button data-nav="${i[0]}" class="${active?'active':''}"><span>${i[1]}</span>${i[2]}</button>`;
     }).join('')}</nav>
@@ -1161,6 +1163,24 @@ function physio(){
  `,'Physiotherapy','Track treatment, home exercises, prescriptions and the documents your providers give you.');
 }
 
+function missedActivities(){
+ const items=[...(state.missedActivities||[])].sort((a,b)=>(b.date||'').localeCompare(a.date||''));
+ const total=items.reduce((s,x)=>s+(Number(x.amountLost)||0),0);
+ return appShell(`
+  <div class="toolbar missedActivitiesTop"><div><h2 style="margin:0">Missed Activities & Events</h2><p class="muted small">Record plans, outings and events you could not attend because of your injuries.</p></div><button class="btn primary" data-add="missedActivity">+ Add</button></div>
+  ${items.length?`<div class="grid grid2 missedActivitySummary"><section class="card"><div class="muted small">Recorded items</div><div class="metric">${items.length}</div></section><section class="card"><div class="muted small">Money lost</div><div class="metric">${money(total)}</div></section></div>`:''}
+  <div class="missedActivityList">${items.length?items.map(x=>`<article class="card missedActivityCard">
+    <div class="missedActivityHead"><div class="missedActivityIcon">🎟️</div><div><h3>${esc(x.title||'Missed activity')}</h3><p>${fmt(x.date)}${x.location?` · ${esc(x.location)}`:''}</p></div><div class="actions"><button class="iconBtn" data-edit="missedActivity" data-id="${x.id}">Edit</button><button class="iconBtn" data-delete="missedActivity" data-id="${x.id}">Delete</button></div></div>
+    ${x.amountLost?`<div class="missedActivityLoss"><span>Money lost</span><strong>${money(x.amountLost)}</strong></div>`:''}
+    ${x.withWhom?`<div class="missedActivityText"><span>Who I planned to go with</span><p>${esc(x.withWhom)}</p></div>`:''}
+    ${x.reason?`<div class="missedActivityText"><span>Why I missed it</span><p>${esc(x.reason).replace(/\\n/g,'<br>')}</p></div>`:''}
+    ${x.impact?`<div class="missedActivityText"><span>How it affected me</span><p>${esc(x.impact).replace(/\\n/g,'<br>')}</p></div>`:''}
+    ${x.notes?`<div class="missedActivityText"><span>Notes</span><p>${esc(x.notes).replace(/\\n/g,'<br>')}</p></div>`:''}
+    ${(x.photos||[]).length?`<div class="photoGrid missedActivityAttachments">${x.photos.map((p,ix)=>attachmentPreview(p,{label:`Missed activity attachment ${ix+1}`})).join('')}</div>`:''}
+  </article>`).join(''):`<div class="empty">Nothing recorded yet. Add a concert, outing, trip, family event, activity, or other plan you missed because of your injuries.</div>`}</div>
+ `,'Missed Activities','Plans and events your injuries prevented you from attending.');
+}
+
 function receipts(){
  const total=state.receipts.reduce((s,r)=>s+Number(r.amount||0),0);
  const sorted=[...state.receipts].sort((a,b)=>b.date.localeCompare(a.date));
@@ -1526,7 +1546,7 @@ function settings(){
 }
 function more(){
  return appShell(`<div class="grid grid2">${[
- ['quickinfo','📇','Quick Info'],['physio','🧘','Physiotherapy'],['receipts','🧾','Receipts'],['appointments','🩺','Appointments'],['timeline','🕒','Recovery Timeline'],['tasks','✅','Tasks & Paperwork'],['notes','📝','Notes & Questions'],['reports','📄','Reports'],['settings','⚙️','Settings']
+ ['quickinfo','📇','Quick Info'],['physio','🧘','Physiotherapy'],['receipts','🧾','Receipts'],['missedActivities','🎟️','Missed Activities'],['appointments','🩺','Appointments'],['timeline','🕒','Recovery Timeline'],['tasks','✅','Tasks & Paperwork'],['notes','📝','Notes & Questions'],['reports','📄','Reports'],['settings','⚙️','Settings']
  ].map(i=>`<button class="card" data-nav="${i[0]}" style="text-align:left;border:1px solid #dde5ef"><div style="font-size:28px">${i[1]}</div><h3>${i[2]}</h3></button>`).join('')}</div>`,'More','All additional tools and records.');
 }
 
@@ -1540,7 +1560,7 @@ function openForm(type,id){
  const newDoseDate=type==='dose'&&String(id||'').startsWith('newday:')?String(id).slice(7):'';
  const rebookId=(type==='appointment'||type==='physioVisit')&&String(id||'').startsWith('rebook:')?String(id).slice(7):'';
  if(newInjuryId||newExerciseId||newDoseDate||rebookId)id='';
- const map={journal:'journal',injury:'injuries',injuryLog:'injuryLogs',medication:'medications',dose:'doses',receipt:'receipts',appointment:'appointments',physioPrescription:'physioPrescriptions',physioVisit:'physioVisits',physioExercise:'physioExercises',physioExerciseLog:'physioExerciseLogs',physioDocument:'physioDocuments',timeline:'timeline',task:'tasks',question:'questions',note:'notes'};
+ const map={journal:'journal',injury:'injuries',injuryLog:'injuryLogs',medication:'medications',dose:'doses',receipt:'receipts',appointment:'appointments',missedActivity:'missedActivities',physioPrescription:'physioPrescriptions',physioVisit:'physioVisits',physioExercise:'physioExercises',physioExerciseLog:'physioExerciseLogs',physioDocument:'physioDocuments',timeline:'timeline',task:'tasks',question:'questions',note:'notes'};
  const arr=state[map[type]]||[];
  let item=id?arr.find(x=>x.id===id):{};
  if(rebookId){
@@ -1598,6 +1618,7 @@ function openForm(type,id){
      ${area('Follow-up required','followUpInsurance',item.followUp||'')}
    </div>`;
  }
+ if(type==='missedActivity') body=`${field('Date','date',item.date||today(),'date')}${field('Activity / event','title',item.title||'','text','placeholder="Example: Concert"')}${field('Location / venue','location',item.location||'')}${field('Amount lost ($)','amountLost',item.amountLost||'','number','min="0" step="0.01" placeholder="0.00"')}${field('Who was going with you?','withWhom',item.withWhom||'')}${area('Why you missed it','reason',item.reason||'')}${area('How this affected you','impact',item.impact||'')}${area('Notes','notes',item.notes||'')}${photoField('Tickets, receipts, screenshots or PDFs','photos',item.photos||[],true)}`;
  if(type==='physioPrescription') body=`${field('Date prescribed','date',item.date||today(),'date')}${field('Title','title',item.title||'Physiotherapy prescription')}${physioProviderSelect(item.prescribedBy||'')}${area('Injury / condition being treated','treatmentFor',item.treatmentFor||'')}${field('Frequency ordered','frequency',item.frequency||'','text','placeholder="Example: 2 times per week"')}${field('Duration ordered','duration',item.duration||'','text','placeholder="Example: 6 weeks"')}${selectField('Status','status',['Active','Completed'],item.status||'Active')}${area('Special instructions','instructions',item.instructions||'')}${photoField('Prescription / referral image or PDF','photos',item.photos||[],true)}`;
  if(type==='physioVisit') body=`${field('Date','date',rebookId?'':(item.date||today()),'date')}${field('Time','time',rebookId?'':(item.time||''),'time')}${selectField('Status','status',['Scheduled','Completed','Cancelled'],rebookId?'Scheduled':(item.status||'Completed'))}${field('Physiotherapist','therapist',item.therapist||state.quickInfo.physiotherapist||'')}${field('Clinic','clinic',item.clinic||state.quickInfo.physioClinic||'')}${field('What was the visit focused on?','focus',item.focus||'')}${area('Treatment / what was done','treatments',item.treatments||'')}${area('Exercises or suggestions from physio','exercisesSuggested',item.exercisesSuggested||'')}${area('Restrictions / precautions','restrictions',item.restrictions||'')}${area('Visit notes','notes',item.notes||'')}${photoField('Handouts, photos or PDFs from this visit','photos',item.photos||[],true)}`;
  if(type==='physioExercise') body=`${field('Exercise name','name',item.name||'')}${field('Prescribed by','prescribedBy',item.prescribedBy||state.quickInfo.physiotherapist||'')}${field('Start date','startDate',item.startDate||today(),'date')}${field('Sets','sets',item.sets||'')}${field('Reps','reps',item.reps||'')}${field('Hold time','holdTime',item.holdTime||'','text','placeholder="Example: 10 seconds"')}${field('Times per day','timesPerDay',item.timesPerDay||exerciseTimesPerDay(item)||'','number','min="1" max="24" step="1" placeholder="Example: 3"')}${field('Exercise link / video URL','exerciseUrl',item.exerciseUrl||'','url','placeholder="https://..."')}${selectField('Status','status',['Active','Completed'],item.active===false?'Completed':'Active')}<div class="field span2"><label>Exercise thumbnail image</label><input type="file" name="thumbnail" accept="image/*"><div class="attachmentHint">Choose an image from your gallery. The app will automatically make a small copy for the exercise card.</div><div class="thumbnailSaveStatus" data-thumbnail-status></div>${item.thumbnail?`<div class="exerciseThumbnailPreview"><img src="${attachmentSrc(item.thumbnail)}" alt="Current exercise thumbnail"><span>Current thumbnail</span></div>`:''}</div>${area('Instructions / technique','instructions',item.instructions||'')}${photoField('Exercise sheet, photo or PDF','photos',item.photos||[],true)}`;
@@ -1749,6 +1770,13 @@ async function saveForm(form){
    };
    const ai=state.appointments.findIndex(a=>a.id===appt.id);
    if(ai>=0)state.appointments[ai]={...state.appointments[ai],...appt};else state.appointments.push(appt);
+ }
+ if(type==='missedActivity'){
+   const existing=state.missedActivities.find(x=>x.id===id);
+   obj.photos=existing?.photos||[];
+   const inp=form.elements.photos;
+   if(inp?.files?.length)obj.photos.push(...await filesToAttachmentRefs(inp));
+   obj.amountLost=Number(obj.amountLost||0);
  }
  if(type==='physioExercise'){
    const existing=state.physioExercises.find(x=>x.id===id);
@@ -1902,7 +1930,7 @@ function printReport(config=reportPreset('legal')){
  win.document.write(html);win.document.close();setTimeout(()=>win.focus(),250);
 }
 function render(){
- const views={dashboard,journal,injuries,medications,physio,quickinfo:quickInfo,receipts,appointments,timeline,tasks,notes,reports,settings,more};
+ const views={dashboard,journal,injuries,medications,physio,quickinfo:quickInfo,receipts,missedActivities,appointments,timeline,tasks,notes,reports,settings,more};
  document.getElementById('app').innerHTML=views[page]();
  bind();
 }
