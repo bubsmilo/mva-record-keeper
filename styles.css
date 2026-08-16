@@ -1506,3 +1506,41 @@ input,textarea,select{width:100%;border:1px solid #cfd9e5;border-radius:8px;padd
 .previousInjuryStrip.emptyPrevious span{font-size:9px;text-transform:uppercase;letter-spacing:.05em;color:#7b8999;font-weight:850}
 .previousInjuryStrip.emptyPrevious strong{font-size:10px;color:#8995a3}
 @media(max-width:560px){.previousInjuryHead{align-items:flex-start;flex-direction:column;gap:3px}.previousInjuryHead strong{text-align:left}}
+
+
+/* v2.7.9 true collapsed Journal injury cards */
+.journalMockInjuryCard .dailyInjuryBody{
+  display:grid;
+  grid-template-rows:0fr;
+  opacity:0;
+  padding:0!important;
+  margin:0!important;
+  border:0!important;
+  transition:grid-template-rows .2s ease,opacity .16s ease;
+}
+.journalMockInjuryCard .dailyInjuryBody > *{
+  min-height:0;
+  overflow:hidden;
+}
+.journalMockInjuryCard.is-expanded .dailyInjuryBody{
+  grid-template-rows:1fr;
+  opacity:1;
+  padding-top:10px!important;
+}
+.journalMockInjuryCard.is-expanded .dailyInjuryBody > *{
+  overflow:visible;
+}
+.journalMockInjuryHead{
+  min-height:58px;
+  cursor:pointer;
+}
+.journalCollapsedSnapshot{
+  display:block;
+  margin-top:2px;
+  font-size:10px!important;
+  color:#64798f!important;
+}
+.journalMockInjuryCard:not(.is-expanded) .previousInjuryStrip,
+.journalMockInjuryCard:not(.is-expanded) .dailyInjuryFields{
+  display:none!important;
+}

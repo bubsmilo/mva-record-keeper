@@ -3,7 +3,7 @@
 'use strict';
 
 const KEY='mva-record-keeper-v1';
-const APP_VERSION='2.7.8';
+const APP_VERSION='2.7.9';
 document.title=`MVA Record Keeper v${APP_VERSION}`;
 
 const ATTACHMENT_DB='mva-record-keeper-attachments';
@@ -460,8 +460,11 @@ function dailyInjuryEditor(i,log={}){
  return `<section class="dailyInjuryCard journalMockInjuryCard ${hasSavedData?'is-expanded':''}" data-injury-id="${i.id}">
    <div class="dailyInjuryName journalMockInjuryHead">
      <div class="injuryIcon">🦴</div>
-     <div class="injuryTitleBlock"><strong>${esc(i.name)}</strong>${i.description?`<span>${esc(i.description)}</span>`:''}</div>
-     <span class="updatedToday">${hasSavedData?'Saved entry':'Update today'}</span>
+     <div class="injuryTitleBlock">
+       <strong>${esc(i.name)}</strong>
+       <span class="journalCollapsedSnapshot">${prev?`${prev.pain!==''&&prev.pain!=null?`Previous ${esc(prev.pain)}/10`:'Previous entry'}${prev.change?` · ${esc(prev.change)}`:''}`:(i.description?esc(i.description):'No previous entry')}</span>
+     </div>
+     <span class="updatedToday">${hasSavedData?'Today saved':'Update'}</span>
      <button type="button" class="injuryExpandBtn" data-toggle-injury aria-expanded="${hasSavedData?'true':'false'}" aria-label="${hasSavedData?'Collapse':'Expand'} ${esc(i.name)}">${hasSavedData?'−':'+'}</button>
    </div>
    <div class="dailyInjuryBody">
