@@ -2414,3 +2414,90 @@ input,textarea,select{width:100%;border:1px solid #cfd9e5;border-radius:8px;padd
   text-transform:uppercase;
   letter-spacing:.04em;
 }
+
+
+/* v2.8.30 today's communications summary */
+.todaysCommunicationCard{
+  padding:0;
+  overflow:hidden;
+  margin-bottom:12px;
+}
+.todaysCommunicationHead{
+  display:flex;
+  justify-content:space-between;
+  align-items:center;
+  gap:10px;
+  padding:10px 12px;
+  background:linear-gradient(90deg,#eef6ff,#fff);
+  border-bottom:1px solid #e1e8f0;
+}
+.todaysCommunicationLabel{
+  font-size:8px;
+  font-weight:900;
+  letter-spacing:.08em;
+  color:#0a63c8;
+}
+.todaysCommunicationHead h2{
+  margin:1px 0 0;
+  font-size:14px;
+  color:#173a5d;
+}
+.todaysCommunicationHead p{
+  margin:2px 0 0;
+  font-size:9px;
+  color:#718196;
+}
+.todaysCommunicationCount{
+  min-width:28px;
+  height:28px;
+  padding:0 8px;
+  border-radius:999px;
+  background:#e6f1ff;
+  color:#075bd4;
+  display:grid;
+  place-items:center;
+  font-size:10px;
+  font-weight:900;
+}
+.todaysCommunicationList{
+  display:grid;
+}
+.todaysCommunicationRow{
+  display:grid;
+  grid-template-columns:auto 1fr;
+  gap:9px;
+  align-items:start;
+  padding:8px 11px;
+  border-top:1px solid #edf1f5;
+}
+.todaysCommunicationRow:first-child{
+  border-top:0;
+}
+.todaysCommunicationOrder{
+  width:25px;
+  height:25px;
+  border-radius:8px;
+  background:#f1f6fb;
+  color:#4f6c88;
+  display:grid;
+  place-items:center;
+  font-size:9px;
+  font-weight:900;
+}
+.todaysCommunicationInfo{
+  min-width:0;
+  display:grid;
+  gap:1px;
+}
+.todaysCommunicationInfo strong{
+  font-size:11px;
+  color:#263f58;
+}
+.todaysCommunicationInfo span{
+  font-size:10px;
+  color:#60758a;
+}
+.todaysCommunicationInfo small{
+  font-size:8px;
+  color:#8593a1;
+}

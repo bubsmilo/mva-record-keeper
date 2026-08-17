@@ -3,7 +3,7 @@
 'use strict';
 
 const KEY='mva-record-keeper-v1';
-const APP_VERSION='2.8.29';
+const APP_VERSION='2.8.30';
 document.title=`MVA Record Keeper v${APP_VERSION}`;
 
 const ATTACHMENT_DB='mva-record-keeper-attachments';
@@ -238,7 +238,7 @@ if(!state.communicationNotesMigrated){
   const existing=new Set(state.communications.map(x=>x.id));
   (state.notes||[]).forEach(n=>{
     const id=`legacy-note-${n.id||uid()}`;
-    if(!existing.has(id))state.communications.push({id,date:n.date||today(),time:'',person:'',organization:'',role:'',method:'Other',subject:n.title||'Previous note',reason:'',discussed:n.text||'',theySaid:'',iProvided:'',actions:'',followUpRequired:false,followUpDate:'',attachments:[],legacyNote:true});
+    if(!existing.has(id))state.communications.push({id,date:n.date||today(),time:'',person:'',organization:'',role:'',method:'Other',subject:n.title||'Previous note',reason:'',discussed:n.text||'',theySaid:'',iProvided:'',actions:'',followUpRequired:false,followUpDate:'',attachments:[],enteredAt:n.enteredAt||n.createdAt||new Date().toISOString(),legacyNote:true});
   });
   state.communicationNotesMigrated=true;
   save();
@@ -1508,6 +1508,13 @@ function notes(){
  const entries=[...(state.communications||[])].sort((a,b)=>`${b.date||''}T${b.time||'00:00'}`.localeCompare(`${a.date||''}T${a.time||'00:00'}`));
  const followUps=entries.filter(x=>x.followUpRequired&&x.followUpDate&&!x.followUpDone).sort((a,b)=>a.followUpDate.localeCompare(b.followUpDate));
  const completedFollowUps=entries.filter(x=>x.followUpRequired&&x.followUpDate&&x.followUpDone).sort((a,b)=>b.followUpDate.localeCompare(a.followUpDate));
+ const todayCommunications=(state.communications||[])
+   .filter(x=>x.date===today())
+   .sort((a,b)=>{
+     const av=a.enteredAt||a.id||'';
+     const bv=b.enteredAt||b.id||'';
+     return String(av).localeCompare(String(bv));
+   });
  return appShell(`
  <section class="communicationIntro"><div><h2>Communication Log</h2><p class="muted small">Calls, emails, conversations, paperwork and follow-ups related to your accident.</p></div><button class="btn primary" data-add="communication">+ Add Contact</button></section>
  ${followUps.length?`<section class="card communicationFollowups">
@@ -1530,6 +1537,31 @@ function notes(){
      </div>`).join('')}
    </div></div>
  </section>`:''}
+ ${todayCommunications.length?`<section class="card todaysCommunicationCard">
+   <div class="todaysCommunicationHead">
+     <div>
+       <span class="todaysCommunicationLabel">TODAY</span>
+       <h2>Today's Communications</h2>
+       <p>${fmtDay(today())}</p>
+     </div>
+     <span class="todaysCommunicationCount">${todayCommunications.length}</span>
+   </div>
+   <div class="todaysCommunicationList">
+     ${todayCommunications.map((x,index)=>{
+       const contact=x.person||x.organization||'Contact';
+       const catIcon=x.category==='Medical'?'🩺':x.category==='Rehabilitation'?'🧘':x.category==='Lawyer'?'⚖️':x.category==='Insurance'?'🛡️':'💬';
+       return `<div class="todaysCommunicationRow">
+         <div class="todaysCommunicationOrder">${index+1}</div>
+         <div class="todaysCommunicationInfo">
+           <strong>${esc(contact)}</strong>
+           <span>${esc(x.subject||'No subject entered')}</span>
+           <small>${catIcon} ${esc(x.category||'Other')}${x.time?` · ${esc(x.time)}`:''}</small>
+         </div>
+       </div>`;
+     }).join('')}
+   </div>
+ </section>`:''}
+
  <section class="communicationGroupedList">
  ${entries.length?['Insurance','Medical','Rehabilitation','Lawyer','Other'].map(category=>{
    const group=entries.filter(x=>(x.category||'Other')===category);
@@ -2180,6 +2212,7 @@ async function saveForm(form){
  }
  if(type==='communication'){
    const existing=state.communications.find(x=>x.id===id);
+   obj.enteredAt=existing?.enteredAt||new Date().toISOString();
    obj.attachments=existing?.attachments||[];
    const inp=form.elements.attachments;
    if(inp?.files?.length)obj.attachments.push(...await filesToAttachmentRefs(inp));
