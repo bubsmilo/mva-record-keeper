@@ -3,7 +3,7 @@
 'use strict';
 
 const KEY='mva-record-keeper-v1';
-const APP_VERSION='2.8.27';
+const APP_VERSION='2.8.28';
 document.title=`MVA Record Keeper v${APP_VERSION}`;
 
 const ATTACHMENT_DB='mva-record-keeper-attachments';
@@ -1515,8 +1515,8 @@ function notes(){
    ${followUps.map(x=>`<div class="communicationFollowupRow">
      <button type="button" class="followupCheckBtn" data-complete-followup="${x.id}" aria-label="Mark follow-up complete">✓</button>
      <div class="communicationFollowupDetails">
-       <span class="communicationFollowupContact">${esc(x.person||x.organization||'Contact')}</span>
-       <strong class="communicationFollowupSubject">${esc(x.subject||'No subject entered')}</strong>
+       <strong class="communicationFollowupContact">${esc(x.person||x.organization||'Contact')}</strong>
+       <span class="communicationFollowupSubject">${esc(x.subject||'No subject entered')}</span>
        <small>${fmtDay(x.followUpDate)}</small>
      </div>
    </div>`).join('')}
@@ -1526,7 +1526,7 @@ function notes(){
    <div class="completedFollowupBody"><div class="completedFollowupInner">
      ${completedFollowUps.map(x=>`<div class="completedFollowupRow">
        <button type="button" class="completedFollowupUndo" data-reopen-followup="${x.id}">↶</button>
-       <div><strong>${esc(x.subject||'No subject entered')}</strong><span>${esc(x.person||x.organization||'Contact')} · ${fmtDay(x.followUpDate)}</span></div>
+       <div><strong>${esc(x.person||x.organization||'Contact')}</strong><span>${esc(x.subject||'No subject entered')}</span><small>${fmtDay(x.followUpDate)}</small></div>
      </div>`).join('')}
    </div></div>
  </section>`:''}
@@ -1545,9 +1545,9 @@ function notes(){
        ${group.map(x=>{
          const who=[x.person,x.role].filter(Boolean).join(' · ')||x.organization||'';
          const org=x.person&&x.organization?x.organization:'';
-         const title=x.subject||who||x.category||'Communication';
+         const contact=x.person||x.organization||'Contact';
          const icon=x.method==='Phone'?'📞':x.method==='Email'?'✉️':x.method==='In person'?'🤝':x.method==='Text message'?'💬':x.method==='Letter'?'📄':'🗂️';
-         return `<article class="card communicationCard"><div class="communicationCardHead"><div class="communicationMethodIcon">${icon}</div><div class="communicationHeadText"><div class="communicationDate">${fmt(x.date)}${x.time?` · ${esc(x.time)}`:''}</div><h3>${esc(title)}</h3>${who&&who!==title?`<span class="communicationPerson">${esc(who)}</span>`:''}${org?`<small>${esc(org)}</small>`:''}</div><button type="button" class="communicationToggle" data-toggle-communication aria-expanded="false">+</button></div>
+         return `<article class="card communicationCard"><div class="communicationCardHead"><div class="communicationMethodIcon">${icon}</div><div class="communicationHeadText"><div class="communicationDate">${fmt(x.date)}${x.time?` · ${esc(x.time)}`:''}</div><h3 class="communicationContactPrimary">${esc(contact)}</h3>${x.subject?`<span class="communicationSubjectSecondary">${esc(x.subject)}</span>`:''}${x.role?`<small>${esc(x.role)}${org?` · ${esc(org)}`:''}</small>`:(org?`<small>${esc(org)}</small>`:'')}</div><button type="button" class="communicationToggle" data-toggle-communication aria-expanded="false">+</button></div>
          <div class="communicationExpandable"><div class="communicationInner"><div class="communicationMeta"><div><span>Method</span><strong>${esc(x.method||'Other')}</strong></div>${x.organization?`<div><span>Organization</span><strong>${esc(x.organization)}</strong></div>`:''}</div>
          ${x.reason?`<div class="communicationText"><span>Reason for contact</span><p>${esc(x.reason).replace(/\n/g,'<br>')}</p></div>`:''}${x.discussed?`<div class="communicationText"><span>What was discussed</span><p>${esc(x.discussed).replace(/\n/g,'<br>')}</p></div>`:''}${x.theySaid?`<div class="communicationText"><span>What they told me</span><p>${esc(x.theySaid).replace(/\n/g,'<br>')}</p></div>`:''}${x.iProvided?`<div class="communicationText"><span>What I provided / did</span><p>${esc(x.iProvided).replace(/\n/g,'<br>')}</p></div>`:''}${x.actions?`<div class="communicationText"><span>Action items / next steps</span><p>${esc(x.actions).replace(/\n/g,'<br>')}</p></div>`:''}
          ${x.followUpRequired?`<div class="communicationFollowupBadge ${x.followUpDone?'completed':''}">${x.followUpDone?'✓ Follow-up completed':'⏰ Follow-up'}${x.followUpDate?` · ${fmt(x.followUpDate)}`:''}</div>`:''}${(x.attachments||[]).length?`<div class="photoGrid communicationAttachments">${x.attachments.map((p,ix)=>attachmentPreview(p,{label:`Communication attachment ${ix+1}`})).join('')}</div>`:''}

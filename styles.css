@@ -2337,3 +2337,37 @@ input,textarea,select{width:100%;border:1px solid #cfd9e5;border-radius:8px;padd
 .completedFollowupRow>div{display:grid;gap:1px}.completedFollowupRow strong{font-size:10px;color:#486052}.completedFollowupRow span{font-size:8px;color:#7b8b80}
 .completedFollowupUndo{width:27px;height:27px;border:1px solid #cfdcd2;border-radius:8px;background:#fff;color:#55745e;cursor:pointer}
 .communicationFollowupBadge.completed{background:#eef9f1!important;border-color:#bedec7!important;color:#33784a!important}
+
+/* v2.8.28 Contact-first communication hierarchy */
+.communicationContactPrimary{
+  margin:1px 0 0!important;
+  font-size:13px!important;
+  line-height:1.2!important;
+  font-weight:900!important;
+  color:#203b56!important;
+}
+.communicationSubjectSecondary{
+  display:block;
+  margin-top:2px;
+  font-size:10px;
+  line-height:1.3;
+  font-weight:700;
+  color:#60758a;
+}
+.communicationFollowupContact{
+  font-size:12px!important;
+  line-height:1.2!important;
+  color:#263f58!important;
+  font-weight:900!important;
+}
+.communicationFollowupSubject{
+  display:block;
+  font-size:10px!important;
+  line-height:1.3!important;
+  color:#687b8e!important;
+  font-weight:700!important;
+}
+.completedFollowupRow>div{display:grid;gap:1px}
+.completedFollowupRow strong{font-size:11px!important;color:#40594a!important;font-weight:900}
+.completedFollowupRow span{font-size:9px!important;color:#6f8075!important;font-weight:700}
+.completedFollowupRow small{font-size:8px;color:#89978e}
