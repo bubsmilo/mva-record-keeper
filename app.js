@@ -3,7 +3,7 @@
 'use strict';
 
 const KEY='mva-record-keeper-v1';
-const APP_VERSION='2.8.31';
+const APP_VERSION='2.8.32';
 document.title=`MVA Record Keeper v${APP_VERSION}`;
 
 const ATTACHMENT_DB='mva-record-keeper-attachments';
@@ -1578,10 +1578,10 @@ function notes(){
    });
    const dates=Object.keys(byDate).sort((a,b)=>b.localeCompare(a));
 
-   return `<section class="communicationGroup communicationGroup${category}">
-     <button type="button" class="communicationGroupHead" data-toggle-communication-group aria-expanded="true">
+   return `<section class="communicationGroup communicationGroup${category} is-collapsed">
+     <button type="button" class="communicationGroupHead" data-toggle-communication-group aria-expanded="false">
        <div><span class="communicationGroupIcon">${groupIcon}</span><strong>${category}</strong><small>${group.length} entr${group.length===1?'y':'ies'}</small></div>
-       <span class="communicationGroupToggle">−</span>
+       <span class="communicationGroupToggle">+</span>
      </button>
      <div class="communicationGroupBody">
        <div class="communicationGroupInner">
