@@ -2371,3 +2371,46 @@ input,textarea,select{width:100%;border:1px solid #cfd9e5;border-radius:8px;padd
 .completedFollowupRow strong{font-size:11px!important;color:#40594a!important;font-weight:900}
 .completedFollowupRow span{font-size:9px!important;color:#6f8075!important;font-weight:700}
 .completedFollowupRow small{font-size:8px;color:#89978e}
+
+
+/* v2.8.29 Communication grouped by date within category */
+.communicationDateGroup{
+  border:1px solid #e2e9f0;
+  border-radius:10px;
+  overflow:hidden;
+  background:#fff;
+}
+.communicationDateGroupHead{
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:10px;
+  padding:8px 10px;
+  background:#f7f9fc;
+  border-bottom:1px solid #e5ebf1;
+}
+.communicationDateGroupHead strong{
+  font-size:11px;
+  color:#29445f;
+}
+.communicationDateGroupHead span{
+  font-size:8px;
+  font-weight:850;
+  color:#7a8998;
+  text-transform:uppercase;
+  letter-spacing:.04em;
+}
+.communicationDateGroupList{
+  display:grid;
+  gap:7px;
+  padding:7px;
+}
+.communicationDateGroupList .communicationCard{
+  border-radius:9px;
+}
+.communicationDateGroupList .communicationDate{
+  color:#7a8998;
+  font-size:8px;
+  text-transform:uppercase;
+  letter-spacing:.04em;
+}
