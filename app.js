@@ -3,7 +3,7 @@
 'use strict';
 
 const KEY='mva-record-keeper-v1';
-const APP_VERSION='2.8.25';
+const APP_VERSION='2.8.27';
 document.title=`MVA Record Keeper v${APP_VERSION}`;
 
 const ATTACHMENT_DB='mva-record-keeper-attachments';
@@ -229,6 +229,7 @@ state.reportSettings={...defaults.reportSettings,...(state.reportSettings||{})};
 state.physioSettings={...defaults.physioSettings,...(state.physioSettings||{})};
 
 state.communications=Array.isArray(state.communications)?state.communications:[];
+state.communications.forEach(x=>{if(x.followUpDone===undefined)x.followUpDone=false;});
 state.communicationContacts=state.communicationContacts||{rehabilitation:[],insurance:[]};
 state.communicationContacts.rehabilitation=Array.isArray(state.communicationContacts.rehabilitation)?state.communicationContacts.rehabilitation:[];
 state.communicationContacts.insurance=Array.isArray(state.communicationContacts.insurance)?state.communicationContacts.insurance:[];
@@ -321,6 +322,91 @@ function appShell(content,title,subtitle=''){
   </div>`;
 }
 
+
+function hasRecordBeforeAfter(dates,target){
+ const valid=[...new Set((dates||[]).filter(Boolean))].sort();
+ return valid.some(d=>d<target)&&valid.some(d=>d>target);
+}
+function missingRecordChecks(){
+ const journalDates=[...new Set((state.journal||[]).map(j=>j.date).filter(Boolean))].sort();
+ const issues=[];
+
+ // Injury gaps: only flag when the same injury has an entry before AND after
+ // the journal date, making it a likely missed daily record rather than a guess.
+ (state.injuries||[]).forEach(injury=>{
+   const logs=(state.injuryLogs||[]).filter(l=>l.injuryId===injury.id&&l.date);
+   const dates=logs.map(l=>l.date);
+   journalDates.forEach(date=>{
+     if(logs.some(l=>l.date===date))return;
+     if(hasRecordBeforeAfter(dates,date)){
+       issues.push({
+         type:'injury',
+         date,
+         id:injury.id,
+         title:injury.name||'Injury',
+         detail:'No injury update recorded',
+         icon:'🦴'
+       });
+     }
+   });
+ });
+
+ // Medication gaps: flag only if this medication has dose records on both
+ // sides of the journal date and none on the date itself.
+ (state.medications||[]).forEach(med=>{
+   const doses=(state.doses||[]).filter(d=>d.medicationId===med.id&&d.dateTime);
+   const doseDates=doses.map(d=>localDateKey(d.dateTime));
+   journalDates.forEach(date=>{
+     if(doseDates.includes(date))return;
+     if(hasRecordBeforeAfter(doseDates,date)){
+       issues.push({
+         type:'medication',
+         date,
+         id:med.id,
+         title:med.name||'Medication',
+         detail:'No medication record for this day',
+         icon:'💊'
+       });
+     }
+   });
+ });
+
+ return issues.sort((a,b)=>(b.date||'').localeCompare(a.date||'')||a.type.localeCompare(b.type));
+}
+
+function openMissingRecord(issueType,id,date){
+ if(issueType==='injury'){
+   page='journal';modal=null;render();
+   setTimeout(()=>{
+     loadJournalDateContext(date);
+     const card=document.querySelector(`[data-injury-id="${id}"]`);
+     if(card&&!card.classList.contains('is-expanded')){
+       card.classList.add('is-expanded');
+       const btn=card.querySelector('[data-toggle-injury]');
+       if(btn){btn.textContent='−';btn.setAttribute('aria-expanded','true')}
+     }
+     card?.scrollIntoView({behavior:'smooth',block:'center'});
+   },0);
+   return;
+ }
+ if(issueType==='medication'){
+   page='medications';modal=null;render();
+   setTimeout(()=>{
+     const card=document.querySelector(`[data-medication-card="${id}"]`);
+     if(card){
+       if(!card.classList.contains('is-expanded')){
+         card.classList.add('is-expanded');
+         const btn=card.querySelector('[data-toggle-medication]');
+         if(btn){btn.textContent='−';btn.setAttribute('aria-expanded','true')}
+       }
+       const dateInput=card.querySelector(`[data-dose-date="${id}"]`);
+       if(dateInput)dateInput.value=date;
+       card.scrollIntoView({behavior:'smooth',block:'center'});
+     }
+   },0);
+ }
+}
+
 function dashboard(){
  const upcomingPhysio=[...(state.physioVisits||[])]
    .filter(v=>v.status!=='Completed'&&v.status!=='Cancelled'&&v.date>=today())
@@ -340,6 +426,7 @@ function dashboard(){
  const activeMeds=(state.medications||[]).filter(m=>m.active!==false);
  const openTasks=(state.tasks||[]).filter(t=>!t.done);
  const recentInjuryLogs=[...(state.injuryLogs||[])].sort((a,b)=>(b.date||'').localeCompare(a.date||'')).slice(0,3);
+ const missingIssues=missingRecordChecks();
 
  const appointmentCard=(kind,item,icon,emptyText,nav)=>{
    const label=kind==='physio'?'Next Physio':'Next Medical';
@@ -409,6 +496,22 @@ function dashboard(){
        </button>
      </div>
    </section>
+
+   ${missingIssues.length?`<section class="card recordAuditCard">
+     <div class="recordAuditHead">
+       <div><span class="recordAuditBadge">CHECK</span><h2>Needs Attention</h2><p>${missingIssues.length} possible missing record${missingIssues.length===1?'':'s'} found between dates you already documented.</p></div>
+       <button type="button" class="recordAuditToggle" data-toggle-record-audit aria-expanded="true">−</button>
+     </div>
+     <div class="recordAuditBody"><div class="recordAuditInner">
+       ${missingIssues.slice(0,12).map(issue=>`<div class="recordAuditRow">
+         <div class="recordAuditIcon">${issue.icon}</div>
+         <div class="recordAuditInfo"><strong>${esc(issue.title)}</strong><span>${fmtDay(issue.date)} · ${esc(issue.detail)}</span></div>
+         <button type="button" class="recordAuditFix" data-open-missing-record="${issue.type}:${issue.id}:${issue.date}">Check</button>
+       </div>`).join('')}
+       ${missingIssues.length>12?`<div class="recordAuditMore">+ ${missingIssues.length-12} more possible gaps</div>`:''}
+       <div class="recordAuditHint">These are suggestions only. The app flags gaps where the same item has records both before and after the date.</div>
+     </div></div>
+   </section>`:''}
 
    <section class="dashboardAppointmentsGrid">
      ${[
@@ -1403,10 +1506,30 @@ function tasks(){
 
 function notes(){
  const entries=[...(state.communications||[])].sort((a,b)=>`${b.date||''}T${b.time||'00:00'}`.localeCompare(`${a.date||''}T${a.time||'00:00'}`));
- const followUps=entries.filter(x=>x.followUpRequired&&x.followUpDate).sort((a,b)=>a.followUpDate.localeCompare(b.followUpDate));
+ const followUps=entries.filter(x=>x.followUpRequired&&x.followUpDate&&!x.followUpDone).sort((a,b)=>a.followUpDate.localeCompare(b.followUpDate));
+ const completedFollowUps=entries.filter(x=>x.followUpRequired&&x.followUpDate&&x.followUpDone).sort((a,b)=>b.followUpDate.localeCompare(a.followUpDate));
  return appShell(`
  <section class="communicationIntro"><div><h2>Communication Log</h2><p class="muted small">Calls, emails, conversations, paperwork and follow-ups related to your accident.</p></div><button class="btn primary" data-add="communication">+ Add Contact</button></section>
- ${followUps.length?`<section class="card communicationFollowups"><div class="communicationFollowupTitle">Follow-ups</div>${followUps.map(x=>`<div class="communicationFollowupRow"><strong>${fmt(x.followUpDate)}</strong><div class="communicationFollowupDetails"><span class="communicationFollowupContact">${esc(x.person||x.organization||'Contact')}</span>${x.subject?`<small>${esc(x.subject)}</small>`:''}</div></div>`).join('')}</section>`:''}
+ ${followUps.length?`<section class="card communicationFollowups">
+   <div class="communicationFollowupTitle">Follow-ups <span>${followUps.length}</span></div>
+   ${followUps.map(x=>`<div class="communicationFollowupRow">
+     <button type="button" class="followupCheckBtn" data-complete-followup="${x.id}" aria-label="Mark follow-up complete">✓</button>
+     <div class="communicationFollowupDetails">
+       <span class="communicationFollowupContact">${esc(x.person||x.organization||'Contact')}</span>
+       <strong class="communicationFollowupSubject">${esc(x.subject||'No subject entered')}</strong>
+       <small>${fmtDay(x.followUpDate)}</small>
+     </div>
+   </div>`).join('')}
+ </section>`:''}
+ ${completedFollowUps.length?`<section class="completedFollowupWrap">
+   <button type="button" class="completedFollowupToggle" data-toggle-completed-followups aria-expanded="false">✓ ${completedFollowUps.length} completed follow-up${completedFollowUps.length===1?'':'s'} <span>+</span></button>
+   <div class="completedFollowupBody"><div class="completedFollowupInner">
+     ${completedFollowUps.map(x=>`<div class="completedFollowupRow">
+       <button type="button" class="completedFollowupUndo" data-reopen-followup="${x.id}">↶</button>
+       <div><strong>${esc(x.subject||'No subject entered')}</strong><span>${esc(x.person||x.organization||'Contact')} · ${fmtDay(x.followUpDate)}</span></div>
+     </div>`).join('')}
+   </div></div>
+ </section>`:''}
  <section class="communicationGroupedList">
  ${entries.length?['Insurance','Medical','Rehabilitation','Lawyer','Other'].map(category=>{
    const group=entries.filter(x=>(x.category||'Other')===category);
@@ -1427,7 +1550,7 @@ function notes(){
          return `<article class="card communicationCard"><div class="communicationCardHead"><div class="communicationMethodIcon">${icon}</div><div class="communicationHeadText"><div class="communicationDate">${fmt(x.date)}${x.time?` · ${esc(x.time)}`:''}</div><h3>${esc(title)}</h3>${who&&who!==title?`<span class="communicationPerson">${esc(who)}</span>`:''}${org?`<small>${esc(org)}</small>`:''}</div><button type="button" class="communicationToggle" data-toggle-communication aria-expanded="false">+</button></div>
          <div class="communicationExpandable"><div class="communicationInner"><div class="communicationMeta"><div><span>Method</span><strong>${esc(x.method||'Other')}</strong></div>${x.organization?`<div><span>Organization</span><strong>${esc(x.organization)}</strong></div>`:''}</div>
          ${x.reason?`<div class="communicationText"><span>Reason for contact</span><p>${esc(x.reason).replace(/\n/g,'<br>')}</p></div>`:''}${x.discussed?`<div class="communicationText"><span>What was discussed</span><p>${esc(x.discussed).replace(/\n/g,'<br>')}</p></div>`:''}${x.theySaid?`<div class="communicationText"><span>What they told me</span><p>${esc(x.theySaid).replace(/\n/g,'<br>')}</p></div>`:''}${x.iProvided?`<div class="communicationText"><span>What I provided / did</span><p>${esc(x.iProvided).replace(/\n/g,'<br>')}</p></div>`:''}${x.actions?`<div class="communicationText"><span>Action items / next steps</span><p>${esc(x.actions).replace(/\n/g,'<br>')}</p></div>`:''}
-         ${x.followUpRequired?`<div class="communicationFollowupBadge">⏰ Follow-up${x.followUpDate?` · ${fmt(x.followUpDate)}`:''}</div>`:''}${(x.attachments||[]).length?`<div class="photoGrid communicationAttachments">${x.attachments.map((p,ix)=>attachmentPreview(p,{label:`Communication attachment ${ix+1}`})).join('')}</div>`:''}
+         ${x.followUpRequired?`<div class="communicationFollowupBadge ${x.followUpDone?'completed':''}">${x.followUpDone?'✓ Follow-up completed':'⏰ Follow-up'}${x.followUpDate?` · ${fmt(x.followUpDate)}`:''}</div>`:''}${(x.attachments||[]).length?`<div class="photoGrid communicationAttachments">${x.attachments.map((p,ix)=>attachmentPreview(p,{label:`Communication attachment ${ix+1}`})).join('')}</div>`:''}
          <div class="actions communicationActions"><button class="iconBtn communicationContinueBtn" data-continue-communication="${x.id}">↪ Follow-up</button><button class="iconBtn" data-edit="communication" data-id="${x.id}">Edit</button><button class="iconBtn" data-delete="communication" data-id="${x.id}">Delete</button></div></div></div></article>`;
        }).join('')}
        </div>
@@ -1893,6 +2016,7 @@ function openForm(type,id){
    ${area('Action items / next steps','actions',item.actions||'')}
    ${selectField('Follow-up required?','followUpRequired',['No','Yes'],item.followUpRequired?'Yes':'No')}
    ${field('Follow-up date','followUpDate',item.followUpDate||'','date')}
+   <input type="hidden" name="followUpDone" value="${item.followUpDone?'true':'false'}">
    ${photoField('Attachments / screenshots / PDFs','attachments',item.attachments||[],true)}`;
  }
  if(type==='note') body=`${field('Date','date',item.date||today(),'date')}${field('Title','title',item.title||'')}${area('Note','text',item.text||'')}`;
@@ -2044,6 +2168,8 @@ async function saveForm(form){
    const inp=form.elements.attachments;
    if(inp?.files?.length)obj.attachments.push(...await filesToAttachmentRefs(inp));
    obj.followUpRequired=obj.followUpRequired==='Yes';
+   obj.followUpDone=obj.followUpDone==='true';
+   if(!obj.followUpRequired)obj.followUpDone=false;
 
    if(obj.category==='Medical'){
      obj.person=obj.medicalProvider||'';
@@ -2321,6 +2447,7 @@ function continueCommunication(id){
    actions:'',
    followUpRequired:false,
    followUpDate:'',
+   followUpDone:false,
    attachments:[],
    continuedFrom:id,
 
@@ -2349,6 +2476,43 @@ function continueCommunication(id){
 }
 function bind(){
  document.querySelectorAll('[data-nav]').forEach(b=>b.onclick=()=>nav(b.dataset.nav));
+
+ document.querySelectorAll('[data-complete-followup]').forEach(btn=>btn.onclick=()=>{
+   const item=(state.communications||[]).find(x=>x.id===btn.dataset.completeFollowup);
+   if(!item)return;
+   item.followUpDone=true;
+   save();render();toast('Follow-up completed');
+ });
+ document.querySelectorAll('[data-reopen-followup]').forEach(btn=>btn.onclick=()=>{
+   const item=(state.communications||[]).find(x=>x.id===btn.dataset.reopenFollowup);
+   if(!item)return;
+   item.followUpDone=false;
+   save();render();toast('Follow-up reopened');
+ });
+ const completedFollowupToggle=document.querySelector('[data-toggle-completed-followups]');
+ if(completedFollowupToggle)completedFollowupToggle.onclick=()=>{
+   const wrap=completedFollowupToggle.closest('.completedFollowupWrap');
+   const open=wrap?.classList.toggle('is-open');
+   completedFollowupToggle.setAttribute('aria-expanded',String(!!open));
+   const icon=completedFollowupToggle.querySelector('span');
+   if(icon)icon.textContent=open?'−':'+';
+ };
+
+ document.querySelectorAll('[data-open-missing-record]').forEach(btn=>btn.onclick=()=>{
+   const raw=btn.dataset.openMissingRecord||'';
+   const first=raw.indexOf(':'),last=raw.lastIndexOf(':');
+   if(first<0||last<=first)return;
+   openMissingRecord(raw.slice(0,first),raw.slice(first+1,last),raw.slice(last+1));
+ });
+ const auditToggle=document.querySelector('[data-toggle-record-audit]');
+ if(auditToggle)auditToggle.onclick=()=>{
+   const card=auditToggle.closest('.recordAuditCard');
+   const collapsed=card?.classList.toggle('is-collapsed');
+   auditToggle.textContent=collapsed?'+':'−';
+   auditToggle.setAttribute('aria-expanded',String(!collapsed));
+ };
+
+
  const openQuickInfoEdit=document.getElementById('openQuickInfoEdit');
  const quickInfoBackdrop=document.getElementById('quickInfoEditBackdrop');
  if(openQuickInfoEdit&&quickInfoBackdrop)openQuickInfoEdit.onclick=()=>quickInfoBackdrop.classList.remove('hidden');

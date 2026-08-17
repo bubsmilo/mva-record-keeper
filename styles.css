@@ -2297,3 +2297,43 @@ input,textarea,select{width:100%;border:1px solid #cfd9e5;border-radius:8px;padd
   background:#f1f8ff;
   font-weight:800;
 }
+
+/* v2.8.26 smart missing-record checker */
+.recordAuditCard{padding:0;overflow:hidden;border-color:#ead9ae;background:#fffdf7}
+.recordAuditHead{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:11px 12px;background:linear-gradient(90deg,#fff8e7,#fff)}
+.recordAuditHead h2{margin:2px 0 0;font-size:15px;color:#5b4518}.recordAuditHead p{margin:2px 0 0;font-size:9px;color:#7d6c48}
+.recordAuditBadge{font-size:8px;font-weight:900;letter-spacing:.08em;color:#9a6500}
+.recordAuditToggle{width:30px;height:30px;border:1px solid #dcc896;background:#fff;border-radius:8px;color:#8a5b00;font-size:18px}
+.recordAuditBody{display:grid;grid-template-rows:1fr;opacity:1;transition:grid-template-rows .18s ease,opacity .14s ease}.recordAuditInner{min-height:0;overflow:visible}
+.recordAuditCard.is-collapsed .recordAuditBody{grid-template-rows:0fr;opacity:0}.recordAuditCard.is-collapsed .recordAuditInner{overflow:hidden}
+.recordAuditRow{display:grid;grid-template-columns:auto 1fr auto;align-items:center;gap:9px;padding:8px 11px;border-top:1px solid #f0e8d4}
+.recordAuditIcon{width:31px;height:31px;border-radius:9px;background:#fff6df;display:grid;place-items:center;font-size:15px}
+.recordAuditInfo{min-width:0;display:grid;gap:1px}.recordAuditInfo strong{font-size:10px;color:#33495f}.recordAuditInfo span{font-size:9px;color:#778697}
+.recordAuditFix{border:1px solid #d5bd82;background:#fff;color:#805700;border-radius:8px;padding:6px 8px;font-size:9px;font-weight:850}
+.recordAuditMore,.recordAuditHint{padding:7px 11px;border-top:1px solid #f0e8d4;font-size:9px;color:#806e49}.recordAuditHint{background:#fffaf0}
+
+/* v2.8.27 actionable Communication follow-ups */
+.communicationFollowupTitle{display:flex;align-items:center;gap:6px}
+.communicationFollowupTitle span{display:inline-grid;place-items:center;min-width:20px;height:20px;border-radius:999px;background:#fff1cf;color:#8a5a00;font-size:9px}
+.communicationFollowupRow{display:grid!important;grid-template-columns:auto minmax(0,1fr);gap:9px!important;align-items:center!important}
+.followupCheckBtn{
+  width:30px;height:30px;border-radius:9px;border:1px solid #a8ccb7;background:#f0fbf4;color:#207443;
+  font-size:15px;font-weight:900;cursor:pointer;
+}
+.communicationFollowupDetails{display:grid!important;gap:1px}
+.communicationFollowupContact{font-size:9px!important;color:#64788c!important;font-weight:750!important}
+.communicationFollowupSubject{font-size:11px;color:#263f58;line-height:1.25}
+.communicationFollowupDetails small{font-size:9px;color:#9a6500!important}
+.completedFollowupWrap{margin:-4px 0 12px}
+.completedFollowupToggle{
+  width:100%;border:1px solid #dce6df;background:#f7fbf8;color:#52705e;border-radius:9px;
+  padding:7px 9px;display:flex;justify-content:space-between;align-items:center;font-size:9px;font-weight:800;cursor:pointer;
+}
+.completedFollowupBody{display:grid;grid-template-rows:0fr;opacity:0;transition:grid-template-rows .18s ease,opacity .14s ease}
+.completedFollowupInner{min-height:0;overflow:hidden}
+.completedFollowupWrap.is-open .completedFollowupBody{grid-template-rows:1fr;opacity:1}
+.completedFollowupWrap.is-open .completedFollowupInner{padding-top:5px}
+.completedFollowupRow{display:grid;grid-template-columns:auto 1fr;gap:8px;align-items:center;padding:7px 9px;border:1px solid #e2e9e4;border-radius:8px;margin-top:5px;background:#fbfdfb}
+.completedFollowupRow>div{display:grid;gap:1px}.completedFollowupRow strong{font-size:10px;color:#486052}.completedFollowupRow span{font-size:8px;color:#7b8b80}
+.completedFollowupUndo{width:27px;height:27px;border:1px solid #cfdcd2;border-radius:8px;background:#fff;color:#55745e;cursor:pointer}
+.communicationFollowupBadge.completed{background:#eef9f1!important;border-color:#bedec7!important;color:#33784a!important}
