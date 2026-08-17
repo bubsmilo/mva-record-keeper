@@ -3,7 +3,7 @@
 'use strict';
 
 const KEY='mva-record-keeper-v1';
-const APP_VERSION='2.8.30';
+const APP_VERSION='2.8.31';
 document.title=`MVA Record Keeper v${APP_VERSION}`;
 
 const ATTACHMENT_DB='mva-record-keeper-attachments';
@@ -1549,13 +1549,16 @@ function notes(){
    <div class="todaysCommunicationList">
      ${todayCommunications.map((x,index)=>{
        const contact=x.person||x.organization||'Contact';
-       const catIcon=x.category==='Medical'?'🩺':x.category==='Rehabilitation'?'🧘':x.category==='Lawyer'?'⚖️':x.category==='Insurance'?'🛡️':'💬';
+       const methodIcon=x.method==='Phone'?'📞':x.method==='Email'?'✉️':x.method==='In person'?'🤝':x.method==='Text message'?'💬':x.method==='Letter'?'📄':x.method==='Portal / app'?'📱':'🗂️';
+       const preview=(x.discussed||x.reason||x.theySaid||'').trim();
+       const shortPreview=preview.length>135?`${preview.slice(0,132).trim()}…`:preview;
        return `<div class="todaysCommunicationRow">
-         <div class="todaysCommunicationOrder">${index+1}</div>
+         <div class="todaysCommunicationMethod">${methodIcon}</div>
          <div class="todaysCommunicationInfo">
-           <strong>${esc(contact)}</strong>
-           <span>${esc(x.subject||'No subject entered')}</span>
-           <small>${catIcon} ${esc(x.category||'Other')}${x.time?` · ${esc(x.time)}`:''}</small>
+           <div class="todaysCommunicationTopline"><strong>${esc(contact)}</strong><span class="todaysCommunicationSequence">#${index+1}</span></div>
+           <span class="todaysCommunicationSubject">${esc(x.subject||'No subject entered')}</span>
+           ${shortPreview?`<p class="todaysCommunicationPreview">${esc(shortPreview)}</p>`:''}
+           <small>${esc(x.method||'Other')}${x.time?` · ${esc(x.time)}`:''}</small>
          </div>
        </div>`;
      }).join('')}

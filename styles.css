@@ -2501,3 +2501,23 @@ input,textarea,select{width:100%;border:1px solid #cfd9e5;border-radius:8px;padd
   font-size:8px;
   color:#8593a1;
 }
+
+/* v2.8.31 richer Today's Communications preview */
+.todaysCommunicationMethod{
+  width:31px;height:31px;border-radius:9px;background:#f1f6fb;
+  display:grid;place-items:center;font-size:15px;
+}
+.todaysCommunicationTopline{display:flex;align-items:center;justify-content:space-between;gap:8px}
+.todaysCommunicationTopline strong{font-size:11px;color:#263f58}
+.todaysCommunicationSequence{font-size:8px!important;color:#91a0ae!important;font-weight:850}
+.todaysCommunicationSubject{font-size:10px!important;color:#60758a!important;font-weight:750}
+.todaysCommunicationPreview{
+  margin:3px 0 1px;
+  font-size:9px;
+  line-height:1.35;
+  color:#4c6175;
+  background:#f7f9fb;
+  border-left:2px solid #c9d8e6;
+  padding:4px 6px;
+  border-radius:0 6px 6px 0;
+}
